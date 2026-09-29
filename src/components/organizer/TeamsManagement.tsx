@@ -117,7 +117,7 @@ export const TeamsManagement: React.FC = () => {
               />
             </div>
 
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
                 Short Code (3-4 Letters)
               </label>
@@ -127,19 +127,6 @@ export const TeamsManagement: React.FC = () => {
                 maxLength={4}
                 value={shortName}
                 onChange={(e) => setShortName(e.target.value.toUpperCase())}
-                className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-sport-orange bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                Seed Number
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={seed}
-                onChange={(e) => setSeed(Number(e.target.value))}
                 className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-sport-orange bg-white"
               />
             </div>
