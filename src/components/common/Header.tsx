@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateModal }) => {
         {/* Logo and Brand */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-glow-orange cursor-pointer" onClick={() => setViewMode('organizer')}>
-            <Trophy className="w-5 h-5 text-white" />
+            <img src="/assests/logo-small.png" alt="SportIQ Logo" className="w-7 h-7 object-contain drop-shadow-md" />
           </div>
           <div>
             <div className="flex items-center gap-2">

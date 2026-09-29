@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch } from 'firebase/firestore';
+import { db } from '../firebase';
 import {
   Tournament,
   Match,
@@ -8,7 +10,7 @@ import {
   MatchEvent,
   AuditLog,
 } from '../types';
-import { INITIAL_TOURNAMENTS, INITIAL_VENUES, createThrowballDemoTournament } from '../services/mockData';
+import { INITIAL_VENUES, createThrowballDemoTournament } from '../services/mockData';
 import { advanceWinnerInBracket, generateKnockoutFixtures, generateRoundRobinFixtures, generateGroupKnockoutFixtures } from '../engines/tournamentEngine';
 import { soundEffects } from '../engines/audioEngine';
 import confetti from 'canvas-confetti';
@@ -66,37 +68,29 @@ interface TournamentContextType {
 const TournamentContext = createContext<TournamentContextType | undefined>(undefined);
 
 export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [tournaments, setTournaments] = useState<Tournament[]>(() => {
-    // Check if user has saved data in v3
-    const saved = localStorage.getItem('sportiq_tournaments_v3');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {
-        console.error('Failed to parse saved tournaments', e);
-      }
-    }
-    // Start clean with empty tournaments list by default
-    return [];
-  });
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const tournamentsRef = useRef<Tournament[]>([]);
 
-  const [activeTournamentId, setActiveTournamentIdState] = useState<string>(
-    tournaments[0]?.id || ''
-  );
-  const [activeMatchId, setActiveMatchId] = useState<string | null>(
-    tournaments[0]?.fixtures?.find((m) => m.status === 'LIVE')?.id || tournaments[0]?.fixtures?.[0]?.id || null
-  );
+  const [activeTournamentId, setActiveTournamentIdState] = useState<string>('');
+  const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<AppViewMode>('organizer');
   const [organizerTab, setOrganizerTab] = useState<OrganizerTab>('overview');
   const [toolsTab, setToolsTab] = useState<ToolsTab>('coin-toss');
   const [publicSlug, setPublicSlug] = useState<string | null>(null);
 
-  // Sync to local storage
   useEffect(() => {
-    localStorage.setItem('sportiq_tournaments_v3', JSON.stringify(tournaments));
+    tournamentsRef.current = tournaments;
   }, [tournaments]);
+
+  // Sync with Firestore
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'tournaments'), (snapshot) => {
+      const data = snapshot.docs.map(doc => doc.data() as Tournament);
+      setTournaments(data);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Keep active tournament in sync
   useEffect(() => {
@@ -121,7 +115,18 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  const createTournament = (data: Partial<Tournament>) => {
+  const updateTournamentDoc = async (tournamentId: string, updater: (t: Tournament) => Tournament) => {
+    const t = tournamentsRef.current.find(x => x.id === tournamentId);
+    if (!t) return;
+    const updated = updater(t);
+    try {
+      await setDoc(doc(db, 'tournaments', tournamentId), updated);
+    } catch (error) {
+      console.error("Error updating document: ", error);
+    }
+  };
+
+  const createTournament = async (data: Partial<Tournament>) => {
     const id = `t-${Date.now()}`;
     const slug = data.slug || (data.name ? data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : `tour-${Date.now()}`);
     const newTournament: Tournament = {
@@ -161,56 +166,76 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       fixtures: [],
     };
 
-    setTournaments((prev) => [newTournament, ...prev]);
-    setActiveTournamentId(id);
-    setOrganizerTab('teams');
-    soundEffects.playCelebration();
+    try {
+      await setDoc(doc(db, 'tournaments', id), newTournament);
+      setActiveTournamentId(id);
+      setOrganizerTab('teams');
+      soundEffects.playCelebration();
+    } catch (error) {
+      console.error("Error creating tournament", error);
+    }
   };
 
-  const deleteTournament = (tournamentId: string) => {
-    const remaining = tournaments.filter((t) => t.id !== tournamentId);
-    setTournaments(remaining);
-    if (remaining.length > 0) {
-      setActiveTournamentId(remaining[0].id);
-    } else {
+  const deleteTournament = async (tournamentId: string) => {
+    try {
+      await deleteDoc(doc(db, 'tournaments', tournamentId));
+      const remaining = tournamentsRef.current.filter((t) => t.id !== tournamentId);
+      if (remaining.length > 0) {
+        setActiveTournamentId(remaining[0].id);
+      } else {
+        setActiveTournamentIdState('');
+        setActiveMatchId(null);
+      }
+      soundEffects.playWhistle();
+    } catch (error) {
+      console.error("Error deleting tournament", error);
+    }
+  };
+
+  const loadThrowballDemo = async () => {
+    try {
+      const demo = createThrowballDemoTournament();
+      await setDoc(doc(db, 'tournaments', demo.id), demo);
+      setActiveTournamentId(demo.id);
+      soundEffects.playCelebration();
+      confetti({ particleCount: 70, spread: 70 });
+    } catch (error) {
+      console.error("Error loading demo", error);
+    }
+  };
+
+  const clearAllData = async () => {
+    try {
+      localStorage.removeItem('sportiq_tournaments_v1');
+      localStorage.removeItem('sportiq_tournaments_v2');
+      localStorage.removeItem('sportiq_tournaments_v3');
+      
+      const snapshot = await getDocs(collection(db, 'tournaments'));
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((d) => {
+        batch.delete(d.ref);
+      });
+      await batch.commit();
+      
       setActiveTournamentIdState('');
       setActiveMatchId(null);
+      soundEffects.playWhistle();
+    } catch (error) {
+      console.error("Error clearing data", error);
     }
-    soundEffects.playWhistle();
-  };
-
-  const loadThrowballDemo = () => {
-    const demo = createThrowballDemoTournament();
-    setTournaments((prev) => [demo, ...prev.filter((t) => t.id !== demo.id)]);
-    setActiveTournamentId(demo.id);
-    soundEffects.playCelebration();
-    confetti({ particleCount: 70, spread: 70 });
-  };
-
-  const clearAllData = () => {
-    localStorage.removeItem('sportiq_tournaments_v1');
-    localStorage.removeItem('sportiq_tournaments_v2');
-    localStorage.removeItem('sportiq_tournaments_v3');
-    setTournaments([]);
-    setActiveTournamentIdState('');
-    setActiveMatchId(null);
-    soundEffects.playWhistle();
   };
 
   const updateTournamentStatus = (tournamentId: string, status: TournamentStatus) => {
-    setTournaments((prev) =>
-      prev.map((t) => {
-        if (t.id !== tournamentId) return t;
-        const newLog: AuditLog = {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          action: 'STATUS_CHANGE',
-          user: 'Organizer',
-          details: `Tournament status updated from ${t.status} to ${status}`,
-        };
-        return { ...t, status, auditLogs: [newLog, ...t.auditLogs] };
-      })
-    );
+    updateTournamentDoc(tournamentId, (t) => {
+      const newLog: AuditLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        action: 'STATUS_CHANGE',
+        user: 'Organizer',
+        details: `Tournament status updated from ${t.status} to ${status}`,
+      };
+      return { ...t, status, auditLogs: [newLog, ...t.auditLogs] };
+    });
   };
 
   const addTeamToTournament = (tournamentId: string, teamData: Partial<Team>) => {
@@ -225,61 +250,52 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       players: teamData.players || [],
     };
 
-    setTournaments((prev) =>
-      prev.map((t) => {
-        if (t.id !== tournamentId) return t;
-        return {
-          ...t,
-          status: t.status === 'DRAFT' ? 'TEAMS_ADDED' : t.status,
-          teams: [...t.teams, newTeam],
-        };
-      })
-    );
+    updateTournamentDoc(tournamentId, (t) => {
+      return {
+        ...t,
+        status: t.status === 'DRAFT' ? 'TEAMS_ADDED' : t.status,
+        teams: [...t.teams, newTeam],
+      };
+    });
   };
 
   const removeTeamFromTournament = (tournamentId: string, teamId: string) => {
-    setTournaments((prev) =>
-      prev.map((t) => {
-        if (t.id !== tournamentId) return t;
-        return {
-          ...t,
-          teams: t.teams.filter((item) => item.id !== teamId),
-        };
-      })
-    );
+    updateTournamentDoc(tournamentId, (t) => {
+      return {
+        ...t,
+        teams: t.teams.filter((item) => item.id !== teamId),
+      };
+    });
   };
 
   const generateTournamentFixtures = (tournamentId: string) => {
-    setTournaments((prev) =>
-      prev.map((t) => {
-        if (t.id !== tournamentId) return t;
-        let generated: Match[] = [];
-        if (t.format === 'KNOCKOUT') {
-          generated = generateKnockoutFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
-        } else if (t.format === 'ROUND_ROBIN') {
-          generated = generateRoundRobinFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
-        } else if (t.format === 'GROUP_KNOCKOUT') {
-          generated = generateGroupKnockoutFixtures(t.id, t.teams, t.groups, t.startDate, t.venues[0]?.id);
-        } else {
-          generated = generateKnockoutFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
-        }
+    updateTournamentDoc(tournamentId, (t) => {
+      let generated: Match[] = [];
+      if (t.format === 'KNOCKOUT') {
+        generated = generateKnockoutFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
+      } else if (t.format === 'ROUND_ROBIN') {
+        generated = generateRoundRobinFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
+      } else if (t.format === 'GROUP_KNOCKOUT') {
+        generated = generateGroupKnockoutFixtures(t.id, t.teams, t.groups, t.startDate, t.venues[0]?.id);
+      } else {
+        generated = generateKnockoutFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
+      }
 
-        const newLog: AuditLog = {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          action: 'FIXTURES_GENERATED',
-          user: 'Tournament Engine',
-          details: `Generated ${generated.length} fixtures for format ${t.format}`,
-        };
+      const newLog: AuditLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        action: 'FIXTURES_GENERATED',
+        user: 'Tournament Engine',
+        details: `Generated ${generated.length} fixtures for format ${t.format}`,
+      };
 
-        return {
-          ...t,
-          fixtures: generated,
-          status: 'FIXTURES_GENERATED',
-          auditLogs: [newLog, ...t.auditLogs],
-        };
-      })
-    );
+      return {
+        ...t,
+        fixtures: generated,
+        status: 'FIXTURES_GENERATED',
+        auditLogs: [newLog, ...t.auditLogs],
+      };
+    });
     soundEffects.playCelebration();
   };
 
@@ -290,79 +306,79 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       timestamp: new Date().toLocaleTimeString([], { minute: '2-digit', second: '2-digit' }),
     };
 
-    setTournaments((prev) =>
-      prev.map((t) => {
-        const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
-        if (matchIndex === -1) return t;
+    const tIndex = tournamentsRef.current.findIndex(t => t.fixtures.some(m => m.id === matchId));
+    if (tIndex === -1) return;
+    const tournamentId = tournamentsRef.current[tIndex].id;
 
-        const currentMatch = t.fixtures[matchIndex];
-        const isHome = currentMatch.homeTeamId === event.teamId;
+    updateTournamentDoc(tournamentId, (t) => {
+      const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
+      if (matchIndex === -1) return t;
 
-        let newHomeScore = currentMatch.homeScore;
-        let newAwayScore = currentMatch.awayScore;
+      const currentMatch = t.fixtures[matchIndex];
+      const isHome = currentMatch.homeTeamId === event.teamId;
 
-        // Auto point increment based on event type
-        // Standard positive points
-        if (
-          event.eventType === 'GOAL' ||
-          event.eventType === 'PENALTY_GOAL' ||
-          event.eventType === 'POINT' ||
-          event.eventType === 'TOUCH_POINT' ||
-          event.eventType === 'SPIKE_KILL' ||
-          event.eventType === 'ACE' ||
-          event.eventType === 'ACE_SERVICE' ||
-          event.eventType === 'JUMP_THROW' ||
-          event.eventType === 'TOUCH_OUT' ||
-          event.eventType === 'SMASH_WINNER'
-        ) {
-          if (isHome) newHomeScore += 1;
-          else newAwayScore += 1;
-        } else if (
-          // Faults award point to opposing team!
-          event.eventType === 'CATCH_DROP' ||
-          event.eventType === 'DOUBLE_TOUCH' ||
-          event.eventType === 'NET_TOUCH' ||
-          event.eventType === 'UNFORCED_ERROR' ||
-          event.eventType === 'OPPONENT_ERROR'
-        ) {
-          if (isHome) newAwayScore += 1;
-          else newHomeScore += 1;
-        } else if (event.eventType === 'SINGLE' || event.eventType === 'WIDE' || event.eventType === 'NO_BALL') {
-          if (isHome) newHomeScore += 1;
-          else newAwayScore += 1;
-        } else if (event.eventType === 'TWO_POINTER' || event.eventType === 'DOUBLE' || event.eventType === 'SUPER_TACKLE') {
-          if (isHome) newHomeScore += 2;
-          else newAwayScore += 2;
-        } else if (event.eventType === 'THREE_POINTER' || event.eventType === 'SUPER_RAID') {
-          if (isHome) newHomeScore += 3;
-          else newAwayScore += 3;
-        } else if (event.eventType === 'FOUR') {
-          if (isHome) newHomeScore += 4;
-          else newAwayScore += 4;
-        } else if (event.eventType === 'SIX') {
-          if (isHome) newHomeScore += 6;
-          else newAwayScore += 6;
-        }
+      let newHomeScore = currentMatch.homeScore;
+      let newAwayScore = currentMatch.awayScore;
 
-        const updatedMatch: Match = {
-          ...currentMatch,
+      // Auto point increment based on event type
+      if (
+        event.eventType === 'GOAL' ||
+        event.eventType === 'PENALTY_GOAL' ||
+        event.eventType === 'POINT' ||
+        event.eventType === 'TOUCH_POINT' ||
+        event.eventType === 'SPIKE_KILL' ||
+        event.eventType === 'ACE' ||
+        event.eventType === 'ACE_SERVICE' ||
+        event.eventType === 'JUMP_THROW' ||
+        event.eventType === 'TOUCH_OUT' ||
+        event.eventType === 'SMASH_WINNER'
+      ) {
+        if (isHome) newHomeScore += 1;
+        else newAwayScore += 1;
+      } else if (
+        event.eventType === 'CATCH_DROP' ||
+        event.eventType === 'DOUBLE_TOUCH' ||
+        event.eventType === 'NET_TOUCH' ||
+        event.eventType === 'UNFORCED_ERROR' ||
+        event.eventType === 'OPPONENT_ERROR'
+      ) {
+        if (isHome) newAwayScore += 1;
+        else newHomeScore += 1;
+      } else if (event.eventType === 'SINGLE' || event.eventType === 'WIDE' || event.eventType === 'NO_BALL') {
+        if (isHome) newHomeScore += 1;
+        else newAwayScore += 1;
+      } else if (event.eventType === 'TWO_POINTER' || event.eventType === 'DOUBLE' || event.eventType === 'SUPER_TACKLE') {
+        if (isHome) newHomeScore += 2;
+        else newAwayScore += 2;
+      } else if (event.eventType === 'THREE_POINTER' || event.eventType === 'SUPER_RAID') {
+        if (isHome) newHomeScore += 3;
+        else newAwayScore += 3;
+      } else if (event.eventType === 'FOUR') {
+        if (isHome) newHomeScore += 4;
+        else newAwayScore += 4;
+      } else if (event.eventType === 'SIX') {
+        if (isHome) newHomeScore += 6;
+        else newAwayScore += 6;
+      }
+
+      const updatedMatch: Match = {
+        ...currentMatch,
+        homeScore: newHomeScore,
+        awayScore: newAwayScore,
+        status: 'LIVE',
+        score: {
+          ...currentMatch.score,
           homeScore: newHomeScore,
           awayScore: newAwayScore,
-          status: 'LIVE',
-          score: {
-            ...currentMatch.score,
-            homeScore: newHomeScore,
-            awayScore: newAwayScore,
-          },
-          events: [event, ...currentMatch.events],
-        };
+        },
+        events: [event, ...currentMatch.events],
+      };
 
-        const newFixtures = [...t.fixtures];
-        newFixtures[matchIndex] = updatedMatch;
+      const newFixtures = [...t.fixtures];
+      newFixtures[matchIndex] = updatedMatch;
 
-        return { ...t, fixtures: newFixtures };
-      })
-    );
+      return { ...t, fixtures: newFixtures };
+    });
 
     // Audio cue
     if (['GOAL', 'SIX', 'FOUR', 'SUPER_RAID', 'THREE_POINTER', 'JUMP_THROW', 'ACE_SERVICE'].includes(eventData.eventType)) {
@@ -374,73 +390,77 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const updateMatchScore = (matchId: string, homeScore: number, awayScore: number, period?: string) => {
-    setTournaments((prev) =>
-      prev.map((t) => {
-        const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
-        if (matchIndex === -1) return t;
+    const tIndex = tournamentsRef.current.findIndex(t => t.fixtures.some(m => m.id === matchId));
+    if (tIndex === -1) return;
+    const tournamentId = tournamentsRef.current[tIndex].id;
 
-        const currentMatch = t.fixtures[matchIndex];
-        const updatedMatch: Match = {
-          ...currentMatch,
+    updateTournamentDoc(tournamentId, (t) => {
+      const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
+      if (matchIndex === -1) return t;
+
+      const currentMatch = t.fixtures[matchIndex];
+      const updatedMatch: Match = {
+        ...currentMatch,
+        homeScore,
+        awayScore,
+        status: 'LIVE',
+        score: {
+          ...currentMatch.score,
           homeScore,
           awayScore,
-          status: 'LIVE',
-          score: {
-            ...currentMatch.score,
-            homeScore,
-            awayScore,
-            period: period || currentMatch.score.period,
-          },
-        };
+          period: period || currentMatch.score.period,
+        },
+      };
 
-        const newFixtures = [...t.fixtures];
-        newFixtures[matchIndex] = updatedMatch;
-        return { ...t, fixtures: newFixtures };
-      })
-    );
+      const newFixtures = [...t.fixtures];
+      newFixtures[matchIndex] = updatedMatch;
+      return { ...t, fixtures: newFixtures };
+    });
   };
 
   const completeMatch = (matchId: string, winnerId: string) => {
-    setTournaments((prev) =>
-      prev.map((t) => {
-        const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
-        if (matchIndex === -1) return t;
+    const tIndex = tournamentsRef.current.findIndex(t => t.fixtures.some(m => m.id === matchId));
+    if (tIndex === -1) return;
+    const tournamentId = tournamentsRef.current[tIndex].id;
 
-        const currentMatch = t.fixtures[matchIndex];
-        const completedMatch: Match = {
-          ...currentMatch,
-          status: 'COMPLETED',
-          winnerId,
-          score: {
-            ...currentMatch.score,
-            period: 'Full Time',
-          },
-        };
+    updateTournamentDoc(tournamentId, (t) => {
+      const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
+      if (matchIndex === -1) return t;
 
-        let newFixtures = [...t.fixtures];
-        newFixtures[matchIndex] = completedMatch;
+      const currentMatch = t.fixtures[matchIndex];
+      const completedMatch: Match = {
+        ...currentMatch,
+        status: 'COMPLETED',
+        winnerId,
+        score: {
+          ...currentMatch.score,
+          period: 'Full Time',
+        },
+      };
 
-        // Auto-advance winner in bracket tree
-        if (completedMatch.nextMatchId) {
-          newFixtures = advanceWinnerInBracket(newFixtures, completedMatch.id, winnerId);
-        }
+      let newFixtures = [...t.fixtures];
+      newFixtures[matchIndex] = completedMatch;
 
-        const winnerTeam = t.teams.find((tm) => tm.id === winnerId);
-        const newLog: AuditLog = {
-          id: `log-${Date.now()}`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          action: 'MATCH_COMPLETED',
-          user: 'Official Scorer',
-          details: `Match ${currentMatch.roundName} finished. Winner: ${winnerTeam?.name || winnerId}`,
-        };
+      // Auto-advance winner in bracket tree
+      if (completedMatch.nextMatchId) {
+        newFixtures = advanceWinnerInBracket(newFixtures, completedMatch.id, winnerId);
+      }
 
-        return {
-          ...t,
-          fixtures: newFixtures,
-          auditLogs: [newLog, ...t.auditLogs],
-        };
-      })
-    );
+      const winnerTeam = t.teams.find((tm) => tm.id === winnerId);
+      const newLog: AuditLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        action: 'MATCH_COMPLETED',
+        user: 'Official Scorer',
+        details: `Match ${currentMatch.roundName} finished. Winner: ${winnerTeam?.name || winnerId}`,
+      };
+
+      return {
+        ...t,
+        fixtures: newFixtures,
+        auditLogs: [newLog, ...t.auditLogs],
+      };
+    });
 
     soundEffects.playCelebration();
     confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
@@ -451,21 +471,15 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ...itemData,
       id: `b-${Date.now()}`,
     };
-    setTournaments((prev) =>
-      prev.map((t) => {
-        if (t.id !== tournamentId) return t;
-        return { ...t, budget: [...t.budget, newItem] };
-      })
-    );
+    updateTournamentDoc(tournamentId, (t) => {
+      return { ...t, budget: [...t.budget, newItem] };
+    });
   };
 
   const deleteBudgetItem = (tournamentId: string, itemId: string) => {
-    setTournaments((prev) =>
-      prev.map((t) => {
-        if (t.id !== tournamentId) return t;
-        return { ...t, budget: t.budget.filter((b) => b.id !== itemId) };
-      })
-    );
+    updateTournamentDoc(tournamentId, (t) => {
+      return { ...t, budget: t.budget.filter((b) => b.id !== itemId) };
+    });
   };
 
   return (
