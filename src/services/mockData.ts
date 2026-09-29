@@ -1,0 +1,171 @@
+import { Tournament, Team, Venue, BudgetItem } from '../types';
+
+export const INITIAL_VENUES: Venue[] = [
+  { id: 'v1', name: 'Center Court Arena', location: 'Main Sports Complex', capacity: 5000 },
+  { id: 'v2', name: 'Court B & Indoor Hall', location: 'University Sports Pavilion', capacity: 2000 },
+];
+
+export const INITIAL_TOURNAMENTS: Tournament[] = [];
+
+/**
+ * Pre-configured Throwball Demo Tournament template
+ */
+export function createThrowballDemoTournament(): Tournament {
+  const teams: Team[] = [
+    {
+      id: 'tb-1',
+      name: 'Bangalore Blasters',
+      shortName: 'BLR',
+      color: '#f97316',
+      seed: 1,
+      players: [
+        { id: 'tbp-1', name: 'Ananya Hegde', jerseyNumber: 7, role: 'Captain / Center' },
+        { id: 'tbp-2', name: 'Pooja Rao', jerseyNumber: 10, role: 'Corner Thrower' },
+        { id: 'tbp-3', name: 'Deepa Shetty', jerseyNumber: 3, role: 'Net Guard' },
+        { id: 'tbp-4', name: 'Sneha Kamath', jerseyNumber: 5, role: 'Receiver' },
+        { id: 'tbp-5', name: 'Kavya Murthy', jerseyNumber: 8, role: 'Back Line' },
+        { id: 'tbp-6', name: 'Divya Nair', jerseyNumber: 4, role: 'Server' },
+        { id: 'tbp-7', name: 'Megha Gowda', jerseyNumber: 12, role: 'Defender' },
+      ],
+    },
+    {
+      id: 'tb-2',
+      name: 'Hyderabad Hawks',
+      shortName: 'HYD',
+      color: '#2563eb',
+      seed: 2,
+      players: [
+        { id: 'tbp-8', name: 'Sravani Reddy', jerseyNumber: 9, role: 'Captain / Smasher' },
+        { id: 'tbp-9', name: 'Harini Varma', jerseyNumber: 6, role: 'Setter / Thrower' },
+        { id: 'tbp-10', name: 'Swathi Chowdary', jerseyNumber: 2, role: 'Catcher' },
+        { id: 'tbp-11', name: 'Keerthi Priya', jerseyNumber: 11, role: 'Corner' },
+      ],
+    },
+    {
+      id: 'tb-3',
+      name: 'Chennai Strikers',
+      shortName: 'CHN',
+      color: '#10b981',
+      seed: 3,
+      players: [
+        { id: 'tbp-12', name: 'Lakshmi Priya', jerseyNumber: 10, role: 'Captain' },
+        { id: 'tbp-13', name: 'Nandhini Sundar', jerseyNumber: 4, role: 'Thrower' },
+      ],
+    },
+    {
+      id: 'tb-4',
+      name: 'Pune Pioneers',
+      shortName: 'PUN',
+      color: '#8b5cf6',
+      seed: 4,
+      players: [
+        { id: 'tbp-14', name: 'Rutuja Deshmukh', jerseyNumber: 8, role: 'Captain' },
+        { id: 'tbp-15', name: 'Sayali Joshi', jerseyNumber: 5, role: 'Receiver' },
+      ],
+    },
+  ];
+
+  return {
+    id: `t-throwball-${Date.now()}`,
+    slug: 'national-championship-throwball-2026',
+    name: "National Open Throwball Championship 2026",
+    sport: 'throwball',
+    format: 'KNOCKOUT',
+    status: 'TOURNAMENT_LIVE',
+    description: 'Premier national inter-state throwball knockout tournament featuring top collegiate and club squads.',
+    location: 'Shivaji Sports Complex, Pune',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    organizerName: 'National Throwball Federation',
+    visibility: 'PUBLIC',
+    venues: INITIAL_VENUES,
+    teams,
+    groups: [],
+    rules: {
+      winPoints: 2,
+      drawPoints: 0,
+      lossPoints: 0,
+      matchDurationMinutes: 45,
+      periodsCount: 3,
+      tieBreakers: ['points', 'sets_diff', 'head_to_head'],
+    },
+    budget: [
+      { id: 'tb-b1', type: 'INCOME', category: 'Team Registration Fees', description: '4 Teams @ ₹3,000 each', amount: 12000, status: 'RECEIVED' },
+      { id: 'tb-b2', type: 'INCOME', category: 'Title Sponsorship', description: 'Cosco Sports & Nivia India', amount: 35000, status: 'RECEIVED' },
+      { id: 'tb-b3', type: 'EXPENSE', category: 'Court & Official Referee Payouts', description: 'Federation certified officials', amount: 15000, status: 'PAID' },
+      { id: 'tb-b4', type: 'EXPENSE', category: 'Trophies, Medals & Cash Awards', description: 'Trophy cup + Runner-up medals', amount: 18000, status: 'PENDING' },
+    ],
+    auditLogs: [
+      { id: 'l1', timestamp: '10:00', action: 'CREATE_TOURNAMENT', user: 'Admin', details: 'Initialized National Open Throwball Championship 2026' },
+      { id: 'l2', timestamp: '10:30', action: 'FIXTURES_GENERATED', user: 'Tournament Engine', details: 'Generated Knockout Playoff Brackets' },
+    ],
+    fixtures: [
+      {
+        id: 'm-tb-semi1',
+        tournamentId: 't-throwball',
+        round: 1,
+        roundName: 'Semi Final 1 (LIVE)',
+        position: 1,
+        stage: 'KNOCKOUT',
+        homeTeamId: 'tb-1', // Bangalore Blasters
+        awayTeamId: 'tb-4', // Pune Pioneers
+        homeScore: 18,
+        awayScore: 15,
+        score: {
+          homeScore: 18,
+          awayScore: 15,
+          period: 'Set 1 (25 pts)',
+          timeElapsed: '14:20',
+        },
+        winnerId: null,
+        nextMatchId: 'm-tb-final',
+        scheduledAt: '2026-10-02 10:00',
+        venueId: 'v1',
+        status: 'LIVE',
+        events: [
+          { id: 'tbe-1', timestamp: '03:10', eventType: 'ACE_SERVICE', teamId: 'tb-1', playerName: 'Divya Nair', minute: 3, description: 'Direct ace service into back left corner' },
+          { id: 'tbe-2', timestamp: '08:45', eventType: 'JUMP_THROW', teamId: 'tb-1', playerName: 'Pooja Rao', minute: 8, description: 'Steep jump throw over net guard' },
+          { id: 'tbe-3', timestamp: '11:20', eventType: 'TOUCH_OUT', teamId: 'tb-4', playerName: 'Rutuja Deshmukh', minute: 11, description: 'Deflection off fingers out of bounds' },
+        ],
+      },
+      {
+        id: 'm-tb-semi2',
+        tournamentId: 't-throwball',
+        round: 1,
+        roundName: 'Semi Final 2',
+        position: 2,
+        stage: 'KNOCKOUT',
+        homeTeamId: 'tb-2', // Hyderabad Hawks
+        awayTeamId: 'tb-3', // Chennai Strikers
+        homeScore: 0,
+        awayScore: 0,
+        score: { homeScore: 0, awayScore: 0, period: 'Scheduled' },
+        winnerId: null,
+        nextMatchId: 'm-tb-final',
+        scheduledAt: '2026-10-02 11:30',
+        venueId: 'v1',
+        status: 'UPCOMING',
+        events: [],
+      },
+      {
+        id: 'm-tb-final',
+        tournamentId: 't-throwball',
+        round: 2,
+        roundName: 'Championship Grand Final 🏆',
+        position: 1,
+        stage: 'FINAL',
+        homeTeamId: null,
+        awayTeamId: null,
+        homeScore: 0,
+        awayScore: 0,
+        score: { homeScore: 0, awayScore: 0, period: 'Awaiting Finalists' },
+        winnerId: null,
+        nextMatchId: null,
+        scheduledAt: '2026-10-02 16:00',
+        venueId: 'v1',
+        status: 'UPCOMING',
+        events: [],
+      },
+    ],
+  };
+}
