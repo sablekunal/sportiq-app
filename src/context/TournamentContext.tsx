@@ -261,9 +261,11 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       shortName: teamData.shortName || teamData.name?.slice(0, 3).toUpperCase() || 'TM',
       color: teamData.color || '#f97316',
       seed: teamData.seed || 1,
-      groupId: teamData.groupId,
       players: teamData.players || [],
     };
+    if (teamData.groupId) {
+      newTeam.groupId = teamData.groupId;
+    }
 
     updateTournamentDoc(tournamentId, (t) => {
       return {
