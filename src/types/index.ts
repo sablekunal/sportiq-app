@@ -119,6 +119,12 @@ export interface TournamentRules {
   matchDurationMinutes: number;
   periodsCount: number;
   tieBreakers: string[]; // ['goal_diff', 'head_to_head', 'goals_scored']
+  
+  // Structure configuration
+  numberOfTeams?: number;
+  numberOfGroups?: number;
+  qualifiersPerGroup?: number;
+  headToHead?: 'SINGLE' | 'DOUBLE';
 }
 
 export interface BudgetItem {
