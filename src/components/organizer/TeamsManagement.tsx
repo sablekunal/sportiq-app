@@ -80,13 +80,15 @@ export const TeamsManagement: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAddingTeam(true)}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sport-orange hover:bg-orange-600 text-white font-bold text-xs shadow-glow-orange transition cursor-pointer active:scale-95"
-        >
-          <Plus className="w-4 h-4" />
-          Add Team
-        </button>
+        {teams.length < 16 && (
+          <button
+            onClick={() => setIsAddingTeam(true)}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sport-orange hover:bg-orange-600 text-white font-bold text-xs shadow-glow-orange transition cursor-pointer active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            Add Team
+          </button>
+        )}
       </div>
 
       {/* Add Team Modal */}
