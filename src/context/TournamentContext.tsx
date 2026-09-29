@@ -90,11 +90,16 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const d = doc.data();
         return {
           ...d,
+          name: d.name || 'Untitled',
+          sport: d.sport || 'football',
+          format: d.format || 'KNOCKOUT',
+          status: d.status || 'DRAFT',
           teams: d.teams || [],
           fixtures: d.fixtures || [],
           groups: d.groups || [],
           budget: d.budget || [],
           auditLogs: d.auditLogs || [],
+          venues: d.venues || [],
         } as Tournament;
       });
       setTournaments(data);
