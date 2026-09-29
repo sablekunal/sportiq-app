@@ -132,10 +132,13 @@ export const TeamsManagement: React.FC = () => {
             </div>
 
             {/* Colors picker */}
-            <div className="sm:col-span-4 flex items-center justify-between pt-2">
-              <div className="flex items-center gap-2">
+            <div className="sm:col-span-4 flex flex-wrap items-center justify-between pt-2 gap-y-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-slate-600">Jersey Color:</span>
-                {['#f97316', '#2563eb', '#10b981', '#8b5cf6', '#ef4444', '#eab308', '#06b6d4', '#0f172a'].map(
+                {[
+                  '#f97316', '#2563eb', '#10b981', '#8b5cf6', '#ef4444', '#eab308', '#06b6d4', '#0f172a',
+                  '#ec4899', '#14b8a6', '#6366f1', '#f43f5e', '#84cc16', '#d946ef', '#64748b', '#1e3a8a'
+                ].map(
                   (c) => (
                     <button
                       key={c}
