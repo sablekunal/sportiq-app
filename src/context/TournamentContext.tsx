@@ -86,7 +86,17 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Sync with Firestore
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'tournaments'), (snapshot) => {
-      const data = snapshot.docs.map(doc => doc.data() as Tournament);
+      const data = snapshot.docs.map(doc => {
+        const d = doc.data();
+        return {
+          ...d,
+          teams: d.teams || [],
+          fixtures: d.fixtures || [],
+          groups: d.groups || [],
+          budget: d.budget || [],
+          auditLogs: d.auditLogs || [],
+        } as Tournament;
+      });
       setTournaments(data);
     });
     return () => unsubscribe();
