@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
+import { useAuth } from '../../auth/AuthContext';
 import { SPORT_CONFIGS, calculateSportStandings } from '../../engines/sportEngine';
 import { Match } from '../../types';
 import {
@@ -24,7 +25,8 @@ import { QRCodeSVG } from 'qrcode.react';
 type PublicTab = 'overview' | 'fixtures' | 'standings' | 'bracket' | 'teams';
 
 export const PublicTournamentPortal: React.FC = () => {
-  const { activeTournament, setViewMode } = useTournament();
+  const { activeTournament, setViewMode, tournaments, setActiveTournamentId } = useTournament();
+  const { isAuthenticated, profile } = useAuth();
   const [activeTab, setActiveTab] = useState<PublicTab>('overview');
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -74,12 +76,29 @@ export const PublicTournamentPortal: React.FC = () => {
               {sportConfig.icon}
             </span>
             <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-sport-orange">
-                Spectator Fan Hub (No Login)
+              <div className="text-[10px] font-bold uppercase tracking-wider text-sport-orange">
+                Spectator Fan Hub (Public)
               </div>
-              <div className="text-sm font-extrabold text-white truncate max-w-[200px] sm:max-w-sm">
-                {activeTournament.name}
-              </div>
+              {tournaments.length > 1 ? (
+                <div className="relative">
+                  <select
+                    value={activeTournament.id}
+                    onChange={(e) => setActiveTournamentId(e.target.value)}
+                    className="bg-transparent text-sm font-extrabold text-white outline-none cursor-pointer pr-5 appearance-none max-w-[200px] sm:max-w-sm truncate"
+                  >
+                    {tournaments.map((t) => (
+                      <option key={t.id} value={t.id} className="bg-slate-900 text-white">
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">▼</span>
+                </div>
+              ) : (
+                <div className="text-sm font-extrabold text-white truncate max-w-[200px] sm:max-w-sm">
+                  {activeTournament.name}
+                </div>
+              )}
             </div>
           </div>
 
@@ -102,9 +121,10 @@ export const PublicTournamentPortal: React.FC = () => {
 
             <button
               onClick={() => setViewMode('organizer')}
-              className="px-3 py-1.5 rounded-lg bg-sport-orange hover:bg-orange-600 text-white text-xs font-bold cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-sport-orange hover:bg-orange-600 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm transition active:scale-95"
             >
-              Organizer Login
+              <Shield className="w-3.5 h-3.5" />
+              <span>{isAuthenticated ? 'Organizer Hub →' : 'Organizer Login'}</span>
             </button>
           </div>
         </div>

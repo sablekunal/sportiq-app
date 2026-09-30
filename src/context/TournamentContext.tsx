@@ -82,7 +82,17 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [activeTournamentId, setActiveTournamentIdState] = useState<string>('');
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
 
-  const [viewMode, setViewMode] = useState<AppViewMode>('organizer');
+  const getInitialViewMode = (): AppViewMode => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get('mode');
+      if (mode === 'organizer' || mode === 'admin') return 'organizer';
+      if (mode === 'tools') return 'tools';
+    }
+    return 'public'; // Default to public spectator view on main screen
+  };
+
+  const [viewMode, setViewMode] = useState<AppViewMode>(getInitialViewMode);
   const [organizerTab, setOrganizerTab] = useState<OrganizerTab>('overview');
   const [toolsTab, setToolsTab] = useState<ToolsTab>('coin-toss');
   const [publicSlug, setPublicSlug] = useState<string | null>(null);
@@ -92,6 +102,18 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   useEffect(() => {
     tournamentsRef.current = tournaments;
+    if (typeof window !== 'undefined' && tournaments.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const slug = params.get('t');
+      const tourId = params.get('id');
+      if (slug) {
+        const found = tournaments.find((t) => t.slug === slug);
+        if (found) setActiveTournamentIdState(found.id);
+      } else if (tourId) {
+        const found = tournaments.find((t) => t.id === tourId);
+        if (found) setActiveTournamentIdState(found.id);
+      }
+    }
   }, [tournaments]);
 
   // Sync with Firestore (Legacy + Non-Match data)

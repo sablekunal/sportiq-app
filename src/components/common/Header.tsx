@@ -75,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateModal }) => {
           </div>
         </div>
 
-        {/* 3 Major Products Navigation Switcher */}
+        {/* Organizer Workspace Navigation Switcher */}
         <nav className="flex items-center bg-slate-900/90 p-1 rounded-full border border-slate-800">
           <button
             onClick={() => setViewMode('organizer')}
@@ -86,19 +86,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateModal }) => {
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            Organizer App
-          </button>
-
-          <button
-            onClick={() => setViewMode('public')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === 'public'
-                ? 'bg-sport-orange text-white shadow-glow-orange'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5" />
-            Public Viewer (No Login)
+            Command Hub
           </button>
 
           <button
