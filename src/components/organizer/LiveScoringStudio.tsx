@@ -113,9 +113,12 @@ export const LiveScoringStudio: React.FC = () => {
     setEventModalOpen(false);
   };
 
-  const handleEndMatch = (winnerTeamId: string) => {
+  const handleEndMatch = () => {
     setIsTimerRunning(false);
-    completeMatch(currentMatch.id, winnerTeamId);
+    completeMatch(currentMatch.id, {
+      scoreA: currentMatch.homeScore,
+      scoreB: currentMatch.awayScore
+    });
   };
 
   return (
@@ -323,25 +326,13 @@ export const LiveScoringStudio: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2.5">
-              {homeTeam && (
-                <button
-                  onClick={() => handleEndMatch(homeTeam.id)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
-                >
-                  <Trophy className="w-3.5 h-3.5" />
-                  Winner: {homeTeam.shortName}
-                </button>
-              )}
-
-              {awayTeam && (
-                <button
-                  onClick={() => handleEndMatch(awayTeam.id)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-1.5"
-                >
-                  <Trophy className="w-3.5 h-3.5" />
-                  Winner: {awayTeam.shortName}
-                </button>
-              )}
+              <button
+                onClick={handleEndMatch}
+                className="px-6 py-2.5 rounded-xl bg-sport-orange hover:bg-orange-600 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-2"
+              >
+                <Trophy className="w-4 h-4" />
+                Blow Full-Time & Complete Match
+              </button>
             </div>
           </div>
         )}

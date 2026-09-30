@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch } from 'firebase/firestore';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
   Tournament,
@@ -14,6 +14,12 @@ import { INITIAL_VENUES, createThrowballDemoTournament } from '../services/mockD
 import { advanceWinnerInBracket, generateKnockoutFixtures, generateRoundRobinFixtures, generateGroupKnockoutFixtures } from '../engines/tournamentEngine';
 import { soundEffects } from '../engines/audioEngine';
 import confetti from 'canvas-confetti';
+
+import { MatchRepository } from '../repositories/matchRepository';
+import { DomainMatch, MatchResult, TournamentRules } from '../domain/tournament/models/types';
+import { generateKnockout } from '../domain/tournament/fixtures/knockout';
+import { processMatchResult } from '../domain/tournament/results/processResult';
+import { adaptDomainMatchToLegacy } from '../services/matchAdapter';
 
 export type AppViewMode = 'organizer' | 'public' | 'tools';
 export type OrganizerTab =
@@ -60,7 +66,7 @@ interface TournamentContextType {
   generateTournamentFixtures: (tournamentId: string) => void;
   recordMatchEvent: (matchId: string, event: Omit<MatchEvent, 'id' | 'timestamp'>) => void;
   updateMatchScore: (matchId: string, homeScore: number, awayScore: number, period?: string) => void;
-  completeMatch: (matchId: string, winnerId: string) => void;
+  completeMatch: (matchId: string, result: { scoreA: number, scoreB: number }) => void;
   addBudgetItem: (tournamentId: string, item: Omit<BudgetItem, 'id'>) => void;
   deleteBudgetItem: (tournamentId: string, itemId: string) => void;
 }
@@ -79,11 +85,14 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [toolsTab, setToolsTab] = useState<ToolsTab>('coin-toss');
   const [publicSlug, setPublicSlug] = useState<string | null>(null);
 
+  // New state for normalized domain matches
+  const [domainMatches, setDomainMatches] = useState<DomainMatch[]>([]);
+
   useEffect(() => {
     tournamentsRef.current = tournaments;
   }, [tournaments]);
 
-  // Sync with Firestore
+  // Sync with Firestore (Legacy + Non-Match data)
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'tournaments'), (snapshot) => {
       const data = snapshot.docs.map(doc => {
@@ -107,6 +116,18 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => unsubscribe();
   }, []);
 
+  // Sync with Firestore Normalized Matches (Milestone 2)
+  useEffect(() => {
+    if (!activeTournamentId) {
+      setDomainMatches([]);
+      return;
+    }
+    const unsub = MatchRepository.subscribeToMatches(activeTournamentId, (matches) => {
+      setDomainMatches(matches);
+    });
+    return () => unsub();
+  }, [activeTournamentId]);
+
   // Keep active tournament in sync
   useEffect(() => {
     if (tournaments.length > 0) {
@@ -116,7 +137,15 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [tournaments, activeTournamentId]);
 
-  const activeTournament = tournaments.find((t) => t.id === activeTournamentId) || tournaments[0] || null;
+  // Combine Legacy Tournament Document with Normalized Domain Matches
+  const activeTournament = useMemo(() => {
+    const t = tournaments.find((t) => t.id === activeTournamentId) || tournaments[0] || null;
+    if (t && domainMatches.length > 0) {
+      return { ...t, fixtures: domainMatches.map(adaptDomainMatchToLegacy) };
+    }
+    return t;
+  }, [tournaments, activeTournamentId, domainMatches]);
+
   const activeMatch = activeTournament?.fixtures.find((m) => m.id === activeMatchId) || null;
 
   const setActiveTournamentId = (id: string) => {
@@ -221,10 +250,6 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const clearAllData = async () => {
     try {
-      localStorage.removeItem('sportiq_tournaments_v1');
-      localStorage.removeItem('sportiq_tournaments_v2');
-      localStorage.removeItem('sportiq_tournaments_v3');
-      
       const snapshot = await getDocs(collection(db, 'tournaments'));
       const batch = writeBatch(db);
       snapshot.docs.forEach((d) => {
@@ -285,48 +310,95 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const generateTournamentFixtures = (tournamentId: string) => {
-    updateTournamentDoc(tournamentId, (t) => {
-      let generated: Match[] = [];
-      if (t.format === 'KNOCKOUT') {
-        generated = generateKnockoutFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
-      } else if (t.format === 'ROUND_ROBIN') {
-        generated = generateRoundRobinFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
-      } else if (t.format === 'GROUP_KNOCKOUT') {
-        generated = generateGroupKnockoutFixtures(t.id, t.teams, t.groups, t.startDate, t.venues[0]?.id);
-      } else {
-        generated = generateKnockoutFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
-      }
+  const generateTournamentFixtures = async (tournamentId: string) => {
+    const t = tournamentsRef.current.find(x => x.id === tournamentId);
+    if (!t) return;
 
+    let generatedLegacy: Match[] = [];
+
+    if (t.format === 'KNOCKOUT') {
+      // NEW DOMAIN ENGINE PATH
+      const generatedDomain = generateKnockout(t.id, 'playoffs', t.teams.map(team => team.id));
+      await MatchRepository.createMatches(t.id, generatedDomain);
+      
+      updateTournamentDoc(tournamentId, (tour) => {
+        const newLog: AuditLog = {
+          id: `log-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action: 'FIXTURES_GENERATED',
+          user: 'Tournament Engine',
+          details: `Generated ${generatedDomain.length} domain matches for format ${tour.format}`,
+        };
+        // We no longer write to tour.fixtures for Knockout! The subcollection handles it.
+        return {
+          ...tour,
+          status: 'FIXTURES_GENERATED',
+          auditLogs: [newLog, ...tour.auditLogs],
+        };
+      });
+      soundEffects.playCelebration();
+      return; // Exit early, handled by subcollection
+    } else if (t.format === 'ROUND_ROBIN') {
+      generatedLegacy = generateRoundRobinFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
+    } else if (t.format === 'GROUP_KNOCKOUT') {
+      generatedLegacy = generateGroupKnockoutFixtures(t.id, t.teams, t.groups, t.startDate, t.venues[0]?.id);
+    } else {
+      generatedLegacy = generateKnockoutFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
+    }
+
+    // LEGACY PATH
+    updateTournamentDoc(tournamentId, (tour) => {
       const newLog: AuditLog = {
         id: `log-${Date.now()}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         action: 'FIXTURES_GENERATED',
         user: 'Tournament Engine',
-        details: `Generated ${generated.length} fixtures for format ${t.format}`,
+        details: `Generated ${generatedLegacy.length} fixtures for format ${tour.format}`,
       };
-
       return {
-        ...t,
-        fixtures: generated,
+        ...tour,
+        fixtures: generatedLegacy,
         status: 'FIXTURES_GENERATED',
-        auditLogs: [newLog, ...t.auditLogs],
+        auditLogs: [newLog, ...tour.auditLogs],
       };
     });
     soundEffects.playCelebration();
   };
 
-  const recordMatchEvent = (matchId: string, eventData: Omit<MatchEvent, 'id' | 'timestamp'>) => {
+  const recordMatchEvent = async (matchId: string, eventData: Omit<MatchEvent, 'id' | 'timestamp'>) => {
     const event: MatchEvent = {
       ...eventData,
       id: `evt-${Date.now()}`,
       timestamp: new Date().toLocaleTimeString([], { minute: '2-digit', second: '2-digit' }),
     };
 
-    const tIndex = tournamentsRef.current.findIndex(t => t.fixtures.some(m => m.id === matchId));
-    if (tIndex === -1) return;
-    const tournamentId = tournamentsRef.current[tIndex].id;
+    if (!activeTournament) return;
+    const tournamentId = activeTournament.id;
 
+    if (domainMatches.some(m => m.id === matchId)) {
+      // NEW DOMAIN ENGINE PATH
+      const matchRef = doc(db, 'tournaments', tournamentId, 'matches', matchId);
+      // We can use a transaction or just updateDoc for events, but arrayUnion requires fetching unless we just use updateDoc with arrayUnion
+      const { arrayUnion, increment } = await import('firebase/firestore');
+      
+      const isHome = domainMatches.find(m => m.id === matchId)?.participantA.type === 'TEAM' && 
+        (domainMatches.find(m => m.id === matchId)?.participantA as any).teamId === event.teamId;
+
+      const updates: any = {
+        events: arrayUnion(event),
+        status: 'LIVE'
+      };
+
+      if (['GOAL', 'POINT'].includes(event.eventType)) {
+        if (isHome) updates.scoreA = increment(1);
+        else updates.scoreB = increment(1);
+      }
+      
+      await updateDoc(matchRef, updates);
+      return;
+    }
+
+    // LEGACY PATH
     updateTournamentDoc(tournamentId, (t) => {
       const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
       if (matchIndex === -1) return t;
@@ -337,45 +409,9 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       let newHomeScore = currentMatch.homeScore;
       let newAwayScore = currentMatch.awayScore;
 
-      // Auto point increment based on event type
-      if (
-        event.eventType === 'GOAL' ||
-        event.eventType === 'PENALTY_GOAL' ||
-        event.eventType === 'POINT' ||
-        event.eventType === 'TOUCH_POINT' ||
-        event.eventType === 'SPIKE_KILL' ||
-        event.eventType === 'ACE' ||
-        event.eventType === 'ACE_SERVICE' ||
-        event.eventType === 'JUMP_THROW' ||
-        event.eventType === 'TOUCH_OUT' ||
-        event.eventType === 'SMASH_WINNER'
-      ) {
+      if (['GOAL', 'POINT'].includes(event.eventType)) {
         if (isHome) newHomeScore += 1;
         else newAwayScore += 1;
-      } else if (
-        event.eventType === 'CATCH_DROP' ||
-        event.eventType === 'DOUBLE_TOUCH' ||
-        event.eventType === 'NET_TOUCH' ||
-        event.eventType === 'UNFORCED_ERROR' ||
-        event.eventType === 'OPPONENT_ERROR'
-      ) {
-        if (isHome) newAwayScore += 1;
-        else newHomeScore += 1;
-      } else if (event.eventType === 'SINGLE' || event.eventType === 'WIDE' || event.eventType === 'NO_BALL') {
-        if (isHome) newHomeScore += 1;
-        else newAwayScore += 1;
-      } else if (event.eventType === 'TWO_POINTER' || event.eventType === 'DOUBLE' || event.eventType === 'SUPER_TACKLE') {
-        if (isHome) newHomeScore += 2;
-        else newAwayScore += 2;
-      } else if (event.eventType === 'THREE_POINTER' || event.eventType === 'SUPER_RAID') {
-        if (isHome) newHomeScore += 3;
-        else newAwayScore += 3;
-      } else if (event.eventType === 'FOUR') {
-        if (isHome) newHomeScore += 4;
-        else newAwayScore += 4;
-      } else if (event.eventType === 'SIX') {
-        if (isHome) newHomeScore += 6;
-        else newAwayScore += 6;
       }
 
       const updatedMatch: Match = {
@@ -393,24 +429,26 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       const newFixtures = [...t.fixtures];
       newFixtures[matchIndex] = updatedMatch;
-
       return { ...t, fixtures: newFixtures };
     });
-
-    // Audio cue
-    if (['GOAL', 'SIX', 'FOUR', 'SUPER_RAID', 'THREE_POINTER', 'JUMP_THROW', 'ACE_SERVICE'].includes(eventData.eventType)) {
-      soundEffects.playCelebration();
-      confetti({ particleCount: 40, spread: 60, origin: { y: 0.7 } });
-    } else {
-      soundEffects.playWhistle();
-    }
   };
 
-  const updateMatchScore = (matchId: string, homeScore: number, awayScore: number, period?: string) => {
-    const tIndex = tournamentsRef.current.findIndex(t => t.fixtures.some(m => m.id === matchId));
-    if (tIndex === -1) return;
-    const tournamentId = tournamentsRef.current[tIndex].id;
+  const updateMatchScore = async (matchId: string, homeScore: number, awayScore: number, period?: string) => {
+    if (!activeTournament) return;
+    const tournamentId = activeTournament.id;
 
+    if (domainMatches.some(m => m.id === matchId)) {
+      // NEW DOMAIN ENGINE PATH
+      const matchRef = doc(db, 'tournaments', tournamentId, 'matches', matchId);
+      await updateDoc(matchRef, {
+        scoreA: homeScore,
+        scoreB: awayScore,
+        status: 'LIVE', // Can use period as status or separate field later
+      });
+      return;
+    }
+
+    // LEGACY PATH
     updateTournamentDoc(tournamentId, (t) => {
       const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
       if (matchIndex === -1) return t;
@@ -435,22 +473,51 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const completeMatch = (matchId: string, winnerId: string) => {
-    const tIndex = tournamentsRef.current.findIndex(t => t.fixtures.some(m => m.id === matchId));
-    if (tIndex === -1) return;
-    const tournamentId = tournamentsRef.current[tIndex].id;
+  const completeMatch = async (matchId: string, result: { scoreA: number, scoreB: number }) => {
+    if (!activeTournament) return;
+    const tournamentId = activeTournament.id;
 
+    // Is it a normalized DomainMatch?
+    const isDomainMatch = domainMatches.some(m => m.id === matchId);
+
+    if (isDomainMatch) {
+      const domainRules: TournamentRules = { allowDraws: false };
+      
+      try {
+        await MatchRepository.completeMatchTransaction(
+          tournamentId,
+          matchId,
+          result,
+          domainRules,
+          processMatchResult
+        );
+        soundEffects.playCelebration();
+        confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+      } catch (err) {
+        console.error("Domain Error completing match:", err);
+      }
+      return;
+    }
+
+    // LEGACY FLOW
     updateTournamentDoc(tournamentId, (t) => {
       const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
       if (matchIndex === -1) return t;
 
       const currentMatch = t.fixtures[matchIndex];
+      
+      let winnerId = null;
+      if (result.scoreA > result.scoreB) winnerId = currentMatch.homeTeamId;
+      else if (result.scoreB > result.scoreA) winnerId = currentMatch.awayTeamId;
+
       const completedMatch: Match = {
         ...currentMatch,
         status: 'COMPLETED',
         winnerId,
         score: {
           ...currentMatch.score,
+          homeScore: result.scoreA,
+          awayScore: result.scoreB,
           period: 'Full Time',
         },
       };
@@ -458,24 +525,13 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       let newFixtures = [...t.fixtures];
       newFixtures[matchIndex] = completedMatch;
 
-      // Auto-advance winner in bracket tree
-      if (completedMatch.nextMatchId) {
+      if (completedMatch.nextMatchId && winnerId) {
         newFixtures = advanceWinnerInBracket(newFixtures, completedMatch.id, winnerId);
       }
-
-      const winnerTeam = t.teams.find((tm) => tm.id === winnerId);
-      const newLog: AuditLog = {
-        id: `log-${Date.now()}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        action: 'MATCH_COMPLETED',
-        user: 'Official Scorer',
-        details: `Match ${currentMatch.roundName} finished. Winner: ${winnerTeam?.name || winnerId}`,
-      };
 
       return {
         ...t,
         fixtures: newFixtures,
-        auditLogs: [newLog, ...t.auditLogs],
       };
     });
 
