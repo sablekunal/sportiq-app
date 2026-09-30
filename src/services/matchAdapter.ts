@@ -34,40 +34,52 @@ export function adaptDomainMatchToLegacy(domainMatch: DomainMatch): Match {
     ? 'FINAL'
     : 'KNOCKOUT';
 
-  return {
-    id: domainMatch.id,
-    tournamentId: domainMatch.tournamentId,
-    round: domainMatch.round,
-    roundName,
-    position: domainMatch.position,
-    fixtureNumber: domainMatch.fixtureNumber,
-    matchCode: domainMatch.matchCode,
-    groupPositionA: domainMatch.groupPositionA,
-    groupPositionB: domainMatch.groupPositionB,
-    homePlaceholder: getPlaceholder(domainMatch.participantA),
-    awayPlaceholder: getPlaceholder(domainMatch.participantB),
-    stage,
-    groupId: domainMatch.groupId,
-    homeTeamId: getTeamId(domainMatch.participantA),
-    awayTeamId: getTeamId(domainMatch.participantB),
-    homeScore: domainMatch.scoreA,
-    awayScore: domainMatch.scoreB,
-    score: {
+    const date = domainMatch.date || domainMatch.schedule?.date;
+    const startTime = domainMatch.startTime || domainMatch.schedule?.startTime;
+    const endTime = domainMatch.endTime || domainMatch.schedule?.endTime;
+    const venueId = domainMatch.venueId || domainMatch.schedule?.venueId;
+    const schedule = domainMatch.schedule || (date || startTime || endTime || venueId ? { date, startTime, endTime, venueId } : undefined);
+
+    return {
+      id: domainMatch.id,
+      tournamentId: domainMatch.tournamentId,
+      round: domainMatch.round,
+      roundName,
+      position: domainMatch.position,
+      fixtureNumber: domainMatch.fixtureNumber,
+      matchCode: domainMatch.matchCode,
+      groupPositionA: domainMatch.groupPositionA,
+      groupPositionB: domainMatch.groupPositionB,
+      homePlaceholder: getPlaceholder(domainMatch.participantA),
+      awayPlaceholder: getPlaceholder(domainMatch.participantB),
+      stage,
+      groupId: domainMatch.groupId,
+      homeTeamId: getTeamId(domainMatch.participantA),
+      awayTeamId: getTeamId(domainMatch.participantB),
       homeScore: domainMatch.scoreA,
       awayScore: domainMatch.scoreB,
-      period: domainMatch.status === 'COMPLETED' ? 'Full Time' : undefined,
-    },
-    winnerId: domainMatch.winnerId,
-    loserNextMatchId: null, // Unsupported currently
-    nextMatchId: null, // Legacy tracking, ignored because Domain dependencies drive the logic
-    scheduledAt: domainMatch.scheduledAt || new Date().toISOString(),
-    venueId: domainMatch.venueId,
-    status: (
-      domainMatch.status === 'BYE_ADVANCEMENT' ? 'COMPLETED' : 
-      domainMatch.status === 'SCHEDULED' ? 'UPCOMING' : 
-      domainMatch.status === 'HALFTIME' ? 'LIVE' :
-      domainMatch.status
-    ) as any,
-    events: [], // Events not mapped purely from DomainMatch yet
-  };
-}
+      score: {
+        homeScore: domainMatch.scoreA,
+        awayScore: domainMatch.scoreB,
+        period: domainMatch.status === 'COMPLETED' ? 'Full Time' : undefined,
+      },
+      winnerId: domainMatch.winnerId,
+      loserNextMatchId: null, // Unsupported currently
+      nextMatchId: null, // Legacy tracking, ignored because Domain dependencies drive the logic
+      scheduledAt: (date && startTime) ? `${date}T${startTime}` : (domainMatch.scheduledAt || new Date().toISOString()),
+      date,
+      startTime,
+      endTime,
+      venueId,
+      schedule,
+      status: (
+        domainMatch.status === 'BYE_ADVANCEMENT' ? 'COMPLETED' : 
+        domainMatch.status === 'SCHEDULED' ? 'UPCOMING' : 
+        domainMatch.status === 'HALFTIME' ? 'LIVE' :
+        domainMatch.status
+      ) as any,
+      events: [], // Events not mapped purely from DomainMatch yet
+      lineupHome: domainMatch.lineupA,
+      lineupAway: domainMatch.lineupB,
+    };
+  }

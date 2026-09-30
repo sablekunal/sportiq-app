@@ -1,3 +1,5 @@
+import { MatchLineup, MatchSchedule } from '../../../types';
+
 export type MatchParticipant =
   | { type: 'TEAM'; teamId: string }
   | { type: 'TBD'; label?: string }
@@ -41,6 +43,13 @@ export interface DomainMatch {
 
   scheduledAt?: string;
   venueId?: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  schedule?: MatchSchedule;
+
+  lineupA?: MatchLineup;
+  lineupB?: MatchLineup;
 }
 
 export interface MatchResult {

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { MatchStatus } from '../../types';
-import { Calendar, Play, Radio, MapPin, Clock, Filter, Plus, CheckCircle2 } from 'lucide-react';
+import { Calendar, Play, Radio, MapPin, Clock, Filter, Plus, CheckCircle2, Users } from 'lucide-react';
 import { soundEffects } from '../../engines/audioEngine';
+import { MatchLineupModal } from './MatchLineupModal';
+import { Match } from '../../types';
 
 export const FixturesManager: React.FC = () => {
   const {
@@ -14,6 +16,7 @@ export const FixturesManager: React.FC = () => {
 
   const [filter, setFilter] = useState<'ALL' | MatchStatus>('ALL');
   const [stageFilter, setStageFilter] = useState<'ALL' | 'A' | 'B' | 'C' | 'D' | 'KNOCKOUT'>('ALL');
+  const [lineupModalMatch, setLineupModalMatch] = useState<Match | null>(null);
 
   if (!activeTournament) return null;
 
@@ -220,25 +223,44 @@ export const FixturesManager: React.FC = () => {
                     <span className="truncate">{venue?.name || 'Main Court'}</span>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setActiveMatchId(match.id);
-                      setOrganizerTab('scoring');
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                      match.status === 'LIVE'
-                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-sm'
-                        : 'bg-sport-orange hover:bg-orange-600 text-white'
-                    }`}
-                  >
-                    <Radio className="w-3.5 h-3.5" />
-                    {match.status === 'LIVE' ? 'Scoring Desk' : 'Open Scorer'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setLineupModalMatch(match)}
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700"
+                      title="Manage 6+2 Match Lineup"
+                    >
+                      <Users className="w-3.5 h-3.5 text-sport-orange" />
+                      <span>Lineup</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveMatchId(match.id);
+                        setOrganizerTab('scoring');
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        match.status === 'LIVE'
+                          ? 'bg-red-500 hover:bg-red-600 text-white shadow-sm'
+                          : 'bg-sport-orange hover:bg-orange-600 text-white'
+                      }`}
+                    >
+                      <Radio className="w-3.5 h-3.5" />
+                      {match.status === 'LIVE' ? 'Scoring Desk' : 'Open Scorer'}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {lineupModalMatch && (
+        <MatchLineupModal
+          match={lineupModalMatch}
+          isOpen={Boolean(lineupModalMatch)}
+          onClose={() => setLineupModalMatch(null)}
+        />
       )}
     </div>
   );

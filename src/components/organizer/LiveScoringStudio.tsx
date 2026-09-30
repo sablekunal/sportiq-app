@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { SPORT_CONFIGS } from '../../engines/sportEngine';
-import { Match, MatchEvent } from '../../types';
+import { Match, MatchEvent, Player, PlayerLineupSnapshot } from '../../types';
 import {
   Radio,
   Trophy,
@@ -13,8 +13,12 @@ import {
   Zap,
   Shield,
   ArrowRight,
+  Users,
+  Lock,
 } from 'lucide-react';
 import { soundEffects } from '../../engines/audioEngine';
+import { MatchLineupModal } from './MatchLineupModal';
+import { isLineupLocked } from '../../domain/tournament/roster/lineupValidation';
 
 export const LiveScoringStudio: React.FC = () => {
   const {
@@ -30,6 +34,7 @@ export const LiveScoringStudio: React.FC = () => {
   const [selectedAction, setSelectedAction] = useState<string>('Point');
   const [selectedPlayer, setSelectedPlayer] = useState<string>('');
   const [customCommentary, setCustomCommentary] = useState<string>('');
+  const [isLineupModalOpen, setIsLineupModalOpen] = useState(false);
 
   if (!activeTournament) return null;
 
@@ -50,6 +55,23 @@ export const LiveScoringStudio: React.FC = () => {
 
   const homeTeam = activeTournament.teams.find((t) => t.id === currentMatch.homeTeamId);
   const awayTeam = activeTournament.teams.find((t) => t.id === currentMatch.awayTeamId);
+
+  const locked = isLineupLocked(currentMatch.status);
+
+  // Helper to resolve player info from ID or snapshot
+  const getPlayerDisplay = (playerId: string, team?: typeof homeTeam, isHome?: boolean) => {
+    const lineup = isHome ? currentMatch.lineupHome : currentMatch.lineupAway;
+    let snap: PlayerLineupSnapshot | undefined;
+    if (Array.isArray(lineup?.snapshots)) {
+      snap = lineup.snapshots.find((s) => s.id === playerId);
+    } else if (lineup?.snapshots && typeof lineup.snapshots === 'object') {
+      snap = (lineup.snapshots as Record<string, PlayerLineupSnapshot>)[playerId];
+    }
+    if (snap) return snap;
+    const p = team?.players.find((item) => item.id === playerId);
+    if (p) return p;
+    return { id: playerId, name: `Player (${playerId.slice(-4)})`, jerseyNumber: 0 };
+  };
 
   // Quick Action Buttons based on Sport (Throwball / Multi-sport)
   const actionTags = [
@@ -98,14 +120,8 @@ export const LiveScoringStudio: React.FC = () => {
   };
 
   const handleScoreAdjust = (team: 'HOME' | 'AWAY', delta: number) => {
-    let newHome = currentMatch.homeScore;
-    let newAway = currentMatch.awayScore;
-
-    if (team === 'HOME') {
-      newHome = Math.max(0, newHome + delta);
-    } else {
-      newAway = Math.max(0, newAway + delta);
-    }
+    const newHome = team === 'HOME' ? Math.max(0, currentMatch.homeScore + delta) : currentMatch.homeScore;
+    const newAway = team === 'AWAY' ? Math.max(0, currentMatch.awayScore + delta) : currentMatch.awayScore;
 
     updateMatchScore(currentMatch.id, newHome, newAway, selectedPeriod);
   };
@@ -116,16 +132,16 @@ export const LiveScoringStudio: React.FC = () => {
 
     recordMatchEvent(currentMatch.id, {
       eventType: 'COMMENTARY',
-      teamId: currentMatch.homeTeamId,
-      description: `${selectedPeriod}: ${customCommentary.trim()}`,
+      teamId: currentMatch.homeTeamId || '',
       minute: currentMatch.events.length + 1,
+      description: customCommentary.trim(),
     });
 
     setCustomCommentary('');
   };
 
   const handleEndMatch = () => {
-    if (window.confirm(`Confirm full-time outcome: ${homeTeam?.name} (${currentMatch.homeScore}) vs ${awayTeam?.name} (${currentMatch.awayScore})?`)) {
+    if (window.confirm(`Mark this match as Completed with final score ${currentMatch.homeScore} - ${currentMatch.awayScore}?`)) {
       completeMatch(currentMatch.id, {
         scoreA: currentMatch.homeScore,
         scoreB: currentMatch.awayScore,
@@ -162,6 +178,14 @@ export const LiveScoringStudio: React.FC = () => {
               );
             })}
           </select>
+
+          <button
+            onClick={() => setIsLineupModalOpen(true)}
+            className="px-3 py-1.5 bg-sport-navy hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            <Users className="w-3.5 h-3.5 text-sport-orange" />
+            <span>Lineups (6+2)</span>
+          </button>
         </div>
       </div>
 
@@ -335,20 +359,77 @@ export const LiveScoringStudio: React.FC = () => {
               className="bg-slate-900 text-xs font-bold text-white px-3 py-1.5 rounded-xl border border-slate-700 outline-none cursor-pointer max-w-xs"
             >
               <option value="">No player tagged</option>
-              <optgroup label={`${homeTeam?.name || 'Home'} Squad`}>
-                {homeTeam?.players.map((p) => (
-                  <option key={p.id} value={`${p.name} (#${p.jerseyNumber})`}>
-                    #{p.jerseyNumber} {p.name} ({p.role})
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label={`${awayTeam?.name || 'Away'} Squad`}>
-                {awayTeam?.players.map((p) => (
-                  <option key={p.id} value={`${p.name} (#${p.jerseyNumber})`}>
-                    #{p.jerseyNumber} {p.name} ({p.role})
-                  </option>
-                ))}
-              </optgroup>
+              {/* Home Starting 6 */}
+              {currentMatch.lineupHome?.startingPlayerIds ? (
+                <optgroup label={`${homeTeam?.name || 'Home'} — Starting 6`}>
+                  {currentMatch.lineupHome.startingPlayerIds.map((id) => {
+                    const p = getPlayerDisplay(id, homeTeam, true);
+                    return (
+                      <option key={p.id} value={`${p.name} (#${p.jerseyNumber})`}>
+                        #{p.jerseyNumber} {p.name}
+                      </option>
+                    );
+                  })}
+                </optgroup>
+              ) : (
+                <optgroup label={`${homeTeam?.name || 'Home'} Squad`}>
+                  {homeTeam?.players.map((p) => (
+                    <option key={p.id} value={`${p.name} (#${p.jerseyNumber})`}>
+                      #{p.jerseyNumber} {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              {/* Home Substitutes */}
+              {currentMatch.lineupHome?.substitutePlayerIds && (
+                <optgroup label={`${homeTeam?.name || 'Home'} — Substitutes (Bench)`}>
+                  {currentMatch.lineupHome.substitutePlayerIds.map((id) => {
+                    const p = getPlayerDisplay(id, homeTeam, true);
+                    return (
+                      <option key={p.id} value={`${p.name} (#${p.jerseyNumber})`}>
+                        #{p.jerseyNumber} {p.name} (Sub)
+                      </option>
+                    );
+                  })}
+                </optgroup>
+              )}
+
+              {/* Away Starting 6 */}
+              {currentMatch.lineupAway?.startingPlayerIds ? (
+                <optgroup label={`${awayTeam?.name || 'Away'} — Starting 6`}>
+                  {currentMatch.lineupAway.startingPlayerIds.map((id) => {
+                    const p = getPlayerDisplay(id, awayTeam, false);
+                    return (
+                      <option key={p.id} value={`${p.name} (#${p.jerseyNumber})`}>
+                        #{p.jerseyNumber} {p.name}
+                      </option>
+                    );
+                  })}
+                </optgroup>
+              ) : (
+                <optgroup label={`${awayTeam?.name || 'Away'} Squad`}>
+                  {awayTeam?.players.map((p) => (
+                    <option key={p.id} value={`${p.name} (#${p.jerseyNumber})`}>
+                      #{p.jerseyNumber} {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              {/* Away Substitutes */}
+              {currentMatch.lineupAway?.substitutePlayerIds && (
+                <optgroup label={`${awayTeam?.name || 'Away'} — Substitutes (Bench)`}>
+                  {currentMatch.lineupAway.substitutePlayerIds.map((id) => {
+                    const p = getPlayerDisplay(id, awayTeam, false);
+                    return (
+                      <option key={p.id} value={`${p.name} (#${p.jerseyNumber})`}>
+                        #{p.jerseyNumber} {p.name} (Sub)
+                      </option>
+                    );
+                  })}
+                </optgroup>
+              )}
             </select>
 
             {selectedPlayer && (
@@ -378,6 +459,161 @@ export const LiveScoringStudio: React.FC = () => {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Official Match Lineups Section (Starting 6 + 2 Substitutes) */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h4 className="text-sm font-bold text-sport-navy flex items-center gap-2">
+              <Users className="w-4 h-4 text-sport-orange" />
+              Official Match Lineups (6 on Court + 2 Substitutes)
+              {locked && (
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-amber-500" /> Locked ({currentMatch.status})
+                </span>
+              )}
+            </h4>
+            <p className="text-xs text-slate-500">
+              Match-specific lineup configuration: Starting 6 and 2 available substitutes
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsLineupModalOpen(true)}
+            className="px-4 py-2 bg-sport-orange hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-glow-orange active:scale-95"
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>{locked ? 'View Lineup Sheets' : 'Configure Match Lineup'}</span>
+          </button>
+        </div>
+
+        {/* Side-by-Side Lineup Display */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Home Team Lineup Deck */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-sport-navy flex items-center gap-1.5">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: homeTeam?.color || '#f97316' }}
+                />
+                {homeTeam?.name || 'Home Team'} Lineup
+              </span>
+              <span className="text-[10px] font-bold text-slate-500">
+                {currentMatch.lineupHome ? '✓ 6+2 Registered' : 'Pending Lineup'}
+              </span>
+            </div>
+
+            {currentMatch.lineupHome ? (
+              <div className="space-y-2 text-xs">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-1">
+                    Starting 6 (On Court):
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentMatch.lineupHome.startingPlayerIds.map((id) => {
+                      const p = getPlayerDisplay(id, homeTeam, true);
+                      return (
+                        <span
+                          key={p.id}
+                          className="px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold text-[11px]"
+                        >
+                          #{p.jerseyNumber} {p.name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1">
+                    Substitutes (2 on Bench):
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentMatch.lineupHome.substitutePlayerIds.map((id) => {
+                      const p = getPlayerDisplay(id, homeTeam, true);
+                      return (
+                        <span
+                          key={p.id}
+                          className="px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 font-semibold text-[11px]"
+                        >
+                          #{p.jerseyNumber} {p.name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-400 italic">
+                Lineup not yet selected. Click 'Configure Match Lineup' to select the starting 6 and 2 substitutes.
+              </div>
+            )}
+          </div>
+
+          {/* Away Team Lineup Deck */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-sport-navy flex items-center gap-1.5">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: awayTeam?.color || '#2563eb' }}
+                />
+                {awayTeam?.name || 'Away Team'} Lineup
+              </span>
+              <span className="text-[10px] font-bold text-slate-500">
+                {currentMatch.lineupAway ? '✓ 6+2 Registered' : 'Pending Lineup'}
+              </span>
+            </div>
+
+            {currentMatch.lineupAway ? (
+              <div className="space-y-2 text-xs">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-1">
+                    Starting 6 (On Court):
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentMatch.lineupAway.startingPlayerIds.map((id) => {
+                      const p = getPlayerDisplay(id, awayTeam, false);
+                      return (
+                        <span
+                          key={p.id}
+                          className="px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold text-[11px]"
+                        >
+                          #{p.jerseyNumber} {p.name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1">
+                    Substitutes (2 on Bench):
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentMatch.lineupAway.substitutePlayerIds.map((id) => {
+                      const p = getPlayerDisplay(id, awayTeam, false);
+                      return (
+                        <span
+                          key={p.id}
+                          className="px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 font-semibold text-[11px]"
+                        >
+                          #{p.jerseyNumber} {p.name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-400 italic">
+                Lineup not yet selected. Click 'Configure Match Lineup' to select the starting 6 and 2 substitutes.
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Cricbuzz-Style Live Commentary Log Stream */}
@@ -447,6 +683,13 @@ export const LiveScoringStudio: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Match Lineup Selection Modal */}
+      <MatchLineupModal
+        match={currentMatch}
+        isOpen={isLineupModalOpen}
+        onClose={() => setIsLineupModalOpen(false)}
+      />
     </div>
   );
 };

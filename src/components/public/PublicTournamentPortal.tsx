@@ -24,6 +24,7 @@ import {
   Table as TableIcon,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { getNextScheduledMatch } from '../../domain/tournament/operations/scheduleManager';
 
 type PublicTab = 'overview' | 'fixtures' | 'standings' | 'bracket' | 'teams';
 
@@ -39,6 +40,16 @@ export const PublicTournamentPortal: React.FC = () => {
   const [matchModalTab, setMatchModalTab] = useState<'commentary' | 'lineups'>('commentary');
   const [publicStageFilter, setPublicStageFilter] = useState<'ALL' | 'A' | 'B' | 'C' | 'D' | 'KNOCKOUT'>('ALL');
   const [standingsGroupFilter, setStandingsGroupFilter] = useState<'ALL' | 'A' | 'B' | 'C' | 'D'>('ALL');
+
+  const venueMap = React.useMemo(
+    () => new Map((activeTournament?.venues || []).map((v) => [v.id, v])),
+    [activeTournament?.venues]
+  );
+
+  const nextMatch = React.useMemo(() => {
+    if (!activeTournament?.fixtures || activeTournament.fixtures.length === 0) return null;
+    return getNextScheduledMatch(activeTournament.fixtures) as Match | null;
+  }, [activeTournament?.fixtures]);
 
   if (!activeTournament) {
     return (
@@ -154,6 +165,14 @@ export const PublicTournamentPortal: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* Draft Mode Notice Banner */}
+      {activeTournament.status === 'DRAFT' && (
+        <div className="bg-amber-500/20 border-b border-amber-500/40 text-amber-200 px-4 py-2.5 text-center text-xs font-semibold flex items-center justify-center gap-2">
+          <span>⚠️</span>
+          <span>Draft Mode — This tournament schedule has not been officially published yet by the organizer.</span>
+        </div>
+      )}
+
       {/* Hero Banner */}
       <div className="bg-gradient-to-b from-sport-navy via-slate-900 to-sport-midnight text-white pt-6 sm:pt-8 pb-10 sm:pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto relative z-10 text-center sm:text-left flex flex-wrap items-center justify-between gap-6">
@@ -195,8 +214,8 @@ export const PublicTournamentPortal: React.FC = () => {
         </div>
       </div>
 
-      {/* Live Match Broadcast Banner (if any live) */}
-      {liveMatches.length > 0 && (
+      {/* Live Match Broadcast Banner or Next Match Section */}
+      {liveMatches.length > 0 ? (
         <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto -mt-6 px-4 sm:px-6 lg:px-8 relative z-20">
           <div className="bg-gradient-to-r from-red-600 via-rose-600 to-orange-600 text-white p-4 sm:p-5 rounded-2xl shadow-xl border border-red-400">
             <div className="flex items-center justify-between mb-3 text-xs font-bold uppercase tracking-wider">
@@ -211,6 +230,7 @@ export const PublicTournamentPortal: React.FC = () => {
               const lm = liveMatches[0];
               const h = teams.find((t) => t.id === lm.homeTeamId);
               const a = teams.find((t) => t.id === lm.awayTeamId);
+              const court = lm.schedule?.venueId || lm.venueId ? venueMap.get(lm.schedule?.venueId || lm.venueId!) : null;
 
               return (
                 <div
@@ -224,7 +244,7 @@ export const PublicTournamentPortal: React.FC = () => {
                   <div className="px-3 xs:px-5 py-1.5 rounded-xl bg-sport-midnight border border-white/20 text-center font-mono font-black text-xl xs:text-2xl sm:text-3xl text-yellow-300 shadow-inner shrink-0">
                     {lm.homeScore} : {lm.awayScore}
                     <div className="text-[9px] xs:text-[10px] font-sans font-bold text-red-200 uppercase tracking-wider">
-                      {lm.score.period || 'In Play'}
+                      {court ? `${court.name} • ` : ''}{lm.score.period || 'In Play'}
                     </div>
                   </div>
 
@@ -236,7 +256,54 @@ export const PublicTournamentPortal: React.FC = () => {
             })()}
           </div>
         </div>
-      )}
+      ) : nextMatch ? (
+        <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto -mt-6 px-4 sm:px-6 lg:px-8 relative z-20">
+          <div className="bg-gradient-to-r from-slate-900 via-sport-navy to-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-xl border border-slate-700/80">
+            <div className="flex items-center justify-between mb-3 text-xs font-bold uppercase tracking-wider text-slate-300">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-sport-orange" />
+                <span className="text-sport-orange font-black">NEXT MATCH</span>
+              </div>
+              <span className="font-mono text-slate-400">
+                {nextMatch.matchCode || `#${nextMatch.fixtureNumber ?? nextMatch.position}`} • {nextMatch.roundName}
+              </span>
+            </div>
+
+            {(() => {
+              const h = teams.find((t) => t.id === nextMatch.homeTeamId);
+              const a = teams.find((t) => t.id === nextMatch.awayTeamId);
+              const court = nextMatch.schedule?.venueId || nextMatch.venueId ? venueMap.get(nextMatch.schedule?.venueId || nextMatch.venueId!) : null;
+              const date = nextMatch.schedule?.date || nextMatch.date;
+              const time = nextMatch.schedule?.startTime || nextMatch.startTime;
+              const endTime = nextMatch.schedule?.endTime || nextMatch.endTime;
+
+              return (
+                <div
+                  onClick={() => setSelectedMatch(nextMatch)}
+                  className="bg-white/5 backdrop-blur-md p-3 sm:p-4 rounded-xl flex items-center justify-between gap-2 sm:gap-4 cursor-pointer hover:bg-white/10 transition border border-white/10"
+                >
+                  <div className="flex-1 text-right font-black text-sm xs:text-base sm:text-lg truncate">
+                    {h?.name || nextMatch.homePlaceholder || 'TBD'}
+                  </div>
+
+                  <div className="px-4 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 text-center shrink-0">
+                    <div className="text-xs font-mono font-bold text-amber-400">
+                      {time ? `${time}${endTime ? ` – ${endTime}` : ''}` : 'Scheduled Soon'}
+                    </div>
+                    <div className="text-[10px] text-slate-300 mt-0.5">
+                      {court ? court.name : (date || 'Upcoming')}
+                    </div>
+                  </div>
+
+                  <div className="flex-1 text-left font-black text-sm xs:text-base sm:text-lg truncate">
+                    {a?.name || nextMatch.awayPlaceholder || 'TBD'}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      ) : null}
 
       {/* Public Tab Navigation Bar */}
       <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 mt-6 sm:mt-8">
@@ -469,6 +536,10 @@ export const PublicTournamentPortal: React.FC = () => {
                     const a = teams.find((t) => t.id === m.awayTeamId);
                     const homeName = h?.name || m.homePlaceholder || 'TBD';
                     const awayName = a?.name || m.awayPlaceholder || 'TBD';
+                    const court = m.schedule?.venueId || m.venueId ? venueMap.get(m.schedule?.venueId || m.venueId!) : null;
+                    const date = m.schedule?.date || m.date;
+                    const time = m.schedule?.startTime || m.startTime;
+                    const endTime = m.schedule?.endTime || m.endTime;
 
                     return (
                       <div
@@ -511,12 +582,26 @@ export const PublicTournamentPortal: React.FC = () => {
                           <span className="truncate flex-1 text-right">{awayName}</span>
                         </div>
 
-                        {m.events.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
-                            <span>{m.events.length} point events recorded</span>
-                            <ChevronRight className="w-3.5 h-3.5 text-sport-orange" />
+                        {/* Court & Schedule details */}
+                        <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] flex items-center justify-between text-slate-500">
+                          <div className="flex items-center gap-2">
+                            {court && (
+                              <span className="inline-flex items-center gap-1 font-bold text-sport-orange">
+                                <MapPin className="w-3 h-3" />
+                                {court.name}
+                              </span>
+                            )}
+                            {(date || time) && (
+                              <span className="font-mono text-slate-600">
+                                {date ? `${date} ` : ''}{time ? `${time}${endTime ? `–${endTime}` : ''}` : ''}
+                              </span>
+                            )}
+                            {!court && !date && !time && (
+                              <span className="text-slate-400 italic">Schedule TBD</span>
+                            )}
                           </div>
-                        )}
+                          <ChevronRight className="w-3.5 h-3.5 text-sport-orange" />
+                        </div>
                       </div>
                     );
                   })}
@@ -753,18 +838,42 @@ export const PublicTournamentPortal: React.FC = () => {
                 </div>
 
                 <div className="border-t border-slate-100 pt-3">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                    Squad Players ({team.players.length})
-                  </span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] uppercase font-bold text-slate-400">
+                      Roster ({team.players.length}/8 Registered)
+                    </span>
+                    {team.players.length === 8 && (
+                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                        ✓ Full Roster
+                      </span>
+                    )}
+                  </div>
                   <div className="space-y-1 text-xs">
-                    {team.players.map((p, i) => (
-                      <div key={p.id || i} className="flex items-center justify-between text-slate-700">
-                        <span>{p.name}</span>
-                        <span className="text-[10px] text-slate-400 font-mono font-bold">
-                          #{p.jerseyNumber ?? i + 1}
-                        </span>
-                      </div>
-                    ))}
+                    {team.players.map((p, i) => {
+                      const isCap = p.isCaptain || team.captainId === p.id;
+                      const isVC = p.isViceCaptain || team.viceCaptainId === p.id;
+
+                      return (
+                        <div key={p.id || i} className="flex items-center justify-between text-slate-700 py-0.5">
+                          <span className="flex items-center gap-1.5 font-medium truncate">
+                            <span>{p.name}</span>
+                            {isCap && (
+                              <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 rounded">
+                                CAP
+                              </span>
+                            )}
+                            {isVC && (
+                              <span className="text-[9px] font-black text-blue-700 bg-blue-100 px-1 rounded">
+                                VC
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-[10px] text-sport-orange font-mono font-black">
+                            #{p.jerseyNumber ?? i + 1}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -908,53 +1017,130 @@ export const PublicTournamentPortal: React.FC = () => {
               </div>
             )}
 
-            {/* Tab 2: Squad Lineups (Playing 7 + Substitutes with Jersey Numbers) */}
+            {/* Tab 2: Squad Lineups (Starting 6 + 2 Substitutes per Match) */}
             {matchModalTab === 'lineups' && (() => {
               const h = teams.find((t) => t.id === selectedMatch.homeTeamId);
               const a = teams.find((t) => t.id === selectedMatch.awayTeamId);
 
-              return (
-                <div className="flex-1 overflow-y-auto pt-3 grid grid-cols-2 gap-4 max-h-80 text-xs">
-                  {/* Home Team Squad */}
+              const resolvePlayer = (id: string, team?: typeof h, lineup?: typeof selectedMatch.lineupHome) => {
+                let snap: any;
+                if (Array.isArray(lineup?.snapshots)) {
+                  snap = lineup.snapshots.find((s) => s.id === id);
+                } else if (lineup?.snapshots && typeof lineup.snapshots === 'object') {
+                  snap = (lineup.snapshots as any)[id];
+                }
+                if (snap) return snap;
+                const p = team?.players.find((item) => item.id === id);
+                if (p) return p;
+                return { id, name: 'Player', jerseyNumber: 0 };
+              };
+
+              const renderTeamLineup = (team?: typeof h, lineup?: typeof selectedMatch.lineupHome, isHome?: boolean) => {
+                if (lineup && lineup.startingPlayerIds && lineup.startingPlayerIds.length > 0) {
+                  return (
+                    <div className="space-y-3">
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-wider text-emerald-700 mb-1 flex items-center justify-between">
+                          <span>Starting 6 (On Field)</span>
+                          <span className="font-mono text-emerald-600">6 Players</span>
+                        </div>
+                        <div className="space-y-1">
+                          {lineup.startingPlayerIds.map((id) => {
+                            const p = resolvePlayer(id, team, lineup);
+                            return (
+                              <div
+                                key={p.id}
+                                className="flex items-center justify-between p-1.5 rounded-lg bg-emerald-50/60 border border-emerald-100 text-[11px]"
+                              >
+                                <span className="font-bold text-slate-800 truncate flex items-center gap-1">
+                                  <span>{p.name}</span>
+                                  {p.isCaptain && <span className="text-[8px] px-1 py-0.2 bg-amber-100 text-amber-800 rounded font-black">C</span>}
+                                  {p.isViceCaptain && <span className="text-[8px] px-1 py-0.2 bg-blue-100 text-blue-800 rounded font-black">VC</span>}
+                                </span>
+                                <span className={`font-mono font-black text-xs ${isHome ? 'text-sport-orange' : 'text-blue-600'}`}>
+                                  #{p.jerseyNumber}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-wider text-blue-700 mb-1 flex items-center justify-between">
+                          <span>Substitutes (Bench)</span>
+                          <span className="font-mono text-blue-600">2 Players</span>
+                        </div>
+                        <div className="space-y-1">
+                          {lineup.substitutePlayerIds.map((id) => {
+                            const p = resolvePlayer(id, team, lineup);
+                            return (
+                              <div
+                                key={p.id}
+                                className="flex items-center justify-between p-1.5 rounded-lg bg-blue-50/60 border border-blue-100 text-[11px]"
+                              >
+                                <span className="font-medium text-slate-700 truncate flex items-center gap-1">
+                                  <span>{p.name}</span>
+                                  {p.isCaptain && <span className="text-[8px] px-1 py-0.2 bg-amber-100 text-amber-800 rounded font-black">C</span>}
+                                  {p.isViceCaptain && <span className="text-[8px] px-1 py-0.2 bg-blue-100 text-blue-800 rounded font-black">VC</span>}
+                                </span>
+                                <span className={`font-mono font-black text-xs ${isHome ? 'text-sport-orange' : 'text-blue-600'}`}>
+                                  #{p.jerseyNumber}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Fallback: Show registered roster with pending notice
+                return (
                   <div className="space-y-2">
-                    <div className="font-bold text-sport-navy flex items-center justify-between pb-1 border-b border-slate-100">
-                      <span>{h?.name}</span>
-                      <span className="text-[10px] text-slate-400">({h?.players.length || 0} players)</span>
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200 text-[10px] text-slate-500 italic">
+                      Match starting 6 + 2 substitutes will be confirmed before match. Showing registered roster:
                     </div>
                     <div className="space-y-1">
-                      {h?.players.map((p, i) => (
+                      {team?.players.map((p, i) => (
                         <div
                           key={p.id || i}
                           className="flex items-center justify-between p-1.5 rounded-lg bg-slate-50 text-[11px]"
                         >
                           <span className="font-medium text-slate-800 truncate">{p.name}</span>
-                          <span className="font-mono font-bold text-sport-orange">
+                          <span className={`font-mono font-bold ${isHome ? 'text-sport-orange' : 'text-blue-600'}`}>
                             #{p.jerseyNumber ?? i + 1}
                           </span>
                         </div>
                       ))}
                     </div>
                   </div>
+                );
+              };
+
+              return (
+                <div className="flex-1 overflow-y-auto pt-3 grid grid-cols-2 gap-4 max-h-80 text-xs">
+                  {/* Home Team Squad */}
+                  <div className="space-y-2">
+                    <div className="font-bold text-sport-navy flex items-center justify-between pb-1 border-b border-slate-100">
+                      <span className="truncate">{h?.name}</span>
+                      <span className="text-[10px] text-slate-400 shrink-0">
+                        {selectedMatch.lineupHome ? '✓ 6+2 Set' : 'Roster'}
+                      </span>
+                    </div>
+                    {renderTeamLineup(h, selectedMatch.lineupHome, true)}
+                  </div>
 
                   {/* Away Team Squad */}
                   <div className="space-y-2">
                     <div className="font-bold text-sport-navy flex items-center justify-between pb-1 border-b border-slate-100">
-                      <span>{a?.name}</span>
-                      <span className="text-[10px] text-slate-400">({a?.players.length || 0} players)</span>
+                      <span className="truncate">{a?.name}</span>
+                      <span className="text-[10px] text-slate-400 shrink-0">
+                        {selectedMatch.lineupAway ? '✓ 6+2 Set' : 'Roster'}
+                      </span>
                     </div>
-                    <div className="space-y-1">
-                      {a?.players.map((p, i) => (
-                        <div
-                          key={p.id || i}
-                          className="flex items-center justify-between p-1.5 rounded-lg bg-slate-50 text-[11px]"
-                        >
-                          <span className="font-medium text-slate-800 truncate">{p.name}</span>
-                          <span className="font-mono font-bold text-blue-600">
-                            #{p.jerseyNumber ?? i + 1}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    {renderTeamLineup(a, selectedMatch.lineupAway, false)}
                   </div>
                 </div>
               );

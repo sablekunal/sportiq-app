@@ -9,6 +9,9 @@ import {
   TournamentStatus,
   MatchEvent,
   AuditLog,
+  MatchLineup,
+  PlayerLineupSnapshot,
+  Venue,
 } from '../types';
 import { INITIAL_VENUES, createThrowballDemoTournament } from '../services/mockData';
 import { advanceWinnerInBracket, generateKnockoutFixtures, generateRoundRobinFixtures, generateGroupKnockoutFixtures } from '../engines/tournamentEngine';
@@ -28,6 +31,17 @@ import { processMatchResult } from '../domain/tournament/results/processResult';
 import { adaptDomainMatchToLegacy } from '../services/matchAdapter';
 import { SPORT_CONFIGS } from '../engines/sportEngine';
 
+import { RosterRules, THROWBALL_ROSTER_RULES, validateTeamRoster } from '../domain/tournament/roster/rosterRules';
+import {
+  validateMatchLineup,
+  createDefaultLineup,
+  isLineupLocked,
+} from '../domain/tournament/roster/lineupValidation';
+
+import { MatchSchedule, ScheduleConflict, TournamentReadinessResult } from '../domain/tournament/operations/types';
+import { detectScheduleConflicts, validateMatchSchedule } from '../domain/tournament/operations/conflicts';
+import { calculateTournamentReadiness } from '../domain/tournament/operations/readiness';
+
 export type AppViewMode = 'organizer' | 'public' | 'tools';
 export type OrganizerTab =
   | 'overview'
@@ -35,6 +49,7 @@ export type OrganizerTab =
   | 'setup'
   | 'draw'
   | 'fixtures'
+  | 'schedule'
   | 'scoring'
   | 'standings'
   | 'bracket'
@@ -69,6 +84,7 @@ interface TournamentContextType {
   clearAllData: () => void;
   updateTournamentStatus: (tournamentId: string, status: TournamentStatus) => void;
   addTeamToTournament: (tournamentId: string, team: Partial<Team>) => void;
+  updateTeamInTournament: (tournamentId: string, teamId: string, teamData: Partial<Team>) => void;
   removeTeamFromTournament: (tournamentId: string, teamId: string) => void;
   generateTournamentFixtures: (tournamentId: string) => void;
   recordMatchEvent: (matchId: string, event: Omit<MatchEvent, 'id' | 'timestamp'>) => void;
@@ -78,6 +94,16 @@ interface TournamentContextType {
   deleteBudgetItem: (tournamentId: string, itemId: string) => void;
   assignGroupPosition: (tournamentId: string, groupId: string, position: number, teamId: string | null) => Promise<void>;
   isGroupLocked: boolean;
+  saveMatchLineup: (matchId: string, teamId: string, lineup: { startingPlayerIds: string[]; substitutePlayerIds: string[] }) => Promise<void>;
+  autoFillMatchLineup: (matchId: string, teamId: string) => Promise<void>;
+  updateMatchSchedule: (matchId: string, schedule: MatchSchedule) => Promise<void>;
+  addVenue: (tournamentId: string, venue: Omit<Venue, 'id'>) => Promise<void>;
+  updateVenue: (tournamentId: string, venueId: string, data: Partial<Venue>) => Promise<void>;
+  deleteVenue: (tournamentId: string, venueId: string) => Promise<void>;
+  publishTournament: (tournamentId: string) => Promise<{ success: boolean; errors: string[]; warnings: string[] }>;
+  unpublishTournament: (tournamentId: string) => Promise<void>;
+  readiness: TournamentReadinessResult;
+  scheduleConflicts: ScheduleConflict[];
 }
 
 const TournamentContext = createContext<TournamentContextType | undefined>(undefined);
@@ -355,8 +381,62 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
+  const updateTeamInTournament = (tournamentId: string, teamId: string, teamData: Partial<Team>) => {
+    updateTournamentDoc(tournamentId, (t) => {
+      const teamIdx = t.teams.findIndex((tm) => tm.id === teamId);
+      if (teamIdx === -1) return t;
+
+      const existingTeam = t.teams[teamIdx];
+
+      // Check if team has played any live or completed matches
+      const hasPlayedMatches = (domainMatches.length > 0 ? domainMatches : t.fixtures).some((m) => {
+        const teamInA = (m as any).participantA?.teamId === teamId || (m as any).homeTeamId === teamId;
+        const teamInB = (m as any).participantB?.teamId === teamId || (m as any).awayTeamId === teamId;
+        const played = m.status === 'LIVE' || m.status === 'COMPLETED';
+        return (teamInA || teamInB) && played;
+      });
+
+      // If team has played matches, prevent destructive player deletions
+      if (hasPlayedMatches && teamData.players) {
+        const existingPlayerIds = new Set(existingTeam.players.map((p) => p.id));
+        const newPlayerIds = new Set(teamData.players.map((p) => p.id));
+        for (const oldId of existingPlayerIds) {
+          if (!newPlayerIds.has(oldId)) {
+            console.warn(`Cannot delete player ${oldId}: team has active or completed competition matches.`);
+            return t; // Abort destructive change
+          }
+        }
+      }
+
+      const updatedTeam: Team = {
+        ...existingTeam,
+        ...teamData,
+      };
+
+      const newTeams = [...t.teams];
+      newTeams[teamIdx] = updatedTeam;
+      return {
+        ...t,
+        teams: newTeams,
+      };
+    });
+  };
+
   const removeTeamFromTournament = (tournamentId: string, teamId: string) => {
     updateTournamentDoc(tournamentId, (t) => {
+      // Check if team has played any matches
+      const hasPlayedMatches = (domainMatches.length > 0 ? domainMatches : t.fixtures).some((m) => {
+        const teamInA = (m as any).participantA?.teamId === teamId || (m as any).homeTeamId === teamId;
+        const teamInB = (m as any).participantB?.teamId === teamId || (m as any).awayTeamId === teamId;
+        const played = m.status === 'LIVE' || m.status === 'COMPLETED';
+        return (teamInA || teamInB) && played;
+      });
+
+      if (hasPlayedMatches) {
+        console.warn(`Cannot delete team ${teamId}: team has active or completed competition matches.`);
+        return t;
+      }
+
       return {
         ...t,
         teams: t.teams.filter((item) => item.id !== teamId),
@@ -744,6 +824,264 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
+  const saveMatchLineup = async (
+    matchId: string,
+    teamId: string,
+    lineup: { startingPlayerIds: string[]; substitutePlayerIds: string[] }
+  ) => {
+    if (!activeTournament) return;
+    const tournamentId = activeTournament.id;
+
+    if (activeTournament.ownerId && (!auth.currentUser || activeTournament.ownerId !== auth.currentUser.uid)) {
+      console.warn("Permission denied: You do not own this tournament.");
+      return;
+    }
+
+    const team = activeTournament.teams.find((tm) => tm.id === teamId);
+    if (!team) {
+      throw new Error(`Team ${teamId} not found in tournament.`);
+    }
+
+    const sportConfig = SPORT_CONFIGS[activeTournament.sport];
+    const rules = sportConfig?.rosterRules || THROWBALL_ROSTER_RULES;
+
+    // Check domain matches first
+    const domainMatch = domainMatches.find((m) => m.id === matchId);
+    if (domainMatch) {
+      if (isLineupLocked(domainMatch.status)) {
+        throw new Error(`Match ${matchId} is ${domainMatch.status}. Lineups are locked and cannot be modified.`);
+      }
+
+      const matchLineup: MatchLineup = {
+        matchId,
+        teamId,
+        startingPlayerIds: lineup.startingPlayerIds,
+        substitutePlayerIds: lineup.substitutePlayerIds,
+        snapshots: team.players.map((p) => ({
+          id: p.id,
+          name: p.name,
+          jerseyNumber: p.jerseyNumber,
+          isCaptain: p.isCaptain,
+          isViceCaptain: p.isViceCaptain,
+        })),
+        isLocked: false,
+      };
+
+      const validation = validateMatchLineup(matchLineup, team.players, rules);
+      if (!validation.isValid) {
+        throw new Error(`Invalid match lineup: ${validation.errors.join(', ')}`);
+      }
+
+      const matchRef = doc(db, 'tournaments', tournamentId, 'matches', matchId);
+      const isTeamA = domainMatch.participantA.type === 'TEAM' && domainMatch.participantA.teamId === teamId;
+      const isTeamB = domainMatch.participantB.type === 'TEAM' && domainMatch.participantB.teamId === teamId;
+
+      if (!isTeamA && !isTeamB) {
+        throw new Error(`Team ${teamId} is not a participant in match ${matchId}.`);
+      }
+
+      if (isTeamA) {
+        await updateDoc(matchRef, { lineupA: matchLineup });
+      } else {
+        await updateDoc(matchRef, { lineupB: matchLineup });
+      }
+      return;
+    }
+
+    // Legacy match path
+    const legacyMatch = activeTournament.fixtures.find((m) => m.id === matchId);
+    if (legacyMatch) {
+      if (isLineupLocked(legacyMatch.status)) {
+        throw new Error(`Match ${matchId} is ${legacyMatch.status}. Lineups are locked and cannot be modified.`);
+      }
+
+      const matchLineup: MatchLineup = {
+        matchId,
+        teamId,
+        startingPlayerIds: lineup.startingPlayerIds,
+        substitutePlayerIds: lineup.substitutePlayerIds,
+        snapshots: team.players.map((p) => ({
+          id: p.id,
+          name: p.name,
+          jerseyNumber: p.jerseyNumber,
+          isCaptain: p.isCaptain,
+          isViceCaptain: p.isViceCaptain,
+        })),
+        isLocked: false,
+      };
+
+      const validation = validateMatchLineup(matchLineup, team.players, rules);
+      if (!validation.isValid) {
+        throw new Error(`Invalid match lineup: ${validation.errors.join(', ')}`);
+      }
+
+      const isHome = legacyMatch.homeTeamId === teamId;
+      const isAway = legacyMatch.awayTeamId === teamId;
+      if (!isHome && !isAway) {
+        throw new Error(`Team ${teamId} is not a participant in match ${matchId}.`);
+      }
+
+      updateTournamentDoc(tournamentId, (t) => {
+        const idx = t.fixtures.findIndex((m) => m.id === matchId);
+        if (idx === -1) return t;
+        const cur = t.fixtures[idx];
+        const updated: Match = {
+          ...cur,
+          lineupHome: isHome ? matchLineup : cur.lineupHome,
+          lineupAway: isAway ? matchLineup : cur.lineupAway,
+        };
+        const newFixtures = [...t.fixtures];
+        newFixtures[idx] = updated;
+        return { ...t, fixtures: newFixtures };
+      });
+    }
+  };
+
+  const autoFillMatchLineup = async (matchId: string, teamId: string) => {
+    if (!activeTournament) return;
+    const team = activeTournament.teams.find((tm) => tm.id === teamId);
+    if (!team) throw new Error(`Team ${teamId} not found.`);
+
+    const sportConfig = SPORT_CONFIGS[activeTournament.sport];
+    const rules = sportConfig?.rosterRules || THROWBALL_ROSTER_RULES;
+
+    const defaultLineup = createDefaultLineup(matchId, teamId, team.players, rules);
+    await saveMatchLineup(matchId, teamId, {
+      startingPlayerIds: defaultLineup.startingPlayerIds,
+      substitutePlayerIds: defaultLineup.substitutePlayerIds,
+    });
+  };
+
+  const scheduleConflicts = useMemo(() => {
+    if (!activeTournament) return [];
+    const matchesToUse = domainMatches.length > 0 ? domainMatches : activeTournament.fixtures;
+    return detectScheduleConflicts(matchesToUse, activeTournament.venues, activeTournament.teams);
+  }, [activeTournament, domainMatches]);
+
+  const readiness = useMemo(() => {
+    if (!activeTournament) {
+      return {
+        status: 'WARNING' as const,
+        canPublish: false,
+        items: [],
+        errors: ['No active tournament selected.'],
+        warnings: [],
+      };
+    }
+    const matchesToUse = domainMatches.length > 0 ? domainMatches : activeTournament.fixtures;
+    return calculateTournamentReadiness(activeTournament, matchesToUse);
+  }, [activeTournament, domainMatches]);
+
+  const updateMatchSchedule = async (matchId: string, schedule: MatchSchedule) => {
+    if (!activeTournament) return;
+
+    // Check lock state: LIVE or COMPLETED matches cannot be normally rescheduled
+    const targetDomainMatch = domainMatches.find((m) => m.id === matchId);
+    const targetLegacyMatch = activeTournament.fixtures.find((m) => m.id === matchId);
+
+    const status = targetDomainMatch?.status || targetLegacyMatch?.status;
+    if (status === 'LIVE' || status === 'HALFTIME') {
+      throw new Error(`Match ${matchId} is currently LIVE. Match schedule is locked and cannot be edited.`);
+    }
+    if (status === 'COMPLETED' || status === 'BYE_ADVANCEMENT') {
+      throw new Error(`Match ${matchId} is COMPLETED. Historical match schedule cannot be edited.`);
+    }
+
+    const validation = validateMatchSchedule(schedule);
+    if (!validation.isValid) {
+      throw new Error(`Invalid schedule: ${validation.errors.join(', ')}`);
+    }
+
+    // 1. Update normalized matches if present
+    if (domainMatches.length > 0 && targetDomainMatch) {
+      await MatchRepository.updateSchedule(activeTournament.id, matchId, schedule);
+    }
+
+    // 2. Update legacy fixtures on tournament document
+    await updateTournamentDoc(activeTournament.id, (t) => {
+      const idx = t.fixtures.findIndex((m) => m.id === matchId);
+      if (idx === -1) return t;
+      const cur = t.fixtures[idx];
+      const scheduledAt = schedule.date && schedule.startTime ? `${schedule.date}T${schedule.startTime}` : cur.scheduledAt;
+      const updated: Match = {
+        ...cur,
+        date: schedule.date,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+        venueId: schedule.venueId,
+        scheduledAt,
+        schedule,
+      };
+      const newFixtures = [...t.fixtures];
+      newFixtures[idx] = updated;
+      return { ...t, fixtures: newFixtures };
+    });
+  };
+
+  const addVenue = async (tournamentId: string, venueData: Omit<Venue, 'id'>) => {
+    const newVenue: Venue = {
+      ...venueData,
+      id: `v-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      active: venueData.active !== undefined ? venueData.active : true,
+      type: venueData.type || 'COURT',
+      order: venueData.order ?? 0,
+    };
+    await updateTournamentDoc(tournamentId, (t) => ({
+      ...t,
+      venues: [...(t.venues || []), newVenue],
+    }));
+  };
+
+  const updateVenue = async (tournamentId: string, venueId: string, data: Partial<Venue>) => {
+    await updateTournamentDoc(tournamentId, (t) => ({
+      ...t,
+      venues: (t.venues || []).map((v) => (v.id === venueId ? { ...v, ...data } : v)),
+    }));
+  };
+
+  const deleteVenue = async (tournamentId: string, venueId: string) => {
+    await updateTournamentDoc(tournamentId, (t) => ({
+      ...t,
+      venues: (t.venues || []).filter((v) => v.id !== venueId),
+    }));
+  };
+
+  const publishTournament = async (tournamentId: string) => {
+    const t = tournamentsRef.current.find((x) => x.id === tournamentId) || activeTournament;
+    if (!t) return { success: false, errors: ['Tournament not found'], warnings: [] };
+
+    const matchesToUse = domainMatches.length > 0 ? domainMatches : t.fixtures;
+    const readinessResult = calculateTournamentReadiness(t, matchesToUse);
+
+    if (!readinessResult.canPublish) {
+      return {
+        success: false,
+        errors: readinessResult.errors,
+        warnings: readinessResult.warnings,
+      };
+    }
+
+    await updateTournamentDoc(tournamentId, (tour) => ({
+      ...tour,
+      status: 'PUBLISHED',
+      visibility: 'PUBLIC',
+    }));
+
+    return {
+      success: true,
+      errors: [],
+      warnings: readinessResult.warnings,
+    };
+  };
+
+  const unpublishTournament = async (tournamentId: string) => {
+    await updateTournamentDoc(tournamentId, (tour) => ({
+      ...tour,
+      status: 'DRAFT',
+      visibility: 'PRIVATE',
+    }));
+  };
+
   return (
     <TournamentContext.Provider
       value={{
@@ -766,6 +1104,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         clearAllData,
         updateTournamentStatus,
         addTeamToTournament,
+        updateTeamInTournament,
         removeTeamFromTournament,
         generateTournamentFixtures,
         recordMatchEvent,
@@ -775,6 +1114,16 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         deleteBudgetItem,
         assignGroupPosition,
         isGroupLocked,
+        saveMatchLineup,
+        autoFillMatchLineup,
+        updateMatchSchedule,
+        addVenue,
+        updateVenue,
+        deleteVenue,
+        publishTournament,
+        unpublishTournament,
+        readiness,
+        scheduleConflicts,
       }}
     >
       {children}

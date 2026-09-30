@@ -11,6 +11,11 @@ import {
   CheckCircle2,
   ShieldAlert,
   ArrowUpRight,
+  AlertTriangle,
+  AlertCircle,
+  Globe,
+  Lock,
+  Clock,
 } from 'lucide-react';
 
 export const OverviewPanel: React.FC = () => {
@@ -20,7 +25,13 @@ export const OverviewPanel: React.FC = () => {
     setViewMode,
     generateTournamentFixtures,
     setActiveMatchId,
+    readiness,
+    publishTournament,
+    unpublishTournament,
   } = useTournament();
+
+  const [isPublishing, setIsPublishing] = React.useState(false);
+  const [publishFeedback, setPublishFeedback] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   if (!activeTournament) return null;
 
@@ -138,6 +149,148 @@ export const OverviewPanel: React.FC = () => {
               Draw Room →
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Tournament Readiness & Publishing Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase font-extrabold tracking-wider text-slate-400">
+                Operations Engine
+              </span>
+              <span
+                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                  readiness.status === 'READY'
+                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                    : readiness.status === 'WARNING'
+                    ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                    : 'bg-rose-100 text-rose-700 border border-rose-300'
+                }`}
+              >
+                ● {readiness.status}
+              </span>
+            </div>
+            <h3 className="text-lg font-black text-sport-navy mt-0.5">
+              Tournament Readiness Checklist
+            </h3>
+            <p className="text-xs text-slate-500">
+              Verifies all known Throwball competition rules (16 teams, 8 players, 4 groups, 27 fixtures, scheduling).
+            </p>
+          </div>
+
+          {/* Publishing Controls */}
+          <div className="flex items-center gap-2">
+            {activeTournament.status === 'PUBLISHED' ? (
+              <>
+                <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                  Published & Live
+                </span>
+                <button
+                  disabled={isPublishing}
+                  onClick={async () => {
+                    setIsPublishing(true);
+                    await unpublishTournament(activeTournament.id);
+                    setPublishFeedback({ type: 'success', msg: 'Tournament unpublished (status: DRAFT).' });
+                    setIsPublishing(false);
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-300 transition cursor-pointer"
+                >
+                  Unpublish
+                </button>
+              </>
+            ) : (
+              <button
+                disabled={!readiness.canPublish || isPublishing}
+                onClick={async () => {
+                  setIsPublishing(true);
+                  setPublishFeedback(null);
+                  const res = await publishTournament(activeTournament.id);
+                  if (!res.success) {
+                    setPublishFeedback({ type: 'error', msg: `Publish failed: ${res.errors.join(', ')}` });
+                  } else if (res.warnings.length > 0) {
+                    setPublishFeedback({ type: 'success', msg: `Published with ${res.warnings.length} warning(s).` });
+                  } else {
+                    setPublishFeedback({ type: 'success', msg: 'Tournament published successfully!' });
+                  }
+                  setIsPublishing(false);
+                }}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer active:scale-95 ${
+                  readiness.canPublish
+                    ? 'bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange'
+                    : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                }`}
+              >
+                <Globe className="w-4 h-4" />
+                {isPublishing
+                  ? 'Publishing...'
+                  : readiness.canPublish
+                  ? 'Publish Tournament'
+                  : 'Publish Blocked (Resolve Errors)'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Feedback Alert */}
+        {publishFeedback && (
+          <div
+            className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+              publishFeedback.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                : 'bg-rose-50 text-rose-800 border border-rose-200'
+            }`}
+          >
+            {publishFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{publishFeedback.msg}</span>
+          </div>
+        )}
+
+        {/* Readiness Checklist Items Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {readiness.items.map((item) => (
+            <div
+              key={item.id}
+              className={`p-3 rounded-xl border transition ${
+                item.status === 'READY'
+                  ? 'bg-slate-50/60 border-slate-200'
+                  : item.status === 'WARNING'
+                  ? 'bg-amber-50/40 border-amber-200'
+                  : 'bg-rose-50/50 border-rose-200'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1 mb-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                  {item.category}
+                </span>
+                {item.status === 'READY' ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                ) : item.status === 'WARNING' ? (
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                )}
+              </div>
+
+              <div className="text-xs font-bold text-slate-900 leading-snug">{item.label}</div>
+
+              {item.message && (
+                <p className="text-[11px] text-slate-600 mt-1 leading-normal">{item.message}</p>
+              )}
+
+              {item.details && (
+                <div className="text-[10px] text-slate-400 font-mono mt-1 truncate">
+                  {item.details}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 

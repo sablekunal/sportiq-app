@@ -4,6 +4,7 @@ export type TournamentFormat = 'KNOCKOUT' | 'DOUBLE_KNOCKOUT' | 'GROUP_KNOCKOUT'
 
 export type TournamentStatus =
   | 'DRAFT'
+  | 'PUBLISHED'
   | 'REGISTRATION'
   | 'TEAMS_ADDED'
   | 'FORMAT_SELECTED'
@@ -17,6 +18,25 @@ export type TournamentStatus =
 
 export type MatchStatus = 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'CANCELLED' | 'POSTPONED';
 
+export interface PlayerLineupSnapshot {
+  id: string;
+  name: string;
+  jerseyNumber: number;
+  role?: string;
+  isCaptain?: boolean;
+  isViceCaptain?: boolean;
+}
+
+export interface MatchLineup {
+  matchId: string;
+  teamId: string;
+  startingPlayerIds: string[];     // exactly 6 for Throwball
+  substitutePlayerIds: string[];   // exactly 2 for Throwball
+  snapshots?: PlayerLineupSnapshot[] | Record<string, PlayerLineupSnapshot>; // Frozen historical player snapshot
+  isLocked?: boolean;
+  updatedAt?: string;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -26,6 +46,8 @@ export interface Player {
   dateOfBirth?: string;
   email?: string;
   phone?: string;
+  isCaptain?: boolean;
+  isViceCaptain?: boolean;
 }
 
 export interface Team {
@@ -35,16 +57,27 @@ export interface Team {
   logoUrl?: string;
   color?: string;
   captainId?: string;
+  viceCaptainId?: string;
   seed?: number;
   groupId?: string;
   players: Player[];
 }
 
+export interface MatchSchedule {
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  venueId?: string;
+}
+
 export interface Venue {
   id: string;
   name: string;
-  location: string;
+  location?: string;
   capacity?: number;
+  type?: 'COURT' | 'VENUE';
+  order?: number;
+  active?: boolean;
 }
 
 export interface MatchScore {
@@ -93,8 +126,14 @@ export interface Match {
   loserNextMatchId?: string | null; // For double elimination
   scheduledAt: string;
   venueId?: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  schedule?: MatchSchedule;
   status: MatchStatus;
   events: MatchEvent[];
+  lineupHome?: MatchLineup;
+  lineupAway?: MatchLineup;
 }
 
 export interface TournamentGroup {

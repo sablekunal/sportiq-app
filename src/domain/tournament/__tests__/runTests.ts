@@ -15,6 +15,8 @@ import { processMatchResult, computeGroupStandings } from '../results/processRes
 import { calculateStandings } from '../results/calculateStandings';
 import { DomainMatch, TournamentRules, MatchParticipant } from '../models/types';
 import { Team } from '../../../types';
+import { runRosterAndLineupTests } from './rosterLineupTests';
+import { runOperationsTests } from './operationsTests';
 
 const rules: TournamentRules = { allowDraws: false };
 
@@ -837,6 +839,12 @@ function runTests() {
   } catch (err: any) {
     console.error('❌ Test 12 failed:', err.message);
   }
+
+  // Milestone 5: Throwball Roster & Match Lineup Tests (Tests 1-17)
+  runRosterAndLineupTests();
+
+  // Milestone 6: Tournament Operations, Scheduling & Readiness Tests (Tests 1-20)
+  runOperationsTests();
 }
 
 runTests();

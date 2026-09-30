@@ -8,6 +8,7 @@ import { OverviewPanel } from './components/organizer/OverviewPanel';
 import { TeamsManagement } from './components/organizer/TeamsManagement';
 import { LiveDrawRoom } from './components/organizer/LiveDrawRoom';
 import { FixturesManager } from './components/organizer/FixturesManager';
+import { ScheduleManager } from './components/organizer/ScheduleManager';
 import { LiveScoringStudio } from './components/organizer/LiveScoringStudio';
 import { StandingsTable } from './components/organizer/StandingsTable';
 import { InteractiveBracket } from './components/organizer/InteractiveBracket';
@@ -62,6 +63,7 @@ const AppContent: React.FC = () => {
               {organizerTab === 'teams' && <TeamsManagement />}
               {organizerTab === 'draw' && <LiveDrawRoom />}
               {organizerTab === 'fixtures' && <FixturesManager />}
+              {organizerTab === 'schedule' && <ScheduleManager />}
               {organizerTab === 'scoring' && <LiveScoringStudio />}
               {organizerTab === 'standings' && <StandingsTable />}
               {organizerTab === 'bracket' && <InteractiveBracket />}

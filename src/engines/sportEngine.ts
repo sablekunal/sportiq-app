@@ -1,4 +1,5 @@
 import { SportType, Match, Standing, Team } from '../types';
+import { RosterRules, THROWBALL_ROSTER_RULES } from '../domain/tournament/roster/rosterRules';
 
 export interface SportEventDefinition {
   type: string;
@@ -20,6 +21,7 @@ export interface SportConfig {
   defaultDrawPoints: number;
   defaultLossPoints: number;
   supportsDraw: boolean;
+  rosterRules?: RosterRules;
 }
 
 export const SPORT_CONFIGS: Record<SportType, SportConfig> = {
@@ -162,6 +164,7 @@ export const SPORT_CONFIGS: Record<SportType, SportConfig> = {
       { type: 'NET_TOUCH', label: 'Net Touch 🕸️', icon: '🕸️', color: 'bg-purple-500' },
       { type: 'TIMEOUT', label: 'Timeout ⏱️', icon: '⏱️', color: 'bg-slate-600' },
     ],
+    rosterRules: THROWBALL_ROSTER_RULES,
   },
 };
 

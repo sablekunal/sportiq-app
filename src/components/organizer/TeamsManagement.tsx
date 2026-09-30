@@ -13,11 +13,20 @@ import {
   Info,
   Award,
   AlertCircle,
+  Edit2,
+  CheckCircle2,
+  Lock,
 } from 'lucide-react';
 import { soundEffects } from '../../engines/audioEngine';
+import { THROWBALL_ROSTER_RULES, validateTeamRoster } from '../../domain/tournament/roster/rosterRules';
 
 export const TeamsManagement: React.FC = () => {
-  const { activeTournament, addTeamToTournament, removeTeamFromTournament } = useTournament();
+  const {
+    activeTournament,
+    addTeamToTournament,
+    updateTeamInTournament,
+    removeTeamFromTournament,
+  } = useTournament();
 
   const [isAddingTeam, setIsAddingTeam] = useState(false);
   const [teamName, setTeamName] = useState('');
@@ -35,30 +44,41 @@ export const TeamsManagement: React.FC = () => {
   // New Player Form State
   const [playerName, setPlayerName] = useState('');
   const [jerseyNumber, setJerseyNumber] = useState<number>(7);
-  const [playerRole, setPlayerRole] = useState('Attacker / Smasher');
   const [playerError, setPlayerError] = useState<string | null>(null);
+
+  // Inline Player Edit State
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+  const [editPlayerName, setEditPlayerName] = useState('');
+  const [editJerseyNumber, setEditJerseyNumber] = useState<number>(1);
 
   if (!activeTournament) return null;
 
   const teams = activeTournament.teams;
   const currentTeam = teams.find((t) => t.id === selectedTeamId) || teams[0];
 
-  // Helper to generate a regulation 12-player squad (7 on court + 5 bench substitutes)
-  const generateRegulation12Squad = (teamShort: string): Player[] => {
+  const hasPlayedMatches = (teamId: string): boolean => {
+    if (!activeTournament) return false;
+    return activeTournament.fixtures.some(
+      (m) =>
+        (m.homeTeamId === teamId || m.awayTeamId === teamId) &&
+        (m.status === 'LIVE' || m.status === 'COMPLETED')
+    );
+  };
+
+  const isCurrentTeamLocked = currentTeam ? hasPlayedMatches(currentTeam.id) : false;
+
+  // Helper to generate a regulation 8-player squad (6 starters + 2 substitutes spec)
+  const generateRegulation8Squad = (teamShort: string): Player[] => {
+    const timestamp = Date.now();
     return [
-      { id: `p-${Date.now()}-1`, name: 'Team Captain', jerseyNumber: 10, role: 'Captain (C)' },
-      { id: `p-${Date.now()}-2`, name: 'Lead Smasher', jerseyNumber: 7, role: 'Attacker / Smasher' },
-      { id: `p-${Date.now()}-3`, name: 'Left Attacker', jerseyNumber: 9, role: 'Attacker / Smasher' },
-      { id: `p-${Date.now()}-4`, name: 'Main Center', jerseyNumber: 5, role: 'Center / Setter' },
-      { id: `p-${Date.now()}-5`, name: 'Secondary Center', jerseyNumber: 8, role: 'Center / Setter' },
-      { id: `p-${Date.now()}-6`, name: 'Left Defender', jerseyNumber: 2, role: 'Defender' },
-      { id: `p-${Date.now()}-7`, name: 'Right Defender', jerseyNumber: 4, role: 'Defender' },
-      // 5 Regulation Substitutes
-      { id: `p-${Date.now()}-8`, name: 'Sub Attacker', jerseyNumber: 1, role: 'Substitute' },
-      { id: `p-${Date.now()}-9`, name: 'Sub Defender', jerseyNumber: 3, role: 'Substitute' },
-      { id: `p-${Date.now()}-10`, name: 'Sub Center', jerseyNumber: 6, role: 'Substitute' },
-      { id: `p-${Date.now()}-11`, name: 'Reserve Player 1', jerseyNumber: 11, role: 'Substitute' },
-      { id: `p-${Date.now()}-12`, name: 'Reserve Player 2', jerseyNumber: 12, role: 'Substitute' },
+      { id: `p-${timestamp}-1`, name: `${teamShort} Captain`, jerseyNumber: 10, role: 'Captain (C)', isCaptain: true },
+      { id: `p-${timestamp}-2`, name: `${teamShort} Vice Captain`, jerseyNumber: 7, role: 'Vice-Captain (VC)', isViceCaptain: true },
+      { id: `p-${timestamp}-3`, name: `${teamShort} Setter`, jerseyNumber: 9, role: 'Court Player' },
+      { id: `p-${timestamp}-4`, name: `${teamShort} Center`, jerseyNumber: 5, role: 'Court Player' },
+      { id: `p-${timestamp}-5`, name: `${teamShort} Left Wing`, jerseyNumber: 2, role: 'Court Player' },
+      { id: `p-${timestamp}-6`, name: `${teamShort} Right Wing`, jerseyNumber: 4, role: 'Court Player' },
+      { id: `p-${timestamp}-7`, name: `${teamShort} Defender 1`, jerseyNumber: 8, role: 'Court Player' },
+      { id: `p-${timestamp}-8`, name: `${teamShort} Defender 2`, jerseyNumber: 11, role: 'Court Player' },
     ];
   };
 
@@ -69,9 +89,15 @@ export const TeamsManagement: React.FC = () => {
     const code = (shortName || teamName.slice(0, 3)).toUpperCase().trim().slice(0, 4);
 
     const squadPlayers = withRegulationSquad
-      ? generateRegulation12Squad(code)
+      ? generateRegulation8Squad(code)
       : [
-          { id: `p-${Date.now()}-1`, name: 'Captain Player', jerseyNumber: 10, role: 'Captain (C)' },
+          {
+            id: `p-${Date.now()}-1`,
+            name: `${code} Captain`,
+            jerseyNumber: 10,
+            role: 'Captain (C)',
+            isCaptain: true,
+          },
         ];
 
     addTeamToTournament(activeTournament.id, {
@@ -81,6 +107,8 @@ export const TeamsManagement: React.FC = () => {
       seed: Number(seed),
       groupId: selectedGroupId || undefined,
       players: squadPlayers,
+      captainId: squadPlayers.find((p) => p.isCaptain)?.id,
+      viceCaptainId: squadPlayers.find((p) => p.isViceCaptain)?.id,
     });
 
     setTeamName('');
@@ -92,9 +120,13 @@ export const TeamsManagement: React.FC = () => {
   const handleAddPlayer = (e: React.FormEvent) => {
     e.preventDefault();
     setPlayerError(null);
-    if (!playerName.trim() || !currentTeam) return;
+    if (!playerName.trim() || !currentTeam || !activeTournament) return;
 
-    // Validate jersey number uniqueness within team
+    if (currentTeam.players.length >= 8) {
+      setPlayerError('Throwball competition limit reached: exactly 8 registered players allowed per team.');
+      return;
+    }
+
     const num = Number(jerseyNumber);
     if (num < 1 || num > 99) {
       setPlayerError('Jersey number must be between 1 and 99.');
@@ -107,32 +139,147 @@ export const TeamsManagement: React.FC = () => {
     }
 
     const newPlayer: Player = {
-      id: `p-${Date.now()}`,
+      id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: playerName.trim(),
       jerseyNumber: num,
-      role: playerRole,
+      role: 'Court Player',
+      isCaptain: false,
+      isViceCaptain: false,
     };
 
-    currentTeam.players.push(newPlayer);
+    const updatedPlayers = [...currentTeam.players, newPlayer];
+    updateTeamInTournament(activeTournament.id, currentTeam.id, {
+      players: updatedPlayers,
+    });
+
     setPlayerName('');
     setJerseyNumber((prev) => (prev < 99 ? prev + 1 : 1));
     soundEffects.playWhistle();
   };
 
+  const handleRemovePlayer = (playerId: string) => {
+    if (!currentTeam || !activeTournament) return;
+    if (isCurrentTeamLocked) {
+      alert('Cannot remove player: this team has active or completed competition matches.');
+      return;
+    }
+
+    const updatedPlayers = currentTeam.players.filter((item) => item.id !== playerId);
+    updateTeamInTournament(activeTournament.id, currentTeam.id, {
+      players: updatedPlayers,
+      captainId: currentTeam.captainId === playerId ? undefined : currentTeam.captainId,
+      viceCaptainId: currentTeam.viceCaptainId === playerId ? undefined : currentTeam.viceCaptainId,
+    });
+    soundEffects.playWhistle();
+  };
+
+  const handleStartEditPlayer = (p: Player) => {
+    setEditingPlayerId(p.id);
+    setEditPlayerName(p.name);
+    setEditJerseyNumber(p.jerseyNumber);
+    setPlayerError(null);
+  };
+
+  const handleSavePlayerEdit = (playerId: string) => {
+    if (!currentTeam || !activeTournament) return;
+    if (!editPlayerName.trim()) {
+      setPlayerError('Player name cannot be empty.');
+      return;
+    }
+    const num = Number(editJerseyNumber);
+    if (num < 1 || num > 99) {
+      setPlayerError('Jersey number must be between 1 and 99.');
+      return;
+    }
+    const duplicate = currentTeam.players.some(
+      (p) => p.id !== playerId && p.jerseyNumber === num
+    );
+    if (duplicate) {
+      setPlayerError(`Jersey #${num} is already used by another player on this team.`);
+      return;
+    }
+
+    const updatedPlayers = currentTeam.players.map((p) =>
+      p.id === playerId ? { ...p, name: editPlayerName.trim(), jerseyNumber: num } : p
+    );
+
+    updateTeamInTournament(activeTournament.id, currentTeam.id, {
+      players: updatedPlayers,
+    });
+    setEditingPlayerId(null);
+    setPlayerError(null);
+  };
+
+  const handleToggleCaptain = (playerId: string) => {
+    if (!currentTeam || !activeTournament) return;
+    const isCurrentlyCap = currentTeam.captainId === playerId || currentTeam.players.find(p => p.id === playerId)?.isCaptain;
+    const newCaptainId = isCurrentlyCap ? undefined : playerId;
+    // Cannot be captain and vice-captain at same time
+    const newViceCaptainId = currentTeam.viceCaptainId === playerId ? undefined : currentTeam.viceCaptainId;
+
+    const updatedPlayers = currentTeam.players.map((p) => ({
+      ...p,
+      isCaptain: p.id === newCaptainId,
+      isViceCaptain: p.id === newViceCaptainId,
+      role: p.id === newCaptainId ? 'Captain (C)' : (p.id === newViceCaptainId ? 'Vice-Captain (VC)' : (p.role === 'Captain (C)' || p.role === 'Vice-Captain (VC)' ? 'Court Player' : p.role)),
+    }));
+
+    updateTeamInTournament(activeTournament.id, currentTeam.id, {
+      captainId: newCaptainId,
+      viceCaptainId: newViceCaptainId,
+      players: updatedPlayers,
+    });
+  };
+
+  const handleToggleViceCaptain = (playerId: string) => {
+    if (!currentTeam || !activeTournament) return;
+    const isCurrentlyVC = currentTeam.viceCaptainId === playerId || currentTeam.players.find(p => p.id === playerId)?.isViceCaptain;
+    const newViceCaptainId = isCurrentlyVC ? undefined : playerId;
+    // Cannot be captain and vice-captain at same time
+    const newCaptainId = currentTeam.captainId === playerId ? undefined : currentTeam.captainId;
+
+    const updatedPlayers = currentTeam.players.map((p) => ({
+      ...p,
+      isCaptain: p.id === newCaptainId,
+      isViceCaptain: p.id === newViceCaptainId,
+      role: p.id === newCaptainId ? 'Captain (C)' : (p.id === newViceCaptainId ? 'Vice-Captain (VC)' : (p.role === 'Captain (C)' || p.role === 'Vice-Captain (VC)' ? 'Court Player' : p.role)),
+    }));
+
+    updateTeamInTournament(activeTournament.id, currentTeam.id, {
+      captainId: newCaptainId,
+      viceCaptainId: newViceCaptainId,
+      players: updatedPlayers,
+    });
+  };
+
   const handlePopulateSquad = (team: Team) => {
+    if (isCurrentTeamLocked) {
+      alert('Cannot modify squad: this team has active or completed competition matches.');
+      return;
+    }
     if (
-      team.players.length >= 7 &&
-      !window.confirm(`Replace existing roster with regulation 12-player squad?`)
+      team.players.length > 0 &&
+      !window.confirm(`Replace current roster for ${team.name} with regulation 8-player squad?`)
     ) {
       return;
     }
-    team.players = generateRegulation12Squad(team.shortName);
+    const newPlayers = generateRegulation8Squad(team.shortName);
+    updateTeamInTournament(activeTournament.id, team.id, {
+      players: newPlayers,
+      captainId: newPlayers.find((p) => p.isCaptain)?.id,
+      viceCaptainId: newPlayers.find((p) => p.isViceCaptain)?.id,
+    });
     soundEffects.playCelebration();
   };
 
+  // Validation report for current team
+  const currentValidation = currentTeam
+    ? validateTeamRoster(currentTeam.players, THROWBALL_ROSTER_RULES)
+    : { isValid: false, errors: [] };
+
   return (
     <div className="space-y-6">
-      {/* Official Tournament Regulation Specifications Card */}
+      {/* Official Throwball Regulation Specifications Card */}
       <div className="bg-gradient-to-r from-slate-900 via-sport-navy to-sport-midnight text-white p-5 rounded-2xl border border-slate-800 shadow-md">
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-xl bg-sport-orange/20 text-sport-orange border border-sport-orange/30 shrink-0 mt-0.5">
@@ -140,31 +287,31 @@ export const TeamsManagement: React.FC = () => {
           </div>
           <div className="space-y-2 flex-1">
             <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-              Official Tournament Team & Roster Standard Specification
+              St. Xavier's Girls Throwball — Official Competition Roster Specification
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs pt-1 text-slate-300">
               <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
                 <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  1. Squad Size
+                  1. Registered Roster
                 </span>
-                <span className="font-semibold text-white">12 to 14 Players</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">7 playing on court + 5 to 7 bench substitutes</p>
+                <span className="font-semibold text-white">Exactly 8 Players</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">Required before team is competition-ready</p>
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
                 <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  2. Team Name & Code
+                  2. Match Day Lineup
                 </span>
-                <span className="font-semibold text-white">Full Name + 3-4 Letter Code</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">e.g. "Bangalore Thunderbolts" (BLR)</p>
+                <span className="font-semibold text-white">6 Starters + 2 Substitutes</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">Selected per match; not permanent roles</p>
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
                 <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  3. Player Names & Roles
+                  3. Captain & Vice Captain
                 </span>
-                <span className="font-semibold text-white">First & Last Name</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">Captain (C), Vice-Captain, Smasher, Center, Defender</p>
+                <span className="font-semibold text-white">Max 1 Captain + 1 VC</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">Distinct player identities required</p>
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
@@ -172,7 +319,7 @@ export const TeamsManagement: React.FC = () => {
                   4. Jersey Numbers
                 </span>
                 <span className="font-semibold text-white">#1 to #99 (Unique)</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">No duplicate jersey numbers within same squad</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">No duplicate jerseys within same team</p>
               </div>
             </div>
           </div>
@@ -187,7 +334,7 @@ export const TeamsManagement: React.FC = () => {
             Tournament Teams & Squad Rosters
           </h3>
           <p className="text-xs text-slate-500">
-            Manage squads, jersey numbers, and team matchmaking ({teams.length} Teams Registered)
+            Manage 8-player squads, jersey numbers, and captaincy ({teams.length} Teams Registered)
           </p>
         </div>
 
@@ -261,7 +408,7 @@ export const TeamsManagement: React.FC = () => {
               </div>
             </div>
 
-            {/* Regulation Squad Auto-Populate Checkbox */}
+            {/* Regulation 8-Player Squad Auto-Populate Checkbox */}
             <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl flex items-center justify-between">
               <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-sport-navy">
                 <input
@@ -270,7 +417,7 @@ export const TeamsManagement: React.FC = () => {
                   onChange={(e) => setWithRegulationSquad(e.target.checked)}
                   className="rounded text-sport-orange focus:ring-sport-orange w-4 h-4 cursor-pointer"
                 />
-                <span>Auto-generate Regulation 12-Player Squad (7 on court + 5 substitutes with Jersey #1 to #12)</span>
+                <span>Auto-generate Regulation 8-Player Squad (6 starters + 2 substitutes spec with unique jerseys)</span>
               </label>
               <span className="text-[10px] uppercase font-black text-sport-orange px-2 py-0.5 rounded bg-orange-100">
                 Recommended
@@ -302,12 +449,13 @@ export const TeamsManagement: React.FC = () => {
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400 px-1">
             <span>Registered Teams ({teams.length})</span>
-            <span>Roster Size</span>
+            <span>Roster Status</span>
           </div>
 
           {teams.map((team) => {
-            const isSelected = (currentTeam?.id === team.id);
-            const isRegulationReady = team.players.length >= 7;
+            const isSelected = currentTeam?.id === team.id;
+            const validation = validateTeamRoster(team.players, THROWBALL_ROSTER_RULES);
+            const teamLocked = hasPlayedMatches(team.id);
 
             return (
               <div
@@ -327,12 +475,25 @@ export const TeamsManagement: React.FC = () => {
                     {team.shortName}
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-sport-navy">{team.name}</h4>
+                    <h4 className="text-sm font-bold text-sport-navy flex items-center gap-1.5">
+                      {team.name}
+                      {teamLocked && (
+                        <span title="Roster locked (matches active/completed)">
+                          <Lock className="w-3 h-3 text-slate-400" />
+                        </span>
+                      )}
+                    </h4>
                     <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
                       <span>Seed #{team.seed || '-'}</span>
                       <span>•</span>
-                      <span className={isRegulationReady ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
-                        {team.players.length} Players {isRegulationReady ? '(Regulation Ready)' : '(Need 7+)'}
+                      <span
+                        className={
+                          validation.isValid
+                            ? 'text-emerald-600 font-bold'
+                            : 'text-amber-600 font-bold'
+                        }
+                      >
+                        {team.players.length}/8 Players {validation.isValid ? '✓ Ready' : '(Need 8)'}
                       </span>
                     </div>
                   </div>
@@ -340,14 +501,23 @@ export const TeamsManagement: React.FC = () => {
 
                 <div className="flex items-center gap-1.5">
                   <button
+                    disabled={teamLocked}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (teamLocked) {
+                        alert('Cannot delete team: matches have been played or are live.');
+                        return;
+                      }
                       if (window.confirm(`Delete team "${team.name}"?`)) {
                         removeTeamFromTournament(activeTournament.id, team.id);
                       }
                     }}
-                    className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition cursor-pointer"
-                    title="Remove Team"
+                    className={`p-1.5 rounded-lg transition ${
+                      teamLocked
+                        ? 'text-slate-300 cursor-not-allowed'
+                        : 'text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer'
+                    }`}
+                    title={teamLocked ? 'Locked (matches played)' : 'Remove Team'}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -371,7 +541,14 @@ export const TeamsManagement: React.FC = () => {
                     {currentTeam.shortName}
                   </div>
                   <div>
-                    <h4 className="text-base font-extrabold text-sport-navy">{currentTeam.name}</h4>
+                    <h4 className="text-base font-extrabold text-sport-navy flex items-center gap-2">
+                      {currentTeam.name}
+                      {isCurrentTeamLocked && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
+                          <Lock className="w-3 h-3" /> Historical Lock
+                        </span>
+                      )}
+                    </h4>
                     <p className="text-xs text-slate-500">
                       Code: <strong className="font-mono text-sport-orange">{currentTeam.shortName}</strong> • Seed #{currentTeam.seed || 'Unseeded'}
                     </p>
@@ -380,21 +557,57 @@ export const TeamsManagement: React.FC = () => {
 
                 <div className="flex items-center gap-2">
                   <button
+                    disabled={isCurrentTeamLocked}
                     onClick={() => handlePopulateSquad(currentTeam)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
-                    title="Load standard 12-player Throwball roster"
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      isCurrentTeamLocked
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer'
+                    }`}
+                    title="Load standard 8-player Throwball roster"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-sport-orange" />
-                    <span>Load 12-Player Squad Preset</span>
+                    <span>Load 8-Player Squad Preset</span>
                   </button>
 
-                  <span className="px-3 py-1.5 rounded-xl text-xs font-extrabold bg-sport-navy text-white">
-                    {currentTeam.players.length} Players
+                  <span
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 ${
+                      currentValidation.isValid
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}
+                  >
+                    {currentValidation.isValid ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>8 / 8 Ready</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                        <span>{currentTeam.players.length} / 8 Players</span>
+                      </>
+                    )}
                   </span>
                 </div>
               </div>
 
-              {/* Error banner if jersey conflict */}
+              {/* Roster Status & Validation Messages */}
+              {!currentValidation.isValid && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    <span>Roster Requirement Notice:</span>
+                  </div>
+                  <ul className="list-disc list-inside text-[11px] pl-1 space-y-0.5 text-amber-700">
+                    {currentValidation.errors.map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Error banner if local form conflict */}
               {playerError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 flex items-center gap-2 animate-fadeIn">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -403,53 +616,43 @@ export const TeamsManagement: React.FC = () => {
               )}
 
               {/* Add Individual Player Input */}
-              <form onSubmit={handleAddPlayer} className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap items-center gap-3">
-                <div className="flex-1 min-w-[160px]">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Player Name (e.g. Kunal Sable)"
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-sport-orange"
-                  />
-                </div>
-
-                <div className="w-24">
-                  <input
-                    type="number"
-                    min={1}
-                    max={99}
-                    placeholder="Jersey #"
-                    value={jerseyNumber}
-                    onChange={(e) => setJerseyNumber(Number(e.target.value))}
-                    className="w-full text-xs font-black font-mono px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-sport-orange text-center"
-                  />
-                </div>
-
-                <div className="w-44">
-                  <select
-                    value={playerRole}
-                    onChange={(e) => setPlayerRole(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-sport-orange cursor-pointer"
-                  >
-                    <option value="Captain (C)">Captain (C)</option>
-                    <option value="Vice-Captain (VC)">Vice-Captain (VC)</option>
-                    <option value="Attacker / Smasher">Attacker / Smasher</option>
-                    <option value="Center / Setter">Center / Setter</option>
-                    <option value="Defender">Defender</option>
-                    <option value="Substitute">Substitute</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-sport-navy hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+              {currentTeam.players.length < 8 && !isCurrentTeamLocked && (
+                <form
+                  onSubmit={handleAddPlayer}
+                  className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap items-center gap-3"
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Add Player</span>
-                </button>
-              </form>
+                  <div className="flex-1 min-w-[160px]">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Player Name (e.g. Ananya Hegde)"
+                      value={playerName}
+                      onChange={(e) => setPlayerName(e.target.value)}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-sport-orange"
+                    />
+                  </div>
+
+                  <div className="w-24">
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      placeholder="Jersey #"
+                      value={jerseyNumber}
+                      onChange={(e) => setJerseyNumber(Number(e.target.value))}
+                      className="w-full text-xs font-black font-mono px-3 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:border-sport-orange text-center"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-sport-navy hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Add Player</span>
+                  </button>
+                </form>
+              )}
 
               {/* Roster Table */}
               <div className="overflow-x-auto">
@@ -458,53 +661,134 @@ export const TeamsManagement: React.FC = () => {
                     <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px]">
                       <th className="py-2.5 px-3">Jersey #</th>
                       <th className="py-2.5 px-3">Player Full Name</th>
-                      <th className="py-2.5 px-3">Court Role</th>
-                      <th className="py-2.5 px-3 text-center">Status</th>
-                      <th className="py-2.5 px-3 text-right">Remove</th>
+                      <th className="py-2.5 px-3 text-center">Leadership</th>
+                      <th className="py-2.5 px-3 text-center">Match Eligibility</th>
+                      <th className="py-2.5 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {currentTeam.players.map((p, idx) => (
-                      <tr key={p.id || idx} className="hover:bg-slate-50/80 transition">
-                        <td className="py-2.5 px-3 font-mono font-black text-sport-orange text-sm">
-                          #{p.jerseyNumber ?? idx + 1}
-                        </td>
-                        <td className="py-2.5 px-3 font-bold text-sport-navy">{p.name}</td>
-                        <td className="py-2.5 px-3 text-slate-600">
-                          <span
-                            className={`px-2 py-0.5 rounded font-semibold text-[11px] ${
-                              p.role.includes('Captain')
-                                ? 'bg-amber-100 text-amber-800 font-bold'
-                                : p.role.includes('Attacker')
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            {p.role || 'Player'}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-center">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              idx < 7 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {idx < 7 ? 'On Court (Playing 7)' : 'Substitute Bench'}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <button
-                            onClick={() => {
-                              currentTeam.players = currentTeam.players.filter((item) => item.id !== p.id);
-                              soundEffects.playWhistle();
-                            }}
-                            className="text-slate-400 hover:text-red-500 p-1 transition cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {currentTeam.players.map((p, idx) => {
+                      const isEditing = editingPlayerId === p.id;
+                      const isCap = p.isCaptain || currentTeam.captainId === p.id;
+                      const isVC = p.isViceCaptain || currentTeam.viceCaptainId === p.id;
+
+                      return (
+                        <tr key={p.id || idx} className="hover:bg-slate-50/80 transition">
+                          <td className="py-2.5 px-3">
+                            {isEditing ? (
+                              <input
+                                type="number"
+                                min={1}
+                                max={99}
+                                value={editJerseyNumber}
+                                onChange={(e) => setEditJerseyNumber(Number(e.target.value))}
+                                className="w-16 font-mono font-black text-sport-orange text-xs px-2 py-1 border rounded bg-white"
+                              />
+                            ) : (
+                              <span className="font-mono font-black text-sport-orange text-sm">
+                                #{p.jerseyNumber ?? idx + 1}
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-2.5 px-3">
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={editPlayerName}
+                                onChange={(e) => setEditPlayerName(e.target.value)}
+                                className="w-full text-xs font-bold text-sport-navy px-2 py-1 border rounded bg-white"
+                              />
+                            ) : (
+                              <span className="font-bold text-sport-navy">{p.name}</span>
+                            )}
+                          </td>
+
+                          <td className="py-2.5 px-3 text-center">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                disabled={isCurrentTeamLocked}
+                                onClick={() => handleToggleCaptain(p.id)}
+                                title={isCap ? 'Remove Captain' : 'Make Captain'}
+                                className={`px-2 py-0.5 rounded text-[10px] font-extrabold transition cursor-pointer ${
+                                  isCap
+                                    ? 'bg-amber-500 text-white shadow-sm'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
+                                }`}
+                              >
+                                {isCap ? '★ CAP' : 'C'}
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={isCurrentTeamLocked}
+                                onClick={() => handleToggleViceCaptain(p.id)}
+                                title={isVC ? 'Remove Vice Captain' : 'Make Vice Captain'}
+                                className={`px-2 py-0.5 rounded text-[10px] font-extrabold transition cursor-pointer ${
+                                  isVC
+                                    ? 'bg-blue-600 text-white shadow-sm'
+                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
+                                }`}
+                              >
+                                {isVC ? '🛡 VC' : 'VC'}
+                              </button>
+                            </div>
+                          </td>
+
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Registered (Eligible for 6+2 Lineup)
+                            </span>
+                          </td>
+
+                          <td className="py-2.5 px-3 text-right">
+                            <div className="inline-flex items-center gap-1">
+                              {isEditing ? (
+                                <>
+                                  <button
+                                    onClick={() => handleSavePlayerEdit(p.id)}
+                                    className="text-emerald-600 hover:text-emerald-700 p-1 rounded hover:bg-emerald-50 cursor-pointer"
+                                    title="Save changes"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingPlayerId(null)}
+                                    className="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-50 cursor-pointer"
+                                    title="Cancel"
+                                  >
+                                    ✕
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => handleStartEditPlayer(p)}
+                                    className="text-slate-400 hover:text-sport-navy p-1 rounded hover:bg-slate-100 transition cursor-pointer"
+                                    title="Edit Player"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    disabled={isCurrentTeamLocked}
+                                    onClick={() => handleRemovePlayer(p.id)}
+                                    className={`p-1 transition rounded ${
+                                      isCurrentTeamLocked
+                                        ? 'text-slate-300 cursor-not-allowed'
+                                        : 'text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer'
+                                    }`}
+                                    title={isCurrentTeamLocked ? 'Locked (matches played)' : 'Remove Player'}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

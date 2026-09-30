@@ -40,6 +40,32 @@ export class MatchRepository {
   }
 
   /**
+   * Updates schedule information for a match without modifying fixture ID, fixture number,
+   * participants, scores, lineups, or bracket progression.
+   */
+  static async updateSchedule(
+    tournamentId: string,
+    matchId: string,
+    schedule: { date?: string; startTime?: string; endTime?: string; venueId?: string }
+  ): Promise<void> {
+    const matchRef = doc(db, 'tournaments', tournamentId, 'matches', matchId);
+    const scheduledAt = schedule.date && schedule.startTime ? `${schedule.date}T${schedule.startTime}` : null;
+    await updateDoc(matchRef, {
+      date: schedule.date ?? null,
+      startTime: schedule.startTime ?? null,
+      endTime: schedule.endTime ?? null,
+      venueId: schedule.venueId ?? null,
+      scheduledAt: scheduledAt,
+      schedule: {
+        date: schedule.date ?? '',
+        startTime: schedule.startTime ?? '',
+        endTime: schedule.endTime ?? '',
+        venueId: schedule.venueId ?? '',
+      },
+    });
+  }
+
+  /**
    * Completes a match using a Firestore transaction to prevent concurrent 
    * completion of the same match.
    */

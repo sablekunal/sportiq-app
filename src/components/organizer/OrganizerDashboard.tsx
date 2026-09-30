@@ -46,6 +46,7 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
     deleteTournament,
     loadThrowballDemo,
     clearAllData,
+    scheduleConflicts,
   } = useTournament();
 
   if (!activeTournament) {
@@ -115,6 +116,12 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
     { id: 'teams', label: 'Teams & Rosters', icon: <Users className="w-4 h-4" />, badge: teamsCount },
     { id: 'draw', label: 'Live Draw Room', icon: <Sparkles className="w-4 h-4" /> },
     { id: 'fixtures', label: 'Fixtures', icon: <Calendar className="w-4 h-4" />, badge: matchesCount },
+    {
+      id: 'schedule',
+      label: 'Schedule & Courts',
+      icon: <Clock className="w-4 h-4 text-amber-500" />,
+      badge: scheduleConflicts.length > 0 ? `${scheduleConflicts.length} ⚠️` : undefined,
+    },
     {
       id: 'scoring',
       label: 'Live Scorer Desk',
