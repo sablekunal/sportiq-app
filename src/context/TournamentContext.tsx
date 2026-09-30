@@ -19,6 +19,7 @@ import { MatchRepository } from '../repositories/matchRepository';
 import { DomainMatch, MatchResult, TournamentRules } from '../domain/tournament/models/types';
 import { generateKnockout } from '../domain/tournament/fixtures/knockout';
 import { generateRoundRobin } from '../domain/tournament/fixtures/roundRobin';
+import { generateFourGroupTournament } from '../domain/tournament/fixtures/groupKnockout';
 import { processMatchResult } from '../domain/tournament/results/processResult';
 import { adaptDomainMatchToLegacy } from '../services/matchAdapter';
 import { SPORT_CONFIGS } from '../engines/sportEngine';
@@ -166,7 +167,11 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const activeTournament = useMemo(() => {
     const t = tournaments.find((t) => t.id === activeTournamentId) || tournaments[0] || null;
     if (t && domainMatches.length > 0) {
-      return { ...t, fixtures: domainMatches.map(adaptDomainMatchToLegacy) };
+      // Sort fixtures strictly by canonical fixtureNumber so UI and Firestore never scramble the sequence
+      const sortedMatches = [...domainMatches].sort(
+        (a, b) => (a.fixtureNumber ?? a.position) - (b.fixtureNumber ?? b.position)
+      );
+      return { ...t, fixtures: sortedMatches.map(adaptDomainMatchToLegacy) };
     }
     return t;
   }, [tournaments, activeTournamentId, domainMatches]);
@@ -359,13 +364,32 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     let generatedLegacy: Match[] = [];
 
-    if (t.format === 'KNOCKOUT' || t.format === 'ROUND_ROBIN') {
+    if (t.format === 'KNOCKOUT' || t.format === 'ROUND_ROBIN' || t.format === 'GROUP_KNOCKOUT') {
       // NEW DOMAIN ENGINE PATH
       let generatedDomain: any[] = [];
       if (t.format === 'KNOCKOUT') {
         generatedDomain = generateKnockout(t.id, 'playoffs', t.teams.map(team => team.id));
       } else if (t.format === 'ROUND_ROBIN') {
         generatedDomain = generateRoundRobin(t.id, 'league', t.teams.map(team => team.id));
+      } else if (t.format === 'GROUP_KNOCKOUT') {
+        const groupAssignments: Record<string, string[]> = { A: [], B: [], C: [], D: [] };
+        if (t.groups && t.groups.length > 0) {
+          t.groups.forEach((g, idx) => {
+            const letter = String.fromCharCode(65 + idx);
+            groupAssignments[letter] = g.teamIds || [];
+          });
+        } else {
+          t.teams.forEach((tm, idx) => {
+            const letter = tm.groupId || String.fromCharCode(65 + Math.floor(idx / 4));
+            if (!groupAssignments[letter]) groupAssignments[letter] = [];
+            groupAssignments[letter].push(tm.id);
+          });
+        }
+        generatedDomain = generateFourGroupTournament({
+          tournamentId: t.id,
+          stageId: 'st-xaviers',
+          groupAssignments,
+        });
       }
 
       await MatchRepository.createMatches(t.id, generatedDomain);
@@ -387,8 +411,6 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
       soundEffects.playCelebration();
       return; // Exit early, handled by subcollection
-    } else if (t.format === 'GROUP_KNOCKOUT') {
-      generatedLegacy = generateGroupKnockoutFixtures(t.id, t.teams, t.groups, t.startDate, t.venues[0]?.id);
     } else {
       generatedLegacy = generateKnockoutFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
     }

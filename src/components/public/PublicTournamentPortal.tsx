@@ -37,6 +37,7 @@ export const PublicTournamentPortal: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [standingsView, setStandingsView] = useState<'table' | 'cards'>('table');
   const [matchModalTab, setMatchModalTab] = useState<'commentary' | 'lineups'>('commentary');
+  const [publicStageFilter, setPublicStageFilter] = useState<'ALL' | 'A' | 'B' | 'C' | 'D' | 'KNOCKOUT'>('ALL');
 
   if (!activeTournament) {
     return (
@@ -404,55 +405,120 @@ export const PublicTournamentPortal: React.FC = () => {
         )}
 
         {/* 2. Fixtures Tab */}
-        {activeTab === 'fixtures' && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-sport-navy">Full Match Schedule & Results</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {fixtures.map((m) => {
-                const h = teams.find((t) => t.id === m.homeTeamId);
-                const a = teams.find((t) => t.id === m.awayTeamId);
+        {activeTab === 'fixtures' && (() => {
+          // Strict canonical sorting by fixtureNumber so spectators see identical order
+          const sortedFixtures = [...fixtures].sort(
+            (a, b) => (a.fixtureNumber ?? a.position) - (b.fixtureNumber ?? b.position)
+          );
 
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => setSelectedMatch(m)}
-                    className="p-4 rounded-xl border border-slate-200 hover:border-sport-orange transition cursor-pointer shadow-sm hover:shadow"
-                  >
-                    <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                      <span className="font-semibold">{m.roundName}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          m.status === 'LIVE'
-                            ? 'bg-red-500 text-white animate-pulse'
-                            : m.status === 'COMPLETED'
-                            ? 'bg-slate-200 text-slate-700'
-                            : 'bg-blue-50 text-blue-700'
-                        }`}
+          const displayedFixtures = sortedFixtures.filter((m) => {
+            if (publicStageFilter === 'ALL') return true;
+            if (publicStageFilter === 'KNOCKOUT') return m.stage === 'KNOCKOUT' || m.stage === 'FINAL' || !m.groupId;
+            return m.groupId === publicStageFilter;
+          });
+
+          return (
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-100">
+                <div>
+                  <h3 className="text-base font-bold text-sport-navy">Competition Fixtures & Results</h3>
+                  <p className="text-xs text-slate-500">Official tournament competition sequence ({fixtures.length} Matches)</p>
+                </div>
+
+                {/* Stage Filters */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-1">
+                  {(
+                    [
+                      { id: 'ALL', label: 'All' },
+                      { id: 'A', label: 'Group A' },
+                      { id: 'B', label: 'Group B' },
+                      { id: 'C', label: 'Group C' },
+                      { id: 'D', label: 'Group D' },
+                      { id: 'KNOCKOUT', label: 'Playoffs' },
+                    ] as const
+                  ).map((st) => (
+                    <button
+                      key={st.id}
+                      onClick={() => setPublicStageFilter(st.id)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
+                        publicStageFilter === st.id
+                          ? 'bg-sport-navy text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {displayedFixtures.length === 0 ? (
+                <div className="text-center py-10 text-xs text-slate-400">
+                  No matches found for the selected stage.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {displayedFixtures.map((m) => {
+                    const h = teams.find((t) => t.id === m.homeTeamId);
+                    const a = teams.find((t) => t.id === m.awayTeamId);
+                    const homeName = h?.name || m.homePlaceholder || 'TBD';
+                    const awayName = a?.name || m.awayPlaceholder || 'TBD';
+
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => setSelectedMatch(m)}
+                        className="p-4 rounded-xl border border-slate-200 hover:border-sport-orange transition cursor-pointer shadow-sm hover:shadow"
                       >
-                        {m.status}
-                      </span>
-                    </div>
+                        <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
+                          <div className="flex items-center gap-1.5">
+                            {m.matchCode && (
+                              <span className="font-mono font-black px-1.5 py-0.5 rounded bg-orange-100 text-sport-orange text-[10px]">
+                                {m.matchCode}
+                              </span>
+                            )}
+                            {m.fixtureNumber && (
+                              <span className="font-mono text-slate-400 font-bold text-[10px]">
+                                #{m.fixtureNumber}
+                              </span>
+                            )}
+                            <span className="font-semibold text-slate-700 truncate">{m.roundName}</span>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              m.status === 'LIVE'
+                                ? 'bg-red-500 text-white animate-pulse'
+                                : m.status === 'COMPLETED'
+                                ? 'bg-slate-200 text-slate-700'
+                                : 'bg-blue-50 text-blue-700'
+                            }`}
+                          >
+                            {m.status}
+                          </span>
+                        </div>
 
-                    <div className="flex items-center justify-between py-2 text-xs font-bold text-sport-navy">
-                      <span className="truncate flex-1">{h?.name || 'TBD'}</span>
-                      <span className="px-3 py-1 rounded-lg bg-slate-100 font-mono font-black text-sport-orange text-sm">
-                        {m.homeScore} : {m.awayScore}
-                      </span>
-                      <span className="truncate flex-1 text-right">{a?.name || 'TBD'}</span>
-                    </div>
+                        <div className="flex items-center justify-between py-2 text-xs font-bold text-sport-navy gap-2">
+                          <span className="truncate flex-1">{homeName}</span>
+                          <span className="px-3 py-1 rounded-lg bg-slate-100 font-mono font-black text-sport-orange text-sm shrink-0">
+                            {m.homeScore} : {m.awayScore}
+                          </span>
+                          <span className="truncate flex-1 text-right">{awayName}</span>
+                        </div>
 
-                    {m.events.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
-                        <span>{m.events.length} match events recorded</span>
-                        <ChevronRight className="w-3.5 h-3.5 text-sport-orange" />
+                        {m.events.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
+                            <span>{m.events.length} point events recorded</span>
+                            <ChevronRight className="w-3.5 h-3.5 text-sport-orange" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* 3. Standings Tab */}
         {activeTab === 'standings' && (

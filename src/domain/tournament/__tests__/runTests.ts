@@ -4,9 +4,15 @@ const assert = {
 };
 import { generateKnockout } from '../fixtures/knockout';
 import { generateRoundRobin } from '../fixtures/roundRobin';
+import {
+  generateOrdered4TeamGroupFixtures,
+  generateFourGroupTournament,
+  assignTeamToGroupPosition,
+  applyGroupAssignments,
+} from '../fixtures/groupKnockout';
 import { processMatchResult } from '../results/processResult';
 import { calculateStandings } from '../results/calculateStandings';
-import { DomainMatch, TournamentRules } from '../models/types';
+import { DomainMatch, TournamentRules, MatchParticipant } from '../models/types';
 import { Team } from '../../../types';
 
 const rules: TournamentRules = { allowDraws: false };
@@ -297,6 +303,248 @@ function runTests() {
     console.log('✅ Test 5: Standings Derivation & Status Isolation passed.');
   } catch (err: any) {
     console.error('❌ Test 5 failed:', err.message);
+  }
+
+  // Helper to extract participant label or teamId
+  const getParticipantLabel = (p: MatchParticipant): string => {
+    if (p.type === 'TEAM') return p.teamId;
+    if (p.type === 'TBD') return p.label || 'TBD';
+    return 'BYE';
+  };
+
+  const toMatchPair = (match: DomainMatch, expectedA: string, expectedB: string) => {
+    const a = getParticipantLabel(match.participantA);
+    const b = getParticipantLabel(match.participantB);
+    assert.strictEqual(
+      a,
+      expectedA,
+      `Match ${match.matchCode}: Expected participant A to be '${expectedA}', got '${a}'`
+    );
+    assert.strictEqual(
+      b,
+      expectedB,
+      `Match ${match.matchCode}: Expected participant B to be '${expectedB}', got '${b}'`
+    );
+  };
+
+  // Test 6: Authoritative Fixture Ordering for Groups A, B, C, D
+  try {
+    const allMatches = generateFourGroupTournament({ tournamentId: 'st-xaviers-tour' });
+    const groupA = allMatches.filter((m) => m.groupId === 'A');
+    const groupB = allMatches.filter((m) => m.groupId === 'B');
+    const groupC = allMatches.filter((m) => m.groupId === 'C');
+    const groupD = allMatches.filter((m) => m.groupId === 'D');
+
+    // Group A Invariant: A1 vs A2, A1 vs A3, A1 vs A4, A2 vs A3, A2 vs A4, A3 vs A4
+    assert.strictEqual(groupA.length, 6, 'Group A must have exactly 6 matches');
+    toMatchPair(groupA[0], 'A1', 'A2');
+    toMatchPair(groupA[1], 'A1', 'A3');
+    toMatchPair(groupA[2], 'A1', 'A4');
+    toMatchPair(groupA[3], 'A2', 'A3');
+    toMatchPair(groupA[4], 'A2', 'A4');
+    toMatchPair(groupA[5], 'A3', 'A4');
+
+    // Group B Invariant: B1 vs B2, B1 vs B3, B1 vs B4, B2 vs B3, B2 vs B4, B3 vs B4
+    assert.strictEqual(groupB.length, 6, 'Group B must have exactly 6 matches');
+    toMatchPair(groupB[0], 'B1', 'B2');
+    toMatchPair(groupB[1], 'B1', 'B3');
+    toMatchPair(groupB[2], 'B1', 'B4');
+    toMatchPair(groupB[3], 'B2', 'B3');
+    toMatchPair(groupB[4], 'B2', 'B4');
+    toMatchPair(groupB[5], 'B3', 'B4');
+
+    // Group C Invariant: C1 vs C2, C1 vs C3, C1 vs C4, C2 vs C3, C2 vs C4, C3 vs C4
+    assert.strictEqual(groupC.length, 6, 'Group C must have exactly 6 matches');
+    toMatchPair(groupC[0], 'C1', 'C2');
+    toMatchPair(groupC[1], 'C1', 'C3');
+    toMatchPair(groupC[2], 'C1', 'C4');
+    toMatchPair(groupC[3], 'C2', 'C3');
+    toMatchPair(groupC[4], 'C2', 'C4');
+    toMatchPair(groupC[5], 'C3', 'C4');
+
+    // Group D Invariant: D1 vs D2, D1 vs D3, D1 vs D4, D2 vs D3, D2 vs D4, D3 vs D4
+    assert.strictEqual(groupD.length, 6, 'Group D must have exactly 6 matches');
+    toMatchPair(groupD[0], 'D1', 'D2');
+    toMatchPair(groupD[1], 'D1', 'D3');
+    toMatchPair(groupD[2], 'D1', 'D4');
+    toMatchPair(groupD[3], 'D2', 'D3');
+    toMatchPair(groupD[4], 'D2', 'D4');
+    toMatchPair(groupD[5], 'D3', 'D4');
+
+    console.log('✅ Test 6: Authoritative Fixture Ordering for Groups A, B, C, D passed.');
+  } catch (err: any) {
+    console.error('❌ Test 6 failed:', err.message);
+  }
+
+  // Test 7: Local Match Numbering & Canonical Sequence (27 Total Matches)
+  try {
+    const allMatches = generateFourGroupTournament({ tournamentId: 'st-xaviers-tour' });
+    assert.strictEqual(allMatches.length, 27, 'Total matches must be exactly 27 (24 group + 2 semi + 1 final)');
+
+    // Verify 1..27 fixture numbers are strictly sequential
+    allMatches.forEach((m, idx) => {
+      assert.strictEqual(m.fixtureNumber, idx + 1, `Match ${m.id} fixtureNumber should be ${idx + 1}`);
+    });
+
+    // Verify local match codes in Group A
+    const expectedCodesA = ['A-M1', 'A-M2', 'A-M3', 'A-M4', 'A-M5', 'A-M6'];
+    const groupA = allMatches.filter((m) => m.groupId === 'A');
+    groupA.forEach((m, idx) => assert.strictEqual(m.matchCode, expectedCodesA[idx]));
+
+    // Verify local match codes in Group B
+    const expectedCodesB = ['B-M1', 'B-M2', 'B-M3', 'B-M4', 'B-M5', 'B-M6'];
+    const groupB = allMatches.filter((m) => m.groupId === 'B');
+    groupB.forEach((m, idx) => assert.strictEqual(m.matchCode, expectedCodesB[idx]));
+
+    // Verify local match codes in Group C
+    const expectedCodesC = ['C-M1', 'C-M2', 'C-M3', 'C-M4', 'C-M5', 'C-M6'];
+    const groupC = allMatches.filter((m) => m.groupId === 'C');
+    groupC.forEach((m, idx) => assert.strictEqual(m.matchCode, expectedCodesC[idx]));
+
+    // Verify local match codes in Group D
+    const expectedCodesD = ['D-M1', 'D-M2', 'D-M3', 'D-M4', 'D-M5', 'D-M6'];
+    const groupD = allMatches.filter((m) => m.groupId === 'D');
+    groupD.forEach((m, idx) => assert.strictEqual(m.matchCode, expectedCodesD[idx]));
+
+    // Verify Knockout local codes
+    assert.strictEqual(allMatches[24].matchCode, 'SF-M1', 'Semi-final 1 code must be SF-M1');
+    assert.strictEqual(allMatches[25].matchCode, 'SF-M2', 'Semi-final 2 code must be SF-M2');
+    assert.strictEqual(allMatches[26].matchCode, 'F-M1', 'Final code must be F-M1');
+
+    console.log('✅ Test 7: Local Match Numbering & Canonical Sequence passed.');
+  } catch (err: any) {
+    console.error('❌ Test 7 failed:', err.message);
+  }
+
+  // Test 8: Knockout Qualification Mapping & Advancement
+  try {
+    let allMatches = generateFourGroupTournament({ tournamentId: 'st-xaviers-tour' });
+    const sf1 = allMatches.find((m) => m.matchCode === 'SF-M1')!;
+    const sf2 = allMatches.find((m) => m.matchCode === 'SF-M2')!;
+    const finalMatch = allMatches.find((m) => m.matchCode === 'F-M1')!;
+
+    // Assert initial TBD labels
+    toMatchPair(sf1, 'Winner Group A', 'Winner Group B');
+    toMatchPair(sf2, 'Winner Group C', 'Winner Group D');
+    toMatchPair(finalMatch, 'Winner Semi-final 1', 'Winner Semi-final 2');
+
+    // Assert dependency linkages
+    assert.deepStrictEqual(sf1.dependencies, [
+      { sourceGroupId: 'A', rank: 1, targetSlot: 'A' },
+      { sourceGroupId: 'B', rank: 1, targetSlot: 'B' },
+    ]);
+    assert.deepStrictEqual(sf2.dependencies, [
+      { sourceGroupId: 'C', rank: 1, targetSlot: 'A' },
+      { sourceGroupId: 'D', rank: 1, targetSlot: 'B' },
+    ]);
+    assert.deepStrictEqual(finalMatch.dependencies, [
+      { sourceMatchId: sf1.id, outcome: 'WINNER', targetSlot: 'A' },
+      { sourceMatchId: sf2.id, outcome: 'WINNER', targetSlot: 'B' },
+    ]);
+
+    // Simulate group winners qualifying for SF1 and SF2
+    sf1.participantA = { type: 'TEAM', teamId: 'Team_A_Winner' };
+    sf1.participantB = { type: 'TEAM', teamId: 'Team_B_Winner' };
+    sf2.participantA = { type: 'TEAM', teamId: 'Team_C_Winner' };
+    sf2.participantB = { type: 'TEAM', teamId: 'Team_D_Winner' };
+
+    // Play SF 1: Team_A_Winner defeats Team_B_Winner
+    const sf1Res = processMatchResult(allMatches, sf1.id, { scoreA: 25, scoreB: 20 }, rules);
+    allMatches = sf1Res.updatedMatches;
+
+    // Verify Final participant A is automatically resolved to Team_A_Winner
+    const updatedFinal1 = allMatches.find((m) => m.matchCode === 'F-M1')!;
+    assert.strictEqual(updatedFinal1.participantA.type, 'TEAM');
+    if (updatedFinal1.participantA.type === 'TEAM') {
+      assert.strictEqual(updatedFinal1.participantA.teamId, 'Team_A_Winner');
+    }
+
+    // Play SF 2: Team_D_Winner defeats Team_C_Winner
+    const sf2Res = processMatchResult(allMatches, sf2.id, { scoreA: 19, scoreB: 25 }, rules);
+    allMatches = sf2Res.updatedMatches;
+
+    // Verify Final participant B is automatically resolved to Team_D_Winner
+    const updatedFinal2 = allMatches.find((m) => m.matchCode === 'F-M1')!;
+    assert.strictEqual(updatedFinal2.participantB.type, 'TEAM');
+    if (updatedFinal2.participantB.type === 'TEAM') {
+      assert.strictEqual(updatedFinal2.participantB.teamId, 'Team_D_Winner');
+    }
+
+    console.log('✅ Test 8: Knockout Qualification Mapping & Advancement passed.');
+  } catch (err: any) {
+    console.error('❌ Test 8 failed:', err.message);
+  }
+
+  // Test 9: Determinism Invariant
+  try {
+    const config = {
+      tournamentId: 'tour-det-1',
+      stageId: 'st-xaviers',
+      groupAssignments: {
+        A: ['A1_id', 'A2_id', 'A3_id', 'A4_id'],
+        B: ['B1_id', 'B2_id', 'B3_id', 'B4_id'],
+        C: ['C1_id', 'C2_id', 'C3_id', 'C4_id'],
+        D: ['D1_id', 'D2_id', 'D3_id', 'D4_id'],
+      },
+    };
+
+    const run1 = generateFourGroupTournament(config);
+    const run2 = generateFourGroupTournament(config);
+
+    assert.strictEqual(run1.length, run2.length, 'Length must be identical');
+    assert.deepStrictEqual(run1, run2, 'Two generations from the same tournament configuration must produce identical results');
+
+    console.log('✅ Test 9: Determinism Invariant passed.');
+  } catch (err: any) {
+    console.error('❌ Test 9 failed:', err.message);
+  }
+
+  // Test 10: Position vs Team Identity Independence
+  try {
+    // Generate tournament with empty or default slots
+    let matches = generateFourGroupTournament({ tournamentId: 'tour-positions' });
+
+    // Initially Group A Match 1 is A1 vs A2
+    const m1Initial = matches.find((m) => m.matchCode === 'A-M1')!;
+    toMatchPair(m1Initial, 'A1', 'A2');
+
+    // Organizer assigns "Team X" to Position A1
+    matches = assignTeamToGroupPosition(matches, 'A', 1, 'Team_X');
+
+    // Verify Group A fixtures resolve:
+    // Match 1 (P1 vs P2): Team_X vs A2
+    // Match 2 (P1 vs P3): Team_X vs A3
+    // Match 3 (P1 vs P4): Team_X vs A4
+    // Match 4 (P2 vs P3): A2 vs A3 (untouched)
+    // Match 5 (P2 vs P4): A2 vs A4 (untouched)
+    // Match 6 (P3 vs P4): A3 vs A4 (untouched)
+    const m1 = matches.find((m) => m.matchCode === 'A-M1')!;
+    const m2 = matches.find((m) => m.matchCode === 'A-M2')!;
+    const m3 = matches.find((m) => m.matchCode === 'A-M3')!;
+    const m4 = matches.find((m) => m.matchCode === 'A-M4')!;
+    const m5 = matches.find((m) => m.matchCode === 'A-M5')!;
+    const m6 = matches.find((m) => m.matchCode === 'A-M6')!;
+
+    toMatchPair(m1, 'Team_X', 'A2');
+    toMatchPair(m2, 'Team_X', 'A3');
+    toMatchPair(m3, 'Team_X', 'A4');
+    toMatchPair(m4, 'A2', 'A3');
+    toMatchPair(m5, 'A2', 'A4');
+    toMatchPair(m6, 'A3', 'A4');
+
+    // Re-assign Position A1 to "Team Z"
+    matches = assignTeamToGroupPosition(matches, 'A', 1, 'Team_Z');
+    const m1Reassigned = matches.find((m) => m.matchCode === 'A-M1')!;
+    toMatchPair(m1Reassigned, 'Team_Z', 'A2');
+
+    // Unassign Position A1 (null)
+    matches = assignTeamToGroupPosition(matches, 'A', 1, null);
+    const m1Unassigned = matches.find((m) => m.matchCode === 'A-M1')!;
+    toMatchPair(m1Unassigned, 'A1', 'A2');
+
+    console.log('✅ Test 10: Position vs Team Identity Independence passed.');
+  } catch (err: any) {
+    console.error('❌ Test 10 failed:', err.message);
   }
 }
 

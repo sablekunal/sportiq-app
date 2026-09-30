@@ -11,17 +11,42 @@ export function adaptDomainMatchToLegacy(domainMatch: DomainMatch): Match {
     return null; // TBD, BYE, or DEPENDENCY
   };
 
-  let roundName = `Round ${domainMatch.round}`;
-  // For knockout brackets, a heuristic for round names based on dependencies/rounds could go here.
-  // For now, we fallback to a generic name to prevent crashes.
+  const getPlaceholder = (participant: MatchParticipant): string | undefined => {
+    if (participant.type === 'TBD') return participant.label;
+    if (participant.type === 'BYE') return 'BYE';
+    return undefined;
+  };
+
+  let roundName = domainMatch.roundName || `Round ${domainMatch.round}`;
+  if (domainMatch.groupId) {
+    roundName = `Group ${domainMatch.groupId} - ${domainMatch.matchCode || `M${domainMatch.round}`}`;
+  } else if (domainMatch.matchCode === 'SF-M1') {
+    roundName = 'Semi-final 1';
+  } else if (domainMatch.matchCode === 'SF-M2') {
+    roundName = 'Semi-final 2';
+  } else if (domainMatch.matchCode === 'F-M1' || domainMatch.roundName === 'Final') {
+    roundName = 'Championship Final 🏆';
+  }
+
+  const stage = domainMatch.groupId
+    ? 'GROUP'
+    : domainMatch.matchCode === 'F-M1' || domainMatch.roundName === 'Final'
+    ? 'FINAL'
+    : 'KNOCKOUT';
 
   return {
     id: domainMatch.id,
     tournamentId: domainMatch.tournamentId,
     round: domainMatch.round,
-    roundName: roundName,
+    roundName,
     position: domainMatch.position,
-    stage: domainMatch.groupId ? 'GROUP' : 'KNOCKOUT',
+    fixtureNumber: domainMatch.fixtureNumber,
+    matchCode: domainMatch.matchCode,
+    groupPositionA: domainMatch.groupPositionA,
+    groupPositionB: domainMatch.groupPositionB,
+    homePlaceholder: getPlaceholder(domainMatch.participantA),
+    awayPlaceholder: getPlaceholder(domainMatch.participantB),
+    stage,
     groupId: domainMatch.groupId,
     homeTeamId: getTeamId(domainMatch.participantA),
     awayTeamId: getTeamId(domainMatch.participantB),
@@ -30,7 +55,7 @@ export function adaptDomainMatchToLegacy(domainMatch: DomainMatch): Match {
     score: {
       homeScore: domainMatch.scoreA,
       awayScore: domainMatch.scoreB,
-      period: domainMatch.status === 'COMPLETED' ? 'Full Time' : undefined
+      period: domainMatch.status === 'COMPLETED' ? 'Full Time' : undefined,
     },
     winnerId: domainMatch.winnerId,
     loserNextMatchId: null, // Unsupported currently

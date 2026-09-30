@@ -20,6 +20,12 @@ export interface DomainMatch {
   round: number;
   position: number;
 
+  fixtureNumber?: number; // Canonical competition sequence (1..N)
+  matchCode?: string;     // Local match number (e.g. "A-M1", "B-M3", "SF-M1", "F-M1")
+  groupPositionA?: number; // 1-based position in group (1..4)
+  groupPositionB?: number; // 1-based position in group (1..4)
+  roundName?: string;
+
   participantA: MatchParticipant;
   participantB: MatchParticipant;
 
