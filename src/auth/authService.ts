@@ -89,6 +89,9 @@ export function mapAuthError(error: any): string {
 
   switch (code) {
     case 'auth/operation-not-allowed':
+      if (error.message && error.message.toLowerCase().includes('region')) {
+        return 'SMS region policy error: Firebase blocked this region. Go to Firebase Console > Authentication > Settings > SMS Regions policy and enable India (+91).';
+      }
       return 'Phone authentication is not enabled in Firebase Console. Go to Authentication > Sign-in method > Phone and ensure the "Enable" switch is toggled ON, then click Save.';
     case 'auth/unauthorized-domain':
       return 'This domain is not authorized. Add your domain/localhost under Firebase Console > Authentication > Settings > Authorized domains.';
