@@ -99,6 +99,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const d = doc.data();
         return {
           ...d,
+          id: doc.id,
           name: d.name || 'Untitled',
           sport: d.sport || 'football',
           format: d.format || 'KNOCKOUT',
