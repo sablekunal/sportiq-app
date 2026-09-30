@@ -2,7 +2,7 @@ import React from 'react';
 import { useTournament, AppViewMode } from '../../context/TournamentContext';
 import { useAuth } from '../../auth/AuthContext';
 import { useDevice } from '../../hooks/useDevice';
-import { Trophy, Globe, Wrench, Shield, PlusCircle, Radio, Sparkles, LogOut, User } from 'lucide-react';
+import { Trophy, Globe, Shield, PlusCircle, Radio, Sparkles, LogOut, User } from 'lucide-react';
 import { SPORT_CONFIGS } from '../../engines/sportEngine';
 
 interface HeaderProps {
@@ -84,34 +84,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateModal }) => {
             <p className="text-[11px] sm:text-xs text-slate-400 hidden xs:block">Tournament Command Hub</p>
           </div>
         </div>
-
-        {/* Organizer Workspace Navigation Switcher */}
-        <nav className="flex items-center bg-slate-900/90 p-0.5 sm:p-1 rounded-full border border-slate-800 shrink-0">
-          <button
-            onClick={() => setViewMode('organizer')}
-            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === 'organizer'
-                ? 'bg-sport-orange text-white shadow-glow-orange'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span>Command Hub</span>
-          </button>
-
-          <button
-            onClick={() => setViewMode('tools')}
-            className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === 'tools'
-                ? 'bg-sport-orange text-white shadow-glow-orange'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            <Wrench className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Match-Day</span>
-            <span>Tools</span>
-          </button>
-        </nav>
 
         {/* Active Tournament Selector & New Tournament Button */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">

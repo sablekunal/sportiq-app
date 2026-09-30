@@ -9,7 +9,6 @@ import {
   Radio,
   BarChart3,
   GitBranch,
-  DollarSign,
   Share2,
   Settings,
   Sparkles,
@@ -124,7 +123,6 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
     },
     { id: 'standings', label: 'Standings', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'bracket', label: 'Brackets', icon: <GitBranch className="w-4 h-4" /> },
-    { id: 'budget', label: 'Budget & Finance', icon: <DollarSign className="w-4 h-4" /> },
     { id: 'share', label: 'Share & QR Studio', icon: <Share2 className="w-4 h-4" /> },
   ];
 

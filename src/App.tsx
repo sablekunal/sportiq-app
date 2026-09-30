@@ -11,10 +11,8 @@ import { FixturesManager } from './components/organizer/FixturesManager';
 import { LiveScoringStudio } from './components/organizer/LiveScoringStudio';
 import { StandingsTable } from './components/organizer/StandingsTable';
 import { InteractiveBracket } from './components/organizer/InteractiveBracket';
-import { BudgetAccounting } from './components/organizer/BudgetAccounting';
 import { ShareAndQRStudio } from './components/organizer/ShareAndQRStudio';
 import { PublicTournamentPortal } from './components/public/PublicTournamentPortal';
-import { MatchDayTools } from './components/tools/MatchDayTools';
 import { OrganizerAuthPage } from './components/auth/OrganizerAuthPage';
 
 const AppContent: React.FC = () => {
@@ -67,15 +65,8 @@ const AppContent: React.FC = () => {
               {organizerTab === 'scoring' && <LiveScoringStudio />}
               {organizerTab === 'standings' && <StandingsTable />}
               {organizerTab === 'bracket' && <InteractiveBracket />}
-              {organizerTab === 'budget' && <BudgetAccounting />}
               {organizerTab === 'share' && <ShareAndQRStudio />}
             </div>
-          </div>
-        )}
-
-        {viewMode === 'tools' && (
-          <div className="animate-fadeIn">
-            <MatchDayTools />
           </div>
         )}
       </main>

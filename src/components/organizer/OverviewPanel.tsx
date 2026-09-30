@@ -5,12 +5,10 @@ import {
   Users,
   Calendar,
   Radio,
-  DollarSign,
   Play,
   Share2,
   Sparkles,
   CheckCircle2,
-  Clock,
   ShieldAlert,
   ArrowUpRight,
 } from 'lucide-react';
@@ -32,16 +30,6 @@ export const OverviewPanel: React.FC = () => {
   const liveMatches = fixtures.filter((m) => m.status === 'LIVE');
   const completedMatches = fixtures.filter((m) => m.status === 'COMPLETED');
   const upcomingMatches = fixtures.filter((m) => m.status === 'UPCOMING');
-
-  const totalIncome = activeTournament.budget
-    .filter((b) => b.type === 'INCOME')
-    .reduce((sum, b) => sum + b.amount, 0);
-
-  const totalExpense = activeTournament.budget
-    .filter((b) => b.type === 'EXPENSE')
-    .reduce((sum, b) => sum + b.amount, 0);
-
-  const netBalance = totalIncome - totalExpense;
 
   return (
     <div className="space-y-6">
@@ -128,28 +116,26 @@ export const OverviewPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Budget Metric */}
+        {/* Draw & Matchmaking Metric */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Tournament Net</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase tracking-wider">Matchmaking & Draw</span>
+            <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
             </div>
           </div>
-          <div
-            className={`text-2xl font-black ${
-              netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'
-            }`}
-          >
-            ₹{netBalance.toLocaleString('en-IN')}
+          <div className="text-2xl font-black text-sport-navy">
+            {activeTournament.status === 'DRAFT' || activeTournament.status === 'TEAMS_ADDED'
+              ? 'Draw Pending'
+              : 'Pots Drawn'}
           </div>
           <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-            <span>Income: ₹{totalIncome.toLocaleString('en-IN')}</span>
+            <span>{teams.length >= 2 ? `${teams.length} Teams Ready` : 'Add Teams First'}</span>
             <button
-              onClick={() => setOrganizerTab('budget')}
-              className="text-emerald-600 font-bold hover:underline cursor-pointer"
+              onClick={() => setOrganizerTab('draw')}
+              className="text-purple-600 font-bold hover:underline cursor-pointer"
             >
-              Budget →
+              Draw Room →
             </button>
           </div>
         </div>
@@ -269,14 +255,14 @@ export const OverviewPanel: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setViewMode('tools')}
-                  className="p-3 rounded-xl bg-white border border-slate-200 hover:border-sport-orange shadow-sm text-left transition cursor-pointer group"
+                  onClick={() => setOrganizerTab('scoring')}
+                  className="p-3 rounded-xl bg-white border border-slate-200 hover:border-red-500 shadow-sm text-left transition cursor-pointer group"
                 >
-                  <div className="text-lg mb-1">🛠️</div>
-                  <div className="text-xs font-bold text-sport-navy group-hover:text-sport-orange">
-                    Match-Day Tools
+                  <div className="text-lg mb-1">🔴</div>
+                  <div className="text-xs font-bold text-sport-navy group-hover:text-red-600">
+                    Live Score Desk
                   </div>
-                  <div className="text-[10px] text-slate-500">Coin toss, wheel & whistle</div>
+                  <div className="text-[10px] text-slate-500">Cricbuzz-style live scoring</div>
                 </button>
               </div>
             </div>

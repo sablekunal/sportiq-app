@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { useAuth } from '../../auth/AuthContext';
 import { useDevice } from '../../hooks/useDevice';
-import { StadiumBigScreenView } from './StadiumBigScreenView';
 import { SPORT_CONFIGS, calculateSportStandings } from '../../engines/sportEngine';
 import { Match } from '../../types';
 import {
@@ -21,7 +20,6 @@ import {
   X,
   ChevronRight,
   Shield,
-  Tv,
   LayoutGrid,
   Table as TableIcon,
 } from 'lucide-react';
@@ -37,8 +35,8 @@ export const PublicTournamentPortal: React.FC = () => {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [stadiumMode, setStadiumMode] = useState(false);
   const [standingsView, setStandingsView] = useState<'table' | 'cards'>('table');
+  const [matchModalTab, setMatchModalTab] = useState<'commentary' | 'lineups'>('commentary');
 
   if (!activeTournament) {
     return (
@@ -57,16 +55,6 @@ export const PublicTournamentPortal: React.FC = () => {
           Open Organizer Hub →
         </button>
       </div>
-    );
-  }
-
-  // BIG SCREEN / STADIUM MODE FOR TVs, PROJECTORS & 4K SCREENS
-  if (stadiumMode) {
-    return (
-      <StadiumBigScreenView
-        tournament={activeTournament}
-        onExit={() => setStadiumMode(false)}
-      />
     );
   }
 
@@ -123,16 +111,6 @@ export const PublicTournamentPortal: React.FC = () => {
 
           {/* Action Bar: Responsive on small phones, tablets, laptops, big displays */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Stadium Big Screen Mode Button */}
-            <button
-              onClick={() => setStadiumMode(true)}
-              title="Enter Stadium / Big Screen Display Mode"
-              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 hover:border-amber-400/50 transition cursor-pointer"
-            >
-              <Tv className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden md:inline">Stadium Mode</span>
-            </button>
-
             {/* QR Code */}
             <button
               onClick={() => setShowQRModal(true)}
@@ -169,7 +147,6 @@ export const PublicTournamentPortal: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Hero Banner */}
       <div className="bg-gradient-to-b from-sport-navy via-slate-900 to-sport-midnight text-white pt-6 sm:pt-8 pb-10 sm:pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto relative z-10 text-center sm:text-left flex flex-wrap items-center justify-between gap-6">
@@ -691,71 +668,192 @@ export const PublicTournamentPortal: React.FC = () => {
         )}
       </div>
 
-      {/* Match Details Modal */}
+      {/* Match Details Modal (Cricbuzz Style Match Center) */}
       {selectedMatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col">
+            {/* Modal Top Bar */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <span className="text-xs font-bold text-slate-500">{selectedMatch.roundName}</span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                    selectedMatch.status === 'LIVE'
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : selectedMatch.status === 'COMPLETED'
+                      ? 'bg-slate-200 text-slate-700'
+                      : 'bg-blue-50 text-blue-700'
+                  }`}
+                >
+                  {selectedMatch.status}
+                </span>
+                <span className="text-xs font-bold text-slate-500">{selectedMatch.roundName}</span>
+              </div>
               <button
                 onClick={() => setSelectedMatch(null)}
-                className="text-slate-400 hover:text-slate-800 p-1 cursor-pointer"
+                className="text-slate-400 hover:text-slate-800 p-1 cursor-pointer rounded-lg hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Scorecard */}
+            {/* Scorecard Header (Cricbuzz Style) */}
             {(() => {
               const h = teams.find((t) => t.id === selectedMatch.homeTeamId);
               const a = teams.find((t) => t.id === selectedMatch.awayTeamId);
 
               return (
-                <div className="py-6 text-center">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1 font-black text-lg text-sport-navy">{h?.name || 'TBD'}</div>
-                    <div className="px-5 py-2 rounded-2xl bg-slate-900 text-sport-orange font-mono font-black text-3xl">
-                      {selectedMatch.homeScore} : {selectedMatch.awayScore}
+                <div className="py-4 border-b border-slate-100">
+                  <div className="flex items-center justify-between gap-3 text-center">
+                    {/* Home Team */}
+                    <div className="flex-1 flex flex-col items-center">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-xs shadow-sm mb-1.5"
+                        style={{ backgroundColor: h?.color || '#f97316' }}
+                      >
+                        {h?.shortName || 'HOM'}
+                      </div>
+                      <div className="font-black text-sm sm:text-base text-sport-navy truncate max-w-[120px] sm:max-w-[150px]">
+                        {h?.name || 'TBD'}
+                      </div>
                     </div>
-                    <div className="flex-1 font-black text-lg text-sport-navy">{a?.name || 'TBD'}</div>
-                  </div>
-                  <div className="text-xs font-bold text-slate-500 mt-2">
-                    Status: {selectedMatch.status}
+
+                    {/* Score Numerals */}
+                    <div className="px-4 py-2 rounded-2xl bg-sport-midnight border border-slate-800 text-center shrink-0 shadow-inner">
+                      <div className="text-3xl sm:text-4xl font-mono font-black text-amber-300">
+                        {selectedMatch.homeScore} : {selectedMatch.awayScore}
+                      </div>
+                      <div className="text-[10px] font-bold text-sport-orange uppercase tracking-wider mt-0.5">
+                        {selectedMatch.score.period || 'In Progress'}
+                      </div>
+                    </div>
+
+                    {/* Away Team */}
+                    <div className="flex-1 flex flex-col items-center">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-xs shadow-sm mb-1.5"
+                        style={{ backgroundColor: a?.color || '#2563eb' }}
+                      >
+                        {a?.shortName || 'AWY'}
+                      </div>
+                      <div className="font-black text-sm sm:text-base text-sport-navy truncate max-w-[120px] sm:max-w-[150px]">
+                        {a?.name || 'TBD'}
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
             })()}
 
-            {/* Event Timeline */}
-            <div className="border-t border-slate-100 pt-4">
-              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-                Match Events Timeline
-              </h5>
+            {/* Modal Subtabs (Commentary vs Lineups) */}
+            <div className="flex items-center gap-2 pt-3 border-b border-slate-100 text-xs font-bold">
+              <button
+                onClick={() => setMatchModalTab('commentary')}
+                className={`pb-2.5 px-3 border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+                  matchModalTab === 'commentary'
+                    ? 'border-sport-orange text-sport-navy'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>Live Commentary & Points ({selectedMatch.events.length})</span>
+              </button>
+              <button
+                onClick={() => setMatchModalTab('lineups')}
+                className={`pb-2.5 px-3 border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+                  matchModalTab === 'lineups'
+                    ? 'border-sport-orange text-sport-navy'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Squad Lineups</span>
+              </button>
+            </div>
 
-              {selectedMatch.events.length === 0 ? (
-                <div className="text-center py-6 text-xs text-slate-400">
-                  No specific events logged for this fixture.
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {selectedMatch.events.map((evt) => (
+            {/* Tab 1: Ball-by-ball Commentary Feed */}
+            {matchModalTab === 'commentary' && (
+              <div className="flex-1 overflow-y-auto pt-3 space-y-2.5 max-h-80 pr-1">
+                {selectedMatch.events.length === 0 ? (
+                  <div className="text-center py-10 text-xs text-slate-400">
+                    No points or commentary recorded for this match yet.
+                  </div>
+                ) : (
+                  selectedMatch.events.slice().reverse().map((evt, idx) => (
                     <div
-                      key={evt.id}
-                      className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs flex items-center justify-between"
+                      key={evt.id || idx}
+                      className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs flex items-start gap-2.5"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-sport-orange">{evt.minute}'</span>
-                        <span className="font-bold text-sport-navy">{evt.playerName || 'Player'}</span>
-                        <span className="text-slate-500">- {evt.description}</span>
+                      <span className="font-mono font-black text-sport-orange text-[10px] px-1.5 py-0.5 rounded bg-orange-100/70 shrink-0 mt-0.5">
+                        #{selectedMatch.events.length - idx}
+                      </span>
+                      <div className="flex-1 leading-relaxed text-slate-800">
+                        {evt.description}
+                        {evt.playerName && (
+                          <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                            Player: {evt.playerName}
+                          </div>
+                        )}
                       </div>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-sport-orange uppercase">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 uppercase shrink-0">
                         {evt.eventType}
                       </span>
                     </div>
-                  ))}
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Tab 2: Squad Lineups (Playing 7 + Substitutes with Jersey Numbers) */}
+            {matchModalTab === 'lineups' && (() => {
+              const h = teams.find((t) => t.id === selectedMatch.homeTeamId);
+              const a = teams.find((t) => t.id === selectedMatch.awayTeamId);
+
+              return (
+                <div className="flex-1 overflow-y-auto pt-3 grid grid-cols-2 gap-4 max-h-80 text-xs">
+                  {/* Home Team Squad */}
+                  <div className="space-y-2">
+                    <div className="font-bold text-sport-navy flex items-center justify-between pb-1 border-b border-slate-100">
+                      <span>{h?.name}</span>
+                      <span className="text-[10px] text-slate-400">({h?.players.length || 0} players)</span>
+                    </div>
+                    <div className="space-y-1">
+                      {h?.players.map((p, i) => (
+                        <div
+                          key={p.id || i}
+                          className="flex items-center justify-between p-1.5 rounded-lg bg-slate-50 text-[11px]"
+                        >
+                          <span className="font-medium text-slate-800 truncate">{p.name}</span>
+                          <span className="font-mono font-bold text-sport-orange">
+                            #{p.jerseyNumber ?? i + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Away Team Squad */}
+                  <div className="space-y-2">
+                    <div className="font-bold text-sport-navy flex items-center justify-between pb-1 border-b border-slate-100">
+                      <span>{a?.name}</span>
+                      <span className="text-[10px] text-slate-400">({a?.players.length || 0} players)</span>
+                    </div>
+                    <div className="space-y-1">
+                      {a?.players.map((p, i) => (
+                        <div
+                          key={p.id || i}
+                          className="flex items-center justify-between p-1.5 rounded-lg bg-slate-50 text-[11px]"
+                        >
+                          <span className="font-medium text-slate-800 truncate">{p.name}</span>
+                          <span className="font-mono font-bold text-blue-600">
+                            #{p.jerseyNumber ?? i + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
         </div>
       )}
