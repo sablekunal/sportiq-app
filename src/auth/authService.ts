@@ -88,6 +88,12 @@ export function mapAuthError(error: any): string {
   const code = error.code || '';
 
   switch (code) {
+    case 'auth/operation-not-allowed':
+      return 'Phone authentication is not enabled in Firebase Console. Go to Authentication > Sign-in method > Phone and ensure the "Enable" switch is toggled ON, then click Save.';
+    case 'auth/unauthorized-domain':
+      return 'This domain is not authorized. Add your domain/localhost under Firebase Console > Authentication > Settings > Authorized domains.';
+    case 'auth/invalid-app-credential':
+      return 'Firebase app verification failed. Please check Phone sign-in configuration in the Firebase Console.';
     case 'auth/invalid-verification-code':
       return 'Incorrect OTP. Please check the code and try again.';
     case 'auth/code-expired':
@@ -107,9 +113,10 @@ export function mapAuthError(error: any): string {
     case 'auth/network-request-failed':
       return 'Network connection error. Please check your internet connection.';
     default:
-      return error.message && !error.message.includes('auth/')
-        ? error.message
-        : 'Authentication failed. Please try again.';
+      if (error.message && !error.message.includes('auth/')) {
+        return error.message;
+      }
+      return code ? `Authentication failed (${code}). Please check your Firebase Console settings.` : 'Authentication failed. Please try again.';
   }
 }
 
@@ -119,6 +126,11 @@ export function mapAuthError(error: any): string {
 export function setupRecaptcha(containerId: string): RecaptchaVerifier {
   // If an instance exists, clear it first to avoid duplicate widget errors
   clearRecaptcha();
+
+  const container = document.getElementById(containerId);
+  if (container) {
+    container.innerHTML = '';
+  }
 
   recaptchaVerifierInstance = new RecaptchaVerifier(auth, containerId, {
     size: 'invisible',
@@ -144,6 +156,10 @@ export function clearRecaptcha(): void {
       // Ignore cleanup error if already detached
     }
     recaptchaVerifierInstance = null;
+  }
+  const container = document.getElementById('recaptcha-container');
+  if (container) {
+    container.innerHTML = '';
   }
 }
 

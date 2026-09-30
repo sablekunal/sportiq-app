@@ -113,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       startCountdown(30);
       return true;
     } catch (err: any) {
+      console.error('Firebase Auth sendOtp error:', err);
       clearRecaptcha();
       setError(mapAuthError(err));
       return false;
@@ -138,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // onAuthStateChanged will handle profile lookup and transition to AUTHENTICATED or PROFILE
       return true;
     } catch (err: any) {
+      console.error('Firebase Auth verifyOtp error:', err);
       setError(mapAuthError(err));
       return false;
     }
