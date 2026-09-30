@@ -53,7 +53,7 @@ const AppContent: React.FC = () => {
       <Header onOpenCreateModal={() => setCreateModalOpen(true)} />
 
       {/* Main Content Viewport */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-safe">
         {viewMode === 'organizer' && (
           <div className="space-y-6">
             <OrganizerDashboard onOpenCreateModal={() => setCreateModalOpen(true)} />
@@ -87,8 +87,8 @@ const AppContent: React.FC = () => {
       />
 
       {/* Footer */}
-      <footer className="bg-sport-navy text-slate-400 border-t border-slate-800 text-xs py-6 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4">
+      <footer className="bg-sport-navy text-slate-400 border-t border-slate-800 text-xs py-6 mt-12 pb-safe">
+        <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <img src="/assests/logo-small.png" alt="SportIQ Logo" className="w-5 h-5 object-contain" />
             <span className="font-extrabold text-white">SportIQ</span>

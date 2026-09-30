@@ -131,7 +131,7 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
   return (
     <div className="space-y-6">
       {/* Tournament Identity Bar */}
-      <div className="bg-gradient-to-r from-sport-navy via-slate-900 to-sport-midnight text-white p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-sport-navy via-slate-900 to-sport-midnight text-white p-4 sm:p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-sport-orange/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
 
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
@@ -224,7 +224,7 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-6 gap-2">
             {LIFECYCLE_STEPS.map((step, idx) => {
               const isPast = idx < activeStepIndex;
               const isCurrent = idx === activeStepIndex;
@@ -254,7 +254,7 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200 scrollbar-none">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 border-b border-slate-200 no-scrollbar touch-scroll">
         {tabs.map((tab) => {
           const isActive = organizerTab === tab.id;
           return (

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { useAuth } from '../../auth/AuthContext';
+import { useDevice } from '../../hooks/useDevice';
+import { StadiumBigScreenView } from './StadiumBigScreenView';
 import { SPORT_CONFIGS, calculateSportStandings } from '../../engines/sportEngine';
 import { Match } from '../../types';
 import {
@@ -19,6 +21,9 @@ import {
   X,
   ChevronRight,
   Shield,
+  Tv,
+  LayoutGrid,
+  Table as TableIcon,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -27,10 +32,13 @@ type PublicTab = 'overview' | 'fixtures' | 'standings' | 'bracket' | 'teams';
 export const PublicTournamentPortal: React.FC = () => {
   const { activeTournament, setViewMode, tournaments, setActiveTournamentId } = useTournament();
   const { isAuthenticated, profile } = useAuth();
+  const device = useDevice();
   const [activeTab, setActiveTab] = useState<PublicTab>('overview');
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [stadiumMode, setStadiumMode] = useState(false);
+  const [standingsView, setStandingsView] = useState<'table' | 'cards'>('table');
 
   if (!activeTournament) {
     return (
@@ -52,6 +60,16 @@ export const PublicTournamentPortal: React.FC = () => {
     );
   }
 
+  // BIG SCREEN / STADIUM MODE FOR TVs, PROJECTORS & 4K SCREENS
+  if (stadiumMode) {
+    return (
+      <StadiumBigScreenView
+        tournament={activeTournament}
+        onExit={() => setStadiumMode(false)}
+      />
+    );
+  }
+
   const sportConfig = SPORT_CONFIGS[activeTournament.sport] || SPORT_CONFIGS.football;
   const teams = activeTournament.teams;
   const fixtures = activeTournament.fixtures;
@@ -67,24 +85,25 @@ export const PublicTournamentPortal: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-sport-surface pb-16">
+    <div className="min-h-screen bg-sport-surface pb-safe pb-16">
       {/* Spectator Top Header */}
-      <div className="bg-sport-midnight border-b border-slate-800 text-white px-4 py-3 sticky top-0 z-30 shadow-md">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-sport-orange text-white text-xs">
+      <div className="bg-sport-midnight border-b border-slate-800 text-white px-3 sm:px-6 py-2.5 sm:py-3 sticky top-0 z-30 shadow-md">
+        <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto flex items-center justify-between gap-2">
+          {/* Brand & Tournament Switcher */}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="p-1.5 rounded-lg bg-sport-orange text-white text-xs shrink-0">
               {sportConfig.icon}
             </span>
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-sport-orange">
-                Spectator Fan Hub (Public)
+            <div className="min-w-0">
+              <div className="text-[9px] xs:text-[10px] font-bold uppercase tracking-wider text-sport-orange truncate">
+                Spectator Fan Hub
               </div>
               {tournaments.length > 1 ? (
                 <div className="relative">
                   <select
                     value={activeTournament.id}
                     onChange={(e) => setActiveTournamentId(e.target.value)}
-                    className="bg-transparent text-sm font-extrabold text-white outline-none cursor-pointer pr-5 appearance-none max-w-[200px] sm:max-w-sm truncate"
+                    className="bg-transparent text-xs sm:text-sm font-extrabold text-white outline-none cursor-pointer pr-4 appearance-none max-w-[130px] xs:max-w-[180px] sm:max-w-xs md:max-w-sm truncate"
                   >
                     {tournaments.map((t) => (
                       <option key={t.id} value={t.id} className="bg-slate-900 text-white">
@@ -92,47 +111,68 @@ export const PublicTournamentPortal: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">▼</span>
+                  <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">▼</span>
                 </div>
               ) : (
-                <div className="text-sm font-extrabold text-white truncate max-w-[200px] sm:max-w-sm">
+                <div className="text-xs sm:text-sm font-extrabold text-white truncate max-w-[130px] xs:max-w-[180px] sm:max-w-xs md:max-w-sm">
                   {activeTournament.name}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Action Bar: Responsive on small phones, tablets, laptops, big displays */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Stadium Big Screen Mode Button */}
             <button
-              onClick={() => setShowQRModal(true)}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 cursor-pointer"
+              onClick={() => setStadiumMode(true)}
+              title="Enter Stadium / Big Screen Display Mode"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 hover:border-amber-400/50 transition cursor-pointer"
             >
-              <QrCode className="w-3.5 h-3.5 text-sport-orange" />
-              <span className="hidden sm:inline">QR Code</span>
+              <Tv className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">Stadium Mode</span>
             </button>
 
+            {/* QR Code */}
+            <button
+              onClick={() => setShowQRModal(true)}
+              title="Show QR Code"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-700 cursor-pointer"
+            >
+              <QrCode className="w-3.5 h-3.5 text-sport-orange" />
+              <span className="hidden sm:inline">QR</span>
+            </button>
+
+            {/* Share */}
             <button
               onClick={handleCopyLink}
-              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+              title="Share Tournament Link"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{copied ? 'Copied' : 'Share'}</span>
             </button>
 
+            {/* Organizer Access Guard / Link */}
             <button
               onClick={() => setViewMode('organizer')}
-              className="px-3 py-1.5 rounded-lg bg-sport-orange hover:bg-orange-600 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm transition active:scale-95"
+              title={isAuthenticated ? 'Organizer Command Hub' : 'Organizer Login'}
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-sport-orange hover:bg-orange-600 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-sm transition active:scale-95"
             >
-              <Shield className="w-3.5 h-3.5" />
-              <span>{isAuthenticated ? 'Organizer Hub →' : 'Organizer Login'}</span>
+              <Shield className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                {isAuthenticated
+                  ? (device.isSmallMobile ? 'Hub' : 'Organizer Hub →')
+                  : (device.isSmallMobile ? 'Login' : 'Organizer Login')}
+              </span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Hero Banner */}
-      <div className="bg-gradient-to-b from-sport-navy via-slate-900 to-sport-midnight text-white pt-8 pb-12 px-4 sm:px-6 relative overflow-hidden">
-        <div className="max-w-6xl mx-auto relative z-10 text-center sm:text-left flex flex-wrap items-center justify-between gap-6">
+      <div className="bg-gradient-to-b from-sport-navy via-slate-900 to-sport-midnight text-white pt-6 sm:pt-8 pb-10 sm:pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto relative z-10 text-center sm:text-left flex flex-wrap items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
               <span className="px-3 py-0.5 rounded-full text-xs font-extrabold bg-sport-orange text-white uppercase tracking-wider">
@@ -146,7 +186,9 @@ export const PublicTournamentPortal: React.FC = () => {
               </span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight">{activeTournament.name}</h1>
+            <h1 className="text-2xl xs:text-3xl sm:text-4xl 2xl:text-5xl 3xl:text-6xl font-black tracking-tight">
+              {activeTournament.name}
+            </h1>
             <p className="text-xs sm:text-sm text-slate-300 flex flex-wrap items-center justify-center sm:justify-start gap-3">
               <span className="flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-sport-orange" />
@@ -161,8 +203,8 @@ export const PublicTournamentPortal: React.FC = () => {
           </div>
 
           {/* Tournament Trophy Badge */}
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 p-0.5 shadow-glow-orange mx-auto sm:mx-0 flex items-center justify-center">
-            <div className="w-full h-full bg-sport-midnight rounded-[22px] flex items-center justify-center text-4xl">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 p-0.5 shadow-glow-orange mx-auto sm:mx-0 flex items-center justify-center shrink-0">
+            <div className="w-full h-full bg-sport-midnight rounded-[22px] flex items-center justify-center text-3xl sm:text-4xl">
               🏆
             </div>
           </div>
@@ -171,7 +213,7 @@ export const PublicTournamentPortal: React.FC = () => {
 
       {/* Live Match Broadcast Banner (if any live) */}
       {liveMatches.length > 0 && (
-        <div className="max-w-6xl mx-auto -mt-6 px-4 sm:px-6 relative z-20">
+        <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto -mt-6 px-4 sm:px-6 lg:px-8 relative z-20">
           <div className="bg-gradient-to-r from-red-600 via-rose-600 to-orange-600 text-white p-4 sm:p-5 rounded-2xl shadow-xl border border-red-400">
             <div className="flex items-center justify-between mb-3 text-xs font-bold uppercase tracking-wider">
               <div className="flex items-center gap-2">
@@ -189,20 +231,20 @@ export const PublicTournamentPortal: React.FC = () => {
               return (
                 <div
                   onClick={() => setSelectedMatch(lm)}
-                  className="bg-black/30 backdrop-blur-md p-4 rounded-xl flex items-center justify-between gap-4 cursor-pointer hover:bg-black/40 transition"
+                  className="bg-black/30 backdrop-blur-md p-3 sm:p-4 rounded-xl flex items-center justify-between gap-2 sm:gap-4 cursor-pointer hover:bg-black/40 transition"
                 >
-                  <div className="flex-1 text-right font-black text-base sm:text-xl truncate">
+                  <div className="flex-1 text-right font-black text-sm xs:text-base sm:text-xl truncate">
                     {h?.name || 'TBD'}
                   </div>
 
-                  <div className="px-5 py-1.5 rounded-xl bg-sport-midnight border border-white/20 text-center font-mono font-black text-2xl sm:text-3xl text-yellow-300 shadow-inner">
+                  <div className="px-3 xs:px-5 py-1.5 rounded-xl bg-sport-midnight border border-white/20 text-center font-mono font-black text-xl xs:text-2xl sm:text-3xl text-yellow-300 shadow-inner shrink-0">
                     {lm.homeScore} : {lm.awayScore}
-                    <div className="text-[10px] font-sans font-bold text-red-200 uppercase tracking-wider">
+                    <div className="text-[9px] xs:text-[10px] font-sans font-bold text-red-200 uppercase tracking-wider">
                       {lm.score.period || 'In Play'}
                     </div>
                   </div>
 
-                  <div className="flex-1 text-left font-black text-base sm:text-xl truncate">
+                  <div className="flex-1 text-left font-black text-sm xs:text-base sm:text-xl truncate">
                     {a?.name || 'TBD'}
                   </div>
                 </div>
@@ -213,8 +255,8 @@ export const PublicTournamentPortal: React.FC = () => {
       )}
 
       {/* Public Tab Navigation Bar */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-8">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200">
+      <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 mt-6 sm:mt-8">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 border-b border-slate-200 no-scrollbar touch-scroll">
           {[
             { id: 'overview' as PublicTab, label: 'Overview', icon: <Trophy className="w-4 h-4" /> },
             { id: 'fixtures' as PublicTab, label: 'Fixtures & Scores', icon: <Calendar className="w-4 h-4" /> },
@@ -225,7 +267,7 @@ export const PublicTournamentPortal: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer shrink-0 ${
                 activeTab === tab.id
                   ? 'bg-sport-navy text-white shadow-md'
                   : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-100'
@@ -239,7 +281,7 @@ export const PublicTournamentPortal: React.FC = () => {
       </div>
 
       {/* Tab Panels */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 mt-6">
+      <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {/* 1. Overview Tab */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -437,90 +479,182 @@ export const PublicTournamentPortal: React.FC = () => {
 
         {/* 3. Standings Tab */}
         {activeTab === 'standings' && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
-            <h3 className="text-base font-bold text-sport-navy">League Standings</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-black text-[10px]">
-                  <tr>
-                    <th className="py-3 px-4">Pos</th>
-                    <th className="py-3 px-4">Team</th>
-                    <th className="py-3 px-3 text-center">P</th>
-                    <th className="py-3 px-3 text-center">W</th>
-                    {sportConfig.supportsDraw && <th className="py-3 px-3 text-center">D</th>}
-                    <th className="py-3 px-3 text-center">L</th>
-                    <th className="py-3 px-3 text-center">Diff</th>
-                    <th className="py-3 px-4 text-center font-black text-sport-navy">PTS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
-                  {standings.map((row, idx) => (
-                    <tr key={row.teamId} className="hover:bg-slate-50">
-                      <td className="py-3 px-4 text-slate-500 font-mono">{idx + 1}</td>
-                      <td className="py-3 px-4 font-bold text-sport-navy">{row.teamName}</td>
-                      <td className="py-3 px-3 text-center font-mono">{row.played}</td>
-                      <td className="py-3 px-3 text-center font-mono text-emerald-600">{row.won}</td>
-                      {sportConfig.supportsDraw && (
-                        <td className="py-3 px-3 text-center font-mono">{row.draw}</td>
-                      )}
-                      <td className="py-3 px-3 text-center font-mono text-rose-500">{row.lost}</td>
-                      <td className="py-3 px-3 text-center font-mono">{row.difference}</td>
-                      <td className="py-3 px-4 text-center font-black text-sport-orange">{row.points}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-4 sm:p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-sport-navy">League Standings</h3>
+                <p className="text-xs text-slate-500">Official tournament ranking leaderboard</p>
+              </div>
+
+              {/* View Switcher: Card View vs Table View */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+                <button
+                  onClick={() => setStandingsView('table')}
+                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                    standingsView === 'table' ? 'bg-white text-sport-navy shadow-sm' : 'hover:text-slate-900'
+                  }`}
+                >
+                  <TableIcon className="w-3.5 h-3.5" />
+                  <span>Table View</span>
+                </button>
+                <button
+                  onClick={() => setStandingsView('cards')}
+                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                    standingsView === 'cards' ? 'bg-white text-sport-navy shadow-sm' : 'hover:text-slate-900'
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Cards View</span>
+                </button>
+              </div>
             </div>
+
+            {/* Standings Cards Mode (Mobile/Touch-Friendly) */}
+            {standingsView === 'cards' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {standings.map((row, idx) => (
+                  <div
+                    key={row.teamId}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-sport-orange transition shadow-xs"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-black text-xs px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">
+                          {idx === 0 ? '🥇 1st' : idx === 1 ? '🥈 2nd' : idx === 2 ? '🥉 3rd' : `#${idx + 1}`}
+                        </span>
+                        <h4 className="font-extrabold text-sm text-sport-navy truncate max-w-[170px]">
+                          {row.teamName}
+                        </h4>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-lg bg-sport-navy text-sport-orange font-mono font-black text-xs shadow-xs">
+                        {row.points} PTS
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1.5 text-center text-xs mt-3 pt-2.5 border-t border-slate-200/70 font-mono">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-sans block">P</span>
+                        <span className="font-bold text-slate-700">{row.played}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-sans block">W</span>
+                        <span className="font-bold text-emerald-600">{row.won}</span>
+                      </div>
+                      {sportConfig.supportsDraw && (
+                        <div>
+                          <span className="text-[10px] text-slate-400 font-sans block">D</span>
+                          <span className="font-bold text-slate-600">{row.draw}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-sans block">L</span>
+                        <span className="font-bold text-rose-500">{row.lost}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-sans block">DIFF</span>
+                        <span className="font-bold text-slate-700">{row.difference}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Standings Table Mode */
+              <div>
+                <div className="text-[11px] text-slate-400 sm:hidden flex items-center gap-1 mb-2 font-medium">
+                  <span>👉 Swipe table horizontally to see all columns</span>
+                </div>
+                <div className="overflow-x-auto touch-scroll">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-black text-[10px]">
+                      <tr>
+                        <th className="py-3 px-4">Pos</th>
+                        <th className="py-3 px-4">Team</th>
+                        <th className="py-3 px-3 text-center">P</th>
+                        <th className="py-3 px-3 text-center">W</th>
+                        {sportConfig.supportsDraw && <th className="py-3 px-3 text-center">D</th>}
+                        <th className="py-3 px-3 text-center">L</th>
+                        <th className="py-3 px-3 text-center">Diff</th>
+                        <th className="py-3 px-4 text-center font-black text-sport-navy">PTS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
+                      {standings.map((row, idx) => (
+                        <tr key={row.teamId} className="hover:bg-slate-50">
+                          <td className="py-3 px-4 text-slate-500 font-mono">{idx + 1}</td>
+                          <td className="py-3 px-4 font-bold text-sport-navy">{row.teamName}</td>
+                          <td className="py-3 px-3 text-center font-mono">{row.played}</td>
+                          <td className="py-3 px-3 text-center font-mono text-emerald-600">{row.won}</td>
+                          {sportConfig.supportsDraw && (
+                            <td className="py-3 px-3 text-center font-mono">{row.draw}</td>
+                          )}
+                          <td className="py-3 px-3 text-center font-mono text-rose-500">{row.lost}</td>
+                          <td className="py-3 px-3 text-center font-mono">{row.difference}</td>
+                          <td className="py-3 px-4 text-center font-black text-sport-orange">{row.points}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* 4. Bracket Tab */}
         {activeTab === 'bracket' && (
-          <div className="bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl overflow-x-auto">
-            <h3 className="text-base font-bold text-white mb-6">Playoff Bracket</h3>
-            <div className="flex items-center gap-12 min-w-[650px]">
-              {[1, 2, 3].map((r) => {
-                const roundMatches = fixtures.filter(
-                  (m) => (m.stage === 'KNOCKOUT' || m.stage === 'FINAL') && m.round === r
-                );
-                if (roundMatches.length === 0) return null;
+          <div className="bg-slate-900 p-4 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+              <h3 className="text-base font-bold text-white">Playoff Bracket</h3>
+              <span className="text-[11px] text-slate-400 flex items-center gap-1 font-medium sm:hidden">
+                <span>👈 Swipe horizontally to view rounds 👉</span>
+              </span>
+            </div>
+            <div className="overflow-x-auto touch-scroll pb-4 no-scrollbar">
+              <div className="flex items-center gap-8 sm:gap-12 min-w-[650px]">
+                {[1, 2, 3].map((r) => {
+                  const roundMatches = fixtures.filter(
+                    (m) => (m.stage === 'KNOCKOUT' || m.stage === 'FINAL') && m.round === r
+                  );
+                  if (roundMatches.length === 0) return null;
 
-                return (
-                  <div key={r} className="flex-1 space-y-6">
-                    <div className="text-center pb-2 border-b border-slate-800 text-xs font-black uppercase text-sport-orange">
-                      {roundMatches[0]?.roundName || `Round ${r}`}
+                  return (
+                    <div key={r} className="flex-1 space-y-6">
+                      <div className="text-center pb-2 border-b border-slate-800 text-xs font-black uppercase text-sport-orange">
+                        {roundMatches[0]?.roundName || `Round ${r}`}
+                      </div>
+                      {roundMatches.map((m) => {
+                        const h = teams.find((t) => t.id === m.homeTeamId);
+                        const a = teams.find((t) => t.id === m.awayTeamId);
+
+                        return (
+                          <div
+                            key={m.id}
+                            onClick={() => setSelectedMatch(m)}
+                            className="bg-slate-950 p-3 rounded-xl border border-slate-800 hover:border-sport-orange transition cursor-pointer text-xs space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between font-semibold text-slate-300">
+                              <span className="truncate">{h?.name || 'TBD'}</span>
+                              <span className="font-mono text-white">{m.homeScore}</span>
+                            </div>
+                            <div className="flex items-center justify-between font-semibold text-slate-300">
+                              <span className="truncate">{a?.name || 'TBD'}</span>
+                              <span className="font-mono text-white">{m.awayScore}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    {roundMatches.map((m) => {
-                      const h = teams.find((t) => t.id === m.homeTeamId);
-                      const a = teams.find((t) => t.id === m.awayTeamId);
-
-                      return (
-                        <div
-                          key={m.id}
-                          onClick={() => setSelectedMatch(m)}
-                          className="bg-slate-950 p-3 rounded-xl border border-slate-800 hover:border-sport-orange transition cursor-pointer text-xs space-y-1.5"
-                        >
-                          <div className="flex items-center justify-between font-semibold text-slate-300">
-                            <span className="truncate">{h?.name || 'TBD'}</span>
-                            <span className="font-mono text-white">{m.homeScore}</span>
-                          </div>
-                          <div className="flex items-center justify-between font-semibold text-slate-300">
-                            <span className="truncate">{a?.name || 'TBD'}</span>
-                            <span className="font-mono text-white">{m.awayScore}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
 
         {/* 5. Teams & Rosters Tab */}
         {activeTab === 'teams' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-5 4k:grid-cols-6 gap-4">
             {teams.map((team) => (
               <div key={team.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
                 <div className="flex items-center gap-3">

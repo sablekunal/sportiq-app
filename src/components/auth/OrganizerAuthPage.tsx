@@ -164,7 +164,7 @@ export const OrganizerAuthPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-sport-midnight flex flex-col justify-center py-12 sm:px-6 lg:px-8 selection:bg-sport-orange selection:text-white relative overflow-hidden">
+    <div className="min-h-screen bg-sport-midnight flex flex-col justify-center py-6 sm:py-12 px-3 sm:px-6 lg:px-8 selection:bg-sport-orange selection:text-white relative overflow-hidden pb-safe pt-safe">
       {/* Background Ambience Elements */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-10 right-10 w-72 h-72 bg-blue-600/5 rounded-full blur-3xl pointer-events-none"></div>
@@ -175,11 +175,11 @@ export const OrganizerAuthPage: React.FC = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         {/* Brand Header */}
         <div className="flex flex-col items-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-glow-orange mb-3">
-            <img src="/assests/logo-small.png" alt="SportIQ" className="w-9 h-9 object-contain drop-shadow" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-glow-orange mb-3">
+            <img src="/assests/logo-small.png" alt="SportIQ" className="w-8 h-8 sm:w-9 sm:h-9 object-contain drop-shadow" />
           </div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-black text-white tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               Sport<span className="text-sport-orange">IQ</span>
             </h2>
             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-800 text-sport-orange border border-slate-700">
@@ -190,7 +190,7 @@ export const OrganizerAuthPage: React.FC = () => {
         </div>
 
         {/* Card Container */}
-        <div className="bg-sport-navy border border-slate-800 py-8 px-6 shadow-2xl rounded-3xl sm:px-10 relative backdrop-blur-xl">
+        <div className="bg-sport-navy border border-slate-800 py-6 sm:py-8 px-4 xs:px-6 shadow-2xl rounded-2xl sm:rounded-3xl sm:px-10 relative backdrop-blur-xl">
           {/* Error Banner */}
           {error && (
             <div className="mb-6 p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-2.5 text-xs text-red-400 animate-fadeIn">
@@ -226,7 +226,7 @@ export const OrganizerAuthPage: React.FC = () => {
                   </label>
                   <div className="flex items-center rounded-xl bg-slate-900 border border-slate-700 focus-within:border-sport-orange focus-within:ring-1 focus-within:ring-sport-orange transition overflow-hidden">
                     {/* Country Code Select */}
-                    <div className="relative border-r border-slate-700 bg-slate-800/60 px-3 py-2.5 flex items-center">
+                    <div className="relative border-r border-slate-700 bg-slate-800/60 px-2.5 xs:px-3 py-2.5 flex items-center shrink-0">
                       <select
                         value={selectedCountry}
                         onChange={(e) => setSelectedCountry(e.target.value)}
@@ -250,7 +250,7 @@ export const OrganizerAuthPage: React.FC = () => {
                       maxLength={15}
                       required
                       autoFocus
-                      className="w-full bg-transparent px-3.5 py-2.5 text-sm font-semibold text-white placeholder-slate-500 outline-none tracking-wider"
+                      className="w-full bg-transparent px-3 py-2.5 text-xs xs:text-sm font-semibold text-white placeholder-slate-500 outline-none tracking-wider min-w-0"
                     />
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1.5">
@@ -297,7 +297,7 @@ export const OrganizerAuthPage: React.FC = () => {
 
               <form onSubmit={handleOtpSubmit} className="space-y-5">
                 {/* 6 Individual Digit Inputs */}
-                <div className="flex justify-center gap-2 sm:gap-2.5" onPaste={handleOtpPaste}>
+                <div className="flex justify-center gap-1.5 xs:gap-2 sm:gap-2.5" onPaste={handleOtpPaste}>
                   {otpDigits.map((digit, idx) => (
                     <input
                       key={idx}
@@ -310,7 +310,7 @@ export const OrganizerAuthPage: React.FC = () => {
                       value={digit}
                       onChange={(e) => handleOtpChange(idx, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                      className="w-10 h-12 sm:w-11 sm:h-13 text-center text-lg sm:text-xl font-black bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-sport-orange focus:ring-1 focus:ring-sport-orange outline-none transition"
+                      className="w-9 h-11 xs:w-10 xs:h-12 sm:w-11 sm:h-13 text-center text-base xs:text-lg sm:text-xl font-black bg-slate-900 border border-slate-700 rounded-xl text-white focus:border-sport-orange focus:ring-1 focus:ring-sport-orange outline-none transition shrink-0"
                     />
                   ))}
                 </div>
