@@ -18,6 +18,7 @@ import confetti from 'canvas-confetti';
 import { MatchRepository } from '../repositories/matchRepository';
 import { DomainMatch, MatchResult, TournamentRules } from '../domain/tournament/models/types';
 import { generateKnockout } from '../domain/tournament/fixtures/knockout';
+import { generateRoundRobin } from '../domain/tournament/fixtures/roundRobin';
 import { processMatchResult } from '../domain/tournament/results/processResult';
 import { adaptDomainMatchToLegacy } from '../services/matchAdapter';
 
@@ -317,9 +318,15 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     let generatedLegacy: Match[] = [];
 
-    if (t.format === 'KNOCKOUT') {
+    if (t.format === 'KNOCKOUT' || t.format === 'ROUND_ROBIN') {
       // NEW DOMAIN ENGINE PATH
-      const generatedDomain = generateKnockout(t.id, 'playoffs', t.teams.map(team => team.id));
+      let generatedDomain: any[] = [];
+      if (t.format === 'KNOCKOUT') {
+        generatedDomain = generateKnockout(t.id, 'playoffs', t.teams.map(team => team.id));
+      } else if (t.format === 'ROUND_ROBIN') {
+        generatedDomain = generateRoundRobin(t.id, 'league', t.teams.map(team => team.id));
+      }
+
       await MatchRepository.createMatches(t.id, generatedDomain);
       
       updateTournamentDoc(tournamentId, (tour) => {
@@ -330,7 +337,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           user: 'Tournament Engine',
           details: `Generated ${generatedDomain.length} domain matches for format ${tour.format}`,
         };
-        // We no longer write to tour.fixtures for Knockout! The subcollection handles it.
+        // We no longer write to tour.fixtures for domain formats! The subcollection handles it.
         return {
           ...tour,
           status: 'FIXTURES_GENERATED',
@@ -339,8 +346,6 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
       soundEffects.playCelebration();
       return; // Exit early, handled by subcollection
-    } else if (t.format === 'ROUND_ROBIN') {
-      generatedLegacy = generateRoundRobinFixtures(t.id, t.teams, t.startDate, t.venues[0]?.id);
     } else if (t.format === 'GROUP_KNOCKOUT') {
       generatedLegacy = generateGroupKnockoutFixtures(t.id, t.teams, t.groups, t.startDate, t.venues[0]?.id);
     } else {
@@ -482,7 +487,9 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const isDomainMatch = domainMatches.some(m => m.id === matchId);
 
     if (isDomainMatch) {
-      const domainRules: TournamentRules = { allowDraws: false };
+      const domainRules: TournamentRules = { 
+        allowDraws: activeTournament.format === 'ROUND_ROBIN' || activeTournament.format === 'GROUP_KNOCKOUT' 
+      };
       
       try {
         await MatchRepository.completeMatchTransaction(

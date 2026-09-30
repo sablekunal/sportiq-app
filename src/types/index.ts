@@ -74,6 +74,7 @@ export interface Match {
   roundName: string; // "Round of 16", "Quarter Final", "Semi Final", "Final", "Group Match"
   position: number;
   stage: 'GROUP' | 'KNOCKOUT' | 'WINNERS_BRACKET' | 'LOSERS_BRACKET' | 'FINAL';
+  groupId?: string;
   homeTeamId: string | null;
   awayTeamId: string | null;
   homeScore: number;

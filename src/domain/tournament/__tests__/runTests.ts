@@ -3,6 +3,7 @@ const assert = {
   deepStrictEqual: (a: any, b: any, msg?: string) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg || 'Deep equality failed'); }
 };
 import { generateKnockout } from '../fixtures/knockout';
+import { generateRoundRobin } from '../fixtures/roundRobin';
 import { processMatchResult } from '../results/processResult';
 import { TournamentRules } from '../models/types';
 
@@ -10,6 +11,25 @@ const rules: TournamentRules = { allowDraws: false };
 
 function runTests() {
   console.log('Running Domain Tests...\n');
+
+  // Test 0: Round Robin Generation
+  try {
+    const teams = ['T1', 'T2', 'T3', 'T4'];
+    const matches = generateRoundRobin('tour-rr', 'stage-1', teams);
+    
+    // 4 teams -> 6 matches
+    assert.strictEqual(matches.length, 6, '4 teams should have 6 matches');
+    assert.strictEqual(matches.filter(m => m.round === 1).length, 2, 'Each round should have 2 matches');
+    
+    // 5 teams -> 10 matches
+    const teamsOdd = ['T1', 'T2', 'T3', 'T4', 'T5'];
+    const matchesOdd = generateRoundRobin('tour-rr2', 'stage-1', teamsOdd);
+    assert.strictEqual(matchesOdd.length, 10, '5 teams should have 10 matches (excluding BYEs)');
+    
+    console.log('✅ Test 0: Round Robin Generation passed.');
+  } catch (err: any) {
+    console.error('❌ Test 0 failed:', err.message);
+  }
 
   // Test 1: Basic 8 Teams Knockout
   try {
