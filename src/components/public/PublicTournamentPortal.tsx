@@ -38,6 +38,7 @@ export const PublicTournamentPortal: React.FC = () => {
   const [standingsView, setStandingsView] = useState<'table' | 'cards'>('table');
   const [matchModalTab, setMatchModalTab] = useState<'commentary' | 'lineups'>('commentary');
   const [publicStageFilter, setPublicStageFilter] = useState<'ALL' | 'A' | 'B' | 'C' | 'D' | 'KNOCKOUT'>('ALL');
+  const [standingsGroupFilter, setStandingsGroupFilter] = useState<'ALL' | 'A' | 'B' | 'C' | 'D'>('ALL');
 
   if (!activeTournament) {
     return (
@@ -63,7 +64,12 @@ export const PublicTournamentPortal: React.FC = () => {
   const teams = activeTournament.teams;
   const fixtures = activeTournament.fixtures;
   const liveMatches = fixtures.filter((m) => m.status === 'LIVE');
-  const standings = calculateSportStandings(activeTournament.sport, teams, fixtures);
+  const standings = calculateSportStandings(
+    activeTournament.sport,
+    teams,
+    fixtures,
+    standingsGroupFilter === 'ALL' ? undefined : standingsGroupFilter
+  );
 
   const publicUrl = window.location.href;
 
@@ -529,26 +535,55 @@ export const PublicTournamentPortal: React.FC = () => {
                 <p className="text-xs text-slate-500">Official tournament ranking leaderboard</p>
               </div>
 
-              {/* View Switcher: Card View vs Table View */}
-              <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
-                <button
-                  onClick={() => setStandingsView('table')}
-                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
-                    standingsView === 'table' ? 'bg-white text-sport-navy shadow-sm' : 'hover:text-slate-900'
-                  }`}
-                >
-                  <TableIcon className="w-3.5 h-3.5" />
-                  <span>Table View</span>
-                </button>
-                <button
-                  onClick={() => setStandingsView('cards')}
-                  className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
-                    standingsView === 'cards' ? 'bg-white text-sport-navy shadow-sm' : 'hover:text-slate-900'
-                  }`}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                  <span>Cards View</span>
-                </button>
+              {/* Group Selector and View Switcher */}
+              <div className="flex flex-wrap items-center gap-2">
+                {(activeTournament.groups && activeTournament.groups.length > 0 || activeTournament.format === 'GROUP_KNOCKOUT') && (
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+                    {(
+                      [
+                        { id: 'ALL', label: 'All' },
+                        { id: 'A', label: 'Group A' },
+                        { id: 'B', label: 'Group B' },
+                        { id: 'C', label: 'Group C' },
+                        { id: 'D', label: 'Group D' },
+                      ] as const
+                    ).map((grp) => (
+                      <button
+                        key={grp.id}
+                        onClick={() => setStandingsGroupFilter(grp.id)}
+                        className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                          standingsGroupFilter === grp.id
+                            ? 'bg-sport-navy text-white shadow-sm'
+                            : 'hover:text-slate-900'
+                        }`}
+                      >
+                        {grp.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* View Switcher: Card View vs Table View */}
+                <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+                  <button
+                    onClick={() => setStandingsView('table')}
+                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                      standingsView === 'table' ? 'bg-white text-sport-navy shadow-sm' : 'hover:text-slate-900'
+                    }`}
+                  >
+                    <TableIcon className="w-3.5 h-3.5" />
+                    <span>Table View</span>
+                  </button>
+                  <button
+                    onClick={() => setStandingsView('cards')}
+                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                      standingsView === 'cards' ? 'bg-white text-sport-navy shadow-sm' : 'hover:text-slate-900'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span>Cards View</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -676,12 +711,16 @@ export const PublicTournamentPortal: React.FC = () => {
                             onClick={() => setSelectedMatch(m)}
                             className="bg-slate-950 p-3 rounded-xl border border-slate-800 hover:border-sport-orange transition cursor-pointer text-xs space-y-1.5"
                           >
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pb-1 border-b border-slate-900">
+                              <span className="font-bold text-sport-orange">{m.matchCode || `Match #${m.fixtureNumber}`}</span>
+                              <span>{m.status}</span>
+                            </div>
                             <div className="flex items-center justify-between font-semibold text-slate-300">
-                              <span className="truncate">{h?.name || 'TBD'}</span>
+                              <span className="truncate">{h?.name || m.homePlaceholder || 'TBD'}</span>
                               <span className="font-mono text-white">{m.homeScore}</span>
                             </div>
                             <div className="flex items-center justify-between font-semibold text-slate-300">
-                              <span className="truncate">{a?.name || 'TBD'}</span>
+                              <span className="truncate">{a?.name || m.awayPlaceholder || 'TBD'}</span>
                               <span className="font-mono text-white">{m.awayScore}</span>
                             </div>
                           </div>

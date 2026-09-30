@@ -106,7 +106,14 @@ export const InteractiveBracket: React.FC = () => {
                       >
                         {/* Live / Status Indicator */}
                         <div className="flex items-center justify-between text-[10px] mb-2 font-mono">
-                          <span className="text-slate-400 font-semibold">Match #{match.position}</span>
+                          <div className="flex items-center gap-1.5">
+                            {match.matchCode && (
+                              <span className="font-mono font-black px-1.5 py-0.5 rounded bg-orange-500/20 text-sport-orange text-[9px]">
+                                {match.matchCode}
+                              </span>
+                            )}
+                            <span className="text-slate-400 font-semibold">Match #{match.fixtureNumber ?? match.position}</span>
+                          </div>
                           {match.status === 'LIVE' ? (
                             <span className="flex items-center gap-1 text-red-400 font-bold bg-red-950/60 px-2 py-0.5 rounded-full border border-red-500/30 animate-pulse">
                               <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
@@ -136,7 +143,7 @@ export const InteractiveBracket: React.FC = () => {
                                 style={{ backgroundColor: home.color || '#f97316' }}
                               />
                             )}
-                            <span className="truncate">{home?.name || 'TBD (Awaiting)'}</span>
+                            <span className="truncate">{home?.name || match.homePlaceholder || 'TBD (Awaiting)'}</span>
                           </div>
                           <span className="font-mono font-bold text-white px-1.5 py-0.5 rounded bg-slate-800">
                             {match.homeScore}
@@ -158,7 +165,7 @@ export const InteractiveBracket: React.FC = () => {
                                 style={{ backgroundColor: away.color || '#2563eb' }}
                               />
                             )}
-                            <span className="truncate">{away?.name || 'TBD (Awaiting)'}</span>
+                            <span className="truncate">{away?.name || match.awayPlaceholder || 'TBD (Awaiting)'}</span>
                           </div>
                           <span className="font-mono font-bold text-white px-1.5 py-0.5 rounded bg-slate-800">
                             {match.awayScore}

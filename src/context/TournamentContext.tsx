@@ -19,7 +19,11 @@ import { MatchRepository } from '../repositories/matchRepository';
 import { DomainMatch, MatchResult, TournamentRules } from '../domain/tournament/models/types';
 import { generateKnockout } from '../domain/tournament/fixtures/knockout';
 import { generateRoundRobin } from '../domain/tournament/fixtures/roundRobin';
-import { generateFourGroupTournament } from '../domain/tournament/fixtures/groupKnockout';
+import {
+  generateFourGroupTournament,
+  assignTeamToGroupPosition,
+  isGroupAssignmentLocked,
+} from '../domain/tournament/fixtures/groupKnockout';
 import { processMatchResult } from '../domain/tournament/results/processResult';
 import { adaptDomainMatchToLegacy } from '../services/matchAdapter';
 import { SPORT_CONFIGS } from '../engines/sportEngine';
@@ -72,6 +76,8 @@ interface TournamentContextType {
   completeMatch: (matchId: string, result: { scoreA: number, scoreB: number }) => void;
   addBudgetItem: (tournamentId: string, item: Omit<BudgetItem, 'id'>) => void;
   deleteBudgetItem: (tournamentId: string, itemId: string) => void;
+  assignGroupPosition: (tournamentId: string, groupId: string, position: number, teamId: string | null) => Promise<void>;
+  isGroupLocked: boolean;
 }
 
 const TournamentContext = createContext<TournamentContextType | undefined>(undefined);
@@ -193,7 +199,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const t = tournamentsRef.current.find(x => x.id === tournamentId);
     if (!t) return;
 
-    if (t.ownerId && auth.currentUser && t.ownerId !== auth.currentUser.uid) {
+    if (t.ownerId && (!auth.currentUser || t.ownerId !== auth.currentUser.uid)) {
       console.warn("Permission denied: You do not own this tournament.");
       return;
     }
@@ -264,7 +270,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const deleteTournament = async (tournamentId: string) => {
     const t = tournamentsRef.current.find(x => x.id === tournamentId);
-    if (t?.ownerId && auth.currentUser && t.ownerId !== auth.currentUser.uid) {
+    if (t?.ownerId && (!auth.currentUser || t.ownerId !== auth.currentUser.uid)) {
       console.warn("Permission denied: You do not own this tournament.");
       return;
     }
@@ -362,6 +368,11 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const t = tournamentsRef.current.find(x => x.id === tournamentId);
     if (!t) return;
 
+    if (t.ownerId && (!auth.currentUser || t.ownerId !== auth.currentUser.uid)) {
+      console.warn("Permission denied: You do not own this tournament.");
+      return;
+    }
+
     let generatedLegacy: Match[] = [];
 
     if (t.format === 'KNOCKOUT' || t.format === 'ROUND_ROBIN' || t.format === 'GROUP_KNOCKOUT') {
@@ -444,6 +455,11 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!activeTournament) return;
     const tournamentId = activeTournament.id;
 
+    if (activeTournament.ownerId && (!auth.currentUser || activeTournament.ownerId !== auth.currentUser.uid)) {
+      console.warn("Permission denied: You do not own this tournament.");
+      return;
+    }
+
     if (domainMatches.some(m => m.id === matchId)) {
       // NEW DOMAIN ENGINE PATH
       const matchRef = doc(db, 'tournaments', tournamentId, 'matches', matchId);
@@ -506,6 +522,11 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!activeTournament) return;
     const tournamentId = activeTournament.id;
 
+    if (activeTournament.ownerId && (!auth.currentUser || activeTournament.ownerId !== auth.currentUser.uid)) {
+      console.warn("Permission denied: You do not own this tournament.");
+      return;
+    }
+
     if (domainMatches.some(m => m.id === matchId)) {
       // NEW DOMAIN ENGINE PATH
       const matchRef = doc(db, 'tournaments', tournamentId, 'matches', matchId);
@@ -545,6 +566,11 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const completeMatch = async (matchId: string, result: { scoreA: number, scoreB: number }) => {
     if (!activeTournament) return;
     const tournamentId = activeTournament.id;
+
+    if (activeTournament.ownerId && (!auth.currentUser || activeTournament.ownerId !== auth.currentUser.uid)) {
+      console.warn("Permission denied: You do not own this tournament.");
+      return;
+    }
 
     // Is it a normalized DomainMatch?
     const isDomainMatch = domainMatches.some(m => m.id === matchId);
@@ -630,6 +656,94 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
+  const isGroupLocked = useMemo(() => {
+    return isGroupAssignmentLocked(domainMatches);
+  }, [domainMatches]);
+
+  const assignGroupPosition = async (
+    tournamentId: string,
+    groupId: string,
+    position: number,
+    teamId: string | null
+  ) => {
+    const tour = tournamentsRef.current.find(x => x.id === tournamentId);
+    if (tour?.ownerId && (!auth.currentUser || tour.ownerId !== auth.currentUser.uid)) {
+      throw new Error("Permission denied: You do not own this tournament.");
+    }
+
+    if (isGroupAssignmentLocked(domainMatches)) {
+      throw new Error('Cannot modify group assignments: competition has already begun.');
+    }
+
+    // 1. If matches already generated in normalized subcollection, update affected matches atomically
+    if (domainMatches.length > 0) {
+      const updatedMatches = assignTeamToGroupPosition(domainMatches, groupId, position, teamId);
+      const affectedMatches = updatedMatches.filter((m) => {
+        const old = domainMatches.find((x) => x.id === m.id);
+        return old && (
+          JSON.stringify(old.participantA) !== JSON.stringify(m.participantA) ||
+          JSON.stringify(old.participantB) !== JSON.stringify(m.participantB)
+        );
+      });
+
+      if (affectedMatches.length > 0) {
+        const batch = writeBatch(db);
+        affectedMatches.forEach((m) => {
+          const ref = doc(db, 'tournaments', tournamentId, 'matches', m.id);
+          batch.update(ref, {
+            participantA: m.participantA,
+            participantB: m.participantB,
+          });
+        });
+        await batch.commit();
+      }
+    }
+
+    // 2. Persist group position and team groupId in authoritative tournament document
+    await updateTournamentDoc(tournamentId, (t) => {
+      const existingGroups = t.groups || [];
+      let targetGroup = existingGroups.find((g) => g.id === groupId);
+      if (!targetGroup) {
+        targetGroup = {
+          id: groupId,
+          name: `Group ${groupId}`,
+          order: groupId.charCodeAt(0) - 64,
+          teamIds: [],
+        };
+      }
+
+      const newTeamIds = [...(targetGroup.teamIds || [])];
+      while (newTeamIds.length < 4) newTeamIds.push('');
+
+      // If team was already placed in another position in this group, vacate old position
+      if (teamId) {
+        const oldIdx = newTeamIds.findIndex((id, idx) => id === teamId && idx !== position - 1);
+        if (oldIdx !== -1) {
+          newTeamIds[oldIdx] = '';
+        }
+      }
+
+      newTeamIds[position - 1] = teamId || '';
+
+      const updatedGroups = existingGroups.some((g) => g.id === groupId)
+        ? existingGroups.map((g) => (g.id === groupId ? { ...g, teamIds: newTeamIds } : g))
+        : [...existingGroups, { ...targetGroup, teamIds: newTeamIds }];
+
+      const updatedTeams = t.teams.map((tm) => {
+        if (tm.id === teamId) {
+          return { ...tm, groupId };
+        }
+        return tm;
+      });
+
+      return {
+        ...t,
+        groups: updatedGroups,
+        teams: updatedTeams,
+      };
+    });
+  };
+
   return (
     <TournamentContext.Provider
       value={{
@@ -659,6 +773,8 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         completeMatch,
         addBudgetItem,
         deleteBudgetItem,
+        assignGroupPosition,
+        isGroupLocked,
       }}
     >
       {children}

@@ -9,8 +9,9 @@ import {
   generateFourGroupTournament,
   assignTeamToGroupPosition,
   applyGroupAssignments,
+  isGroupAssignmentLocked,
 } from '../fixtures/groupKnockout';
-import { processMatchResult } from '../results/processResult';
+import { processMatchResult, computeGroupStandings } from '../results/processResult';
 import { calculateStandings } from '../results/calculateStandings';
 import { DomainMatch, TournamentRules, MatchParticipant } from '../models/types';
 import { Team } from '../../../types';
@@ -545,6 +546,296 @@ function runTests() {
     console.log('✅ Test 10: Position vs Team Identity Independence passed.');
   } catch (err: any) {
     console.error('❌ Test 10 failed:', err.message);
+  }
+
+  // Test 11: Standings Integration, Status Isolation, Lock Guard & Qualification Timing
+  try {
+    const groupAssignments = {
+      A: ['Team_X', 'Team_Y', 'Team_Z', 'Team_W'],
+      B: ['B1_team', 'B2_team', 'B3_team', 'B4_team'],
+      C: ['C1_team', 'C2_team', 'C3_team', 'C4_team'],
+      D: ['D1_team', 'D2_team', 'D3_team', 'D4_team'],
+    };
+
+    let allMatches = generateFourGroupTournament({
+      tournamentId: 'st-xaviers-audit',
+      groupAssignments,
+    });
+
+    // 1. Initial State: Group play has not started -> Not locked
+    assert.strictEqual(isGroupAssignmentLocked(allMatches), false, 'Before any match starts, group assignment must not be locked');
+
+    // 2. Play Match 1 in Group A (A-M1: P1 vs P2 -> Team_X vs Team_Y)
+    const m1 = allMatches.find((m) => m.matchCode === 'A-M1')!;
+    assert.strictEqual(m1.participantA.type, 'TEAM');
+    assert.strictEqual((m1.participantA as any).teamId, 'Team_X');
+    assert.strictEqual(m1.participantB.type, 'TEAM');
+    assert.strictEqual((m1.participantB as any).teamId, 'Team_Y');
+
+    const m1Res = processMatchResult(allMatches, m1.id, { scoreA: 21, scoreB: 17 }, rules);
+    allMatches = m1Res.updatedMatches;
+
+    // 3. Verify Competition Lock is activated
+    assert.strictEqual(isGroupAssignmentLocked(allMatches), true, 'Once a group match is completed, assignments must be locked');
+    let lockErrorCaught = false;
+    try {
+      assignTeamToGroupPosition(allMatches, 'A', 1, 'Imposter_Team');
+    } catch (e: any) {
+      lockErrorCaught = true;
+      assert.strictEqual(e.message, 'Cannot modify group assignments: competition has already begun.');
+    }
+    assert.strictEqual(lockErrorCaught, true, 'Re-assignment after competition starts must throw');
+
+    // 4. Verify Actual Score Preservation
+    const m1Updated = allMatches.find((m) => m.matchCode === 'A-M1')!;
+    assert.strictEqual(m1Updated.scoreA, 21, 'scoreA must be preserved exactly as 21');
+    assert.strictEqual(m1Updated.scoreB, 17, 'scoreB must be preserved exactly as 17');
+    assert.strictEqual(m1Updated.winnerId, 'Team_X');
+
+    // 5. Verify Standings after Match 1
+    const groupAMatches = allMatches.filter((m) => m.groupId === 'A');
+    let standingsA = computeGroupStandings(groupAMatches, rules);
+    assert.strictEqual(standingsA[0].teamId, 'Team_X');
+    assert.strictEqual(standingsA[0].played, 1);
+    assert.strictEqual(standingsA[0].won, 1);
+    assert.strictEqual(standingsA[0].lost, 0);
+    assert.strictEqual(standingsA[0].scored, 21);
+    assert.strictEqual(standingsA[0].conceded, 17);
+    assert.strictEqual(standingsA[0].difference, 4);
+    assert.strictEqual(standingsA[0].points, 2);
+
+    assert.strictEqual(standingsA[1].teamId, 'Team_Y');
+    assert.strictEqual(standingsA[1].played, 1);
+    assert.strictEqual(standingsA[1].won, 0);
+    assert.strictEqual(standingsA[1].lost, 1);
+    assert.strictEqual(standingsA[1].difference, -4);
+    assert.strictEqual(standingsA[1].points, 0);
+
+    // 6. Verify Status Isolation: LIVE and SCHEDULED matches do not count
+    const m2 = allMatches.find((m) => m.matchCode === 'A-M2')!;
+    m2.status = 'LIVE';
+    m2.scoreA = 12;
+    m2.scoreB = 9;
+    const standingsWithLive = computeGroupStandings(allMatches.filter((m) => m.groupId === 'A'), rules);
+    assert.strictEqual(standingsWithLive[0].played, 1, 'LIVE matches must not count toward standings');
+    assert.strictEqual(standingsWithLive[0].scored, 21, 'LIVE scores must not count toward standings');
+    m2.status = 'SCHEDULED';
+    m2.scoreA = 0;
+    m2.scoreB = 0;
+
+    // 7. Complete Match 2: Team_X beats Team_Z (21 - 15)
+    allMatches = processMatchResult(allMatches, m2.id, { scoreA: 21, scoreB: 15 }, rules).updatedMatches;
+
+    // 8. Complete Match 3: Team_W beats Team_X (21 - 19)
+    const m3 = allMatches.find((m) => m.matchCode === 'A-M3')!;
+    allMatches = processMatchResult(allMatches, m3.id, { scoreA: 19, scoreB: 21 }, rules).updatedMatches;
+
+    // Verify Duplicate Submission Idempotency: duplicate completion does not count twice
+    const m3Dup = processMatchResult(allMatches, m3.id, { scoreA: 19, scoreB: 21 }, rules);
+    assert.deepStrictEqual(m3Dup.errors, []);
+    allMatches = m3Dup.updatedMatches;
+
+    // Verify Standings reflect prompt requirement 6:
+    // Team X beats Team Y, Team X beats Team Z, Team W beats Team X
+    standingsA = computeGroupStandings(allMatches.filter((m) => m.groupId === 'A'), rules);
+    const teamXStats = standingsA.find((s) => s.teamId === 'Team_X')!;
+    assert.strictEqual(teamXStats.played, 3, 'Team X must have played 3 matches (not 4)');
+    assert.strictEqual(teamXStats.won, 2, 'Team X must have 2 wins');
+    assert.strictEqual(teamXStats.lost, 1, 'Team X must have 1 loss');
+    assert.strictEqual(teamXStats.scored, 21 + 21 + 19, 'Team X scored 61');
+    assert.strictEqual(teamXStats.conceded, 17 + 15 + 21, 'Team X conceded 53');
+    assert.strictEqual(teamXStats.difference, 8, 'Team X difference +8');
+    assert.strictEqual(teamXStats.points, 4, 'Team X points 4');
+
+    // 9. Qualification Timing (Requirement 7):
+    // After 3 matches (or 5 matches), Group A winner MUST NOT prematurely qualify into SF1!
+    let sf1 = allMatches.find((m) => m.matchCode === 'SF-M1')!;
+    assert.strictEqual(sf1.participantA.type, 'TBD', 'SF1 participantA must remain TBD until group is complete');
+    assert.strictEqual((sf1.participantA as any).label, 'Winner Group A');
+
+    // Complete Match 4 (A-M4: P2 vs P3 -> Team_Y vs Team_Z): Team_Y wins 21 - 10
+    const m4 = allMatches.find((m) => m.matchCode === 'A-M4')!;
+    allMatches = processMatchResult(allMatches, m4.id, { scoreA: 21, scoreB: 10 }, rules).updatedMatches;
+
+    // Complete Match 5 (A-M5: P2 vs P4 -> Team_Y vs Team_W): Team_Y wins 21 - 12
+    const m5 = allMatches.find((m) => m.matchCode === 'A-M5')!;
+    allMatches = processMatchResult(allMatches, m5.id, { scoreA: 21, scoreB: 12 }, rules).updatedMatches;
+
+    // Check after 5 matches: STILL NOT qualified!
+    sf1 = allMatches.find((m) => m.matchCode === 'SF-M1')!;
+    assert.strictEqual(sf1.participantA.type, 'TBD', 'Must not prematurely qualify when 5 of 6 matches complete');
+
+    // Complete Match 6 (A-M6: P3 vs P4 -> Team_Z vs Team_W): Team_W wins 21 - 18
+    const m6 = allMatches.find((m) => m.matchCode === 'A-M6')!;
+    allMatches = processMatchResult(allMatches, m6.id, { scoreA: 18, scoreB: 21 }, rules).updatedMatches;
+
+    // 10. All 6 matches in Group A are now COMPLETED -> Group winner MUST resolve into SF1 slot A!
+    sf1 = allMatches.find((m) => m.matchCode === 'SF-M1')!;
+    assert.strictEqual(sf1.participantA.type, 'TEAM', 'SF1 participantA must now be resolved to TEAM');
+    // Check who won Group A:
+    standingsA = computeGroupStandings(allMatches.filter((m) => m.groupId === 'A'), rules);
+    const expectedWinnerA = standingsA[0].teamId;
+    assert.strictEqual((sf1.participantA as any).teamId, expectedWinnerA, `SF1 slot A must resolve to ${expectedWinnerA}`);
+
+    // SF1 participantB must STILL be TBD (Winner Group B) because Group B has not finished
+    assert.strictEqual(sf1.participantB.type, 'TBD', 'SF1 slot B must remain TBD until Group B finishes');
+    assert.strictEqual((sf1.participantB as any).label, 'Winner Group B');
+
+    console.log('✅ Test 11: Standings Integration, Status Isolation, Lock Guard & Qualification Timing passed.');
+  } catch (err: any) {
+    console.error('❌ Test 11 failed:', err.message);
+  }
+
+  // Test 12: Full 27-Match Deterministic End-to-End Simulation & Actual Score Preservation
+  try {
+    const groupAssignments = {
+      A: ['Alpha_1', 'Alpha_2', 'Alpha_3', 'Alpha_4'],
+      B: ['Bravo_1', 'Bravo_2', 'Bravo_3', 'Bravo_4'],
+      C: ['Charlie_1', 'Charlie_2', 'Charlie_3', 'Charlie_4'],
+      D: ['Delta_1', 'Delta_2', 'Delta_3', 'Delta_4'],
+    };
+
+    let allMatches = generateFourGroupTournament({
+      tournamentId: 'st-xaviers-simulation',
+      groupAssignments,
+    });
+
+    assert.strictEqual(allMatches.length, 27, 'Total match count must be 27');
+
+    // Simulate all 24 group matches with realistic scores where Position 1 teams dominate:
+    // Group A: Alpha_1 wins all 3 games
+    const groupScoresA: Record<string, [number, number]> = {
+      'A-M1': [21, 14], // Alpha_1 vs Alpha_2 -> Alpha_1
+      'A-M2': [21, 16], // Alpha_1 vs Alpha_3 -> Alpha_1
+      'A-M3': [21, 18], // Alpha_1 vs Alpha_4 -> Alpha_1
+      'A-M4': [21, 19], // Alpha_2 vs Alpha_3 -> Alpha_2
+      'A-M5': [21, 15], // Alpha_2 vs Alpha_4 -> Alpha_2
+      'A-M6': [21, 17], // Alpha_3 vs Alpha_4 -> Alpha_3
+    };
+
+    for (const [code, [scoreA, scoreB]] of Object.entries(groupScoresA)) {
+      const match = allMatches.find((m) => m.matchCode === code)!;
+      allMatches = processMatchResult(allMatches, match.id, { scoreA, scoreB }, rules).updatedMatches;
+    }
+
+    // Group B: Bravo_1 wins all 3 games
+    const groupScoresB: Record<string, [number, number]> = {
+      'B-M1': [21, 11], // Bravo_1 vs Bravo_2
+      'B-M2': [21, 13], // Bravo_1 vs Bravo_3
+      'B-M3': [21, 17], // Bravo_1 vs Bravo_4
+      'B-M4': [21, 15], // Bravo_2 vs Bravo_3
+      'B-M5': [21, 14], // Bravo_2 vs Bravo_4
+      'B-M6': [21, 16], // Bravo_3 vs Bravo_4
+    };
+
+    for (const [code, [scoreA, scoreB]] of Object.entries(groupScoresB)) {
+      const match = allMatches.find((m) => m.matchCode === code)!;
+      allMatches = processMatchResult(allMatches, match.id, { scoreA, scoreB }, rules).updatedMatches;
+    }
+
+    // Group C: Charlie_1 wins all 3 games
+    const groupScoresC: Record<string, [number, number]> = {
+      'C-M1': [21, 12],
+      'C-M2': [21, 14],
+      'C-M3': [21, 19],
+      'C-M4': [21, 17],
+      'C-M5': [21, 13],
+      'C-M6': [21, 18],
+    };
+
+    for (const [code, [scoreA, scoreB]] of Object.entries(groupScoresC)) {
+      const match = allMatches.find((m) => m.matchCode === code)!;
+      allMatches = processMatchResult(allMatches, match.id, { scoreA, scoreB }, rules).updatedMatches;
+    }
+
+    // Group D: Delta_1 wins all 3 games
+    const groupScoresD: Record<string, [number, number]> = {
+      'D-M1': [21, 15],
+      'D-M2': [21, 16],
+      'D-M3': [21, 12],
+      'D-M4': [21, 18],
+      'D-M5': [21, 14],
+      'D-M6': [21, 17],
+    };
+
+    for (const [code, [scoreA, scoreB]] of Object.entries(groupScoresD)) {
+      const match = allMatches.find((m) => m.matchCode === code)!;
+      allMatches = processMatchResult(allMatches, match.id, { scoreA, scoreB }, rules).updatedMatches;
+    }
+
+    // Verify 24 group matches are COMPLETED
+    const groupMatches = allMatches.filter((m) => Boolean(m.groupId));
+    assert.strictEqual(groupMatches.length, 24, 'Must have 24 group matches');
+    assert.strictEqual(
+      groupMatches.every((m) => m.status === 'COMPLETED'),
+      true,
+      'All 24 group matches must be completed'
+    );
+
+    // Verify Semifinal participants resolved automatically:
+    // SF1 (Fixture 25): Winner Group A (Alpha_1) vs Winner Group B (Bravo_1)
+    const sf1 = allMatches.find((m) => m.matchCode === 'SF-M1')!;
+    assert.strictEqual(sf1.fixtureNumber, 25);
+    assert.strictEqual(sf1.participantA.type, 'TEAM');
+    assert.strictEqual((sf1.participantA as any).teamId, 'Alpha_1');
+    assert.strictEqual(sf1.participantB.type, 'TEAM');
+    assert.strictEqual((sf1.participantB as any).teamId, 'Bravo_1');
+
+    // SF2 (Fixture 26): Winner Group C (Charlie_1) vs Winner Group D (Delta_1)
+    const sf2 = allMatches.find((m) => m.matchCode === 'SF-M2')!;
+    assert.strictEqual(sf2.fixtureNumber, 26);
+    assert.strictEqual(sf2.participantA.type, 'TEAM');
+    assert.strictEqual((sf2.participantA as any).teamId, 'Charlie_1');
+    assert.strictEqual(sf2.participantB.type, 'TEAM');
+    assert.strictEqual((sf2.participantB as any).teamId, 'Delta_1');
+
+    // Final (Fixture 27) must still be TBD-based
+    let finalMatch = allMatches.find((m) => m.matchCode === 'F-M1')!;
+    assert.strictEqual(finalMatch.fixtureNumber, 27);
+    assert.strictEqual(finalMatch.participantA.type, 'TBD');
+    assert.strictEqual((finalMatch.participantA as any).label, 'Winner Semi-final 1');
+    assert.strictEqual(finalMatch.participantB.type, 'TBD');
+    assert.strictEqual((finalMatch.participantB as any).label, 'Winner Semi-final 2');
+
+    // Play Semifinal 1: Alpha_1 defeats Bravo_1 (25 - 22)
+    allMatches = processMatchResult(allMatches, sf1.id, { scoreA: 25, scoreB: 22 }, rules).updatedMatches;
+    finalMatch = allMatches.find((m) => m.matchCode === 'F-M1')!;
+    assert.strictEqual(finalMatch.participantA.type, 'TEAM', 'Final slot A must resolve to SF1 winner');
+    assert.strictEqual((finalMatch.participantA as any).teamId, 'Alpha_1');
+    assert.strictEqual(finalMatch.participantB.type, 'TBD', 'Final slot B must remain TBD until SF2 completes');
+
+    // Play Semifinal 2: Delta_1 defeats Charlie_1 (25 - 23)
+    allMatches = processMatchResult(allMatches, sf2.id, { scoreA: 23, scoreB: 25 }, rules).updatedMatches;
+    finalMatch = allMatches.find((m) => m.matchCode === 'F-M1')!;
+    assert.strictEqual(finalMatch.participantB.type, 'TEAM', 'Final slot B must resolve to SF2 winner');
+    assert.strictEqual((finalMatch.participantB as any).teamId, 'Delta_1');
+
+    // Play Championship Final (F-M1): Alpha_1 vs Delta_1 (25 - 23)
+    allMatches = processMatchResult(allMatches, finalMatch.id, { scoreA: 25, scoreB: 23 }, rules).updatedMatches;
+
+    // Verification of Complete Tournament Outcome:
+    const completedFinal = allMatches.find((m) => m.matchCode === 'F-M1')!;
+    assert.strictEqual(completedFinal.status, 'COMPLETED');
+    assert.strictEqual(completedFinal.winnerId, 'Alpha_1', 'Champion must be Alpha_1 derived from final match result');
+    assert.strictEqual(completedFinal.scoreA, 25);
+    assert.strictEqual(completedFinal.scoreB, 23);
+
+    // Verify ALL 27 matches are completed and preserve actual scores
+    assert.strictEqual(allMatches.length, 27);
+    assert.strictEqual(
+      allMatches.every((m) => m.status === 'COMPLETED'),
+      true,
+      'All 27 matches in the tournament lifecycle must be COMPLETED'
+    );
+    assert.strictEqual(
+      allMatches.every((m) => m.scoreA > 0 && m.scoreB > 0),
+      true,
+      'All 27 matches must have preserved actual non-zero scores'
+    );
+
+    console.log('✅ Test 12: Full 27-Match Deterministic End-to-End Simulation & Actual Score Preservation passed.');
+  } catch (err: any) {
+    console.error('❌ Test 12 failed:', err.message);
   }
 }
 

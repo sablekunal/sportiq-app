@@ -203,8 +203,21 @@ export function generateFourGroupTournament({
 }
 
 /**
+ * Checks whether competition in group stage has started.
+ * Once any group match is LIVE, COMPLETED, or has scores, assignments are strictly locked.
+ */
+export function isGroupAssignmentLocked(matches: DomainMatch[]): boolean {
+  return matches.some(
+    (m) =>
+      Boolean(m.groupId) &&
+      (m.status === 'LIVE' || m.status === 'COMPLETED' || m.scoreA > 0 || m.scoreB > 0)
+  );
+}
+
+/**
  * Re-assigns or updates a team at a specific position slot in a group
  * without altering fixture order, IDs, or other matches.
+ * Guards against modification once group competition has commenced.
  */
 export function assignTeamToGroupPosition(
   matches: DomainMatch[],
@@ -212,11 +225,42 @@ export function assignTeamToGroupPosition(
   position: number,
   teamId: string | null
 ): DomainMatch[] {
+  if (isGroupAssignmentLocked(matches)) {
+    throw new Error('Cannot modify group assignments: competition has already begun.');
+  }
+
+  // Find if teamId is currently assigned to a different position in this group
+  let oldPosition: number | null = null;
+  if (teamId) {
+    for (const m of matches) {
+      if (m.groupId === groupId) {
+        if (m.participantA.type === 'TEAM' && m.participantA.teamId === teamId && m.groupPositionA !== position) {
+          oldPosition = m.groupPositionA ?? null;
+          break;
+        }
+        if (m.participantB.type === 'TEAM' && m.participantB.teamId === teamId && m.groupPositionB !== position) {
+          oldPosition = m.groupPositionB ?? null;
+          break;
+        }
+      }
+    }
+  }
+
   return matches.map((match) => {
     if (match.groupId !== groupId) return match;
 
     let updatedA = match.participantA;
     let updatedB = match.participantB;
+
+    // Vacate old position if moving team from another slot in same group
+    if (oldPosition !== null) {
+      if (match.groupPositionA === oldPosition) {
+        updatedA = { type: 'TBD', label: `${groupId}${oldPosition}` };
+      }
+      if (match.groupPositionB === oldPosition) {
+        updatedB = { type: 'TBD', label: `${groupId}${oldPosition}` };
+      }
+    }
 
     if (match.groupPositionA === position) {
       updatedA = teamId
