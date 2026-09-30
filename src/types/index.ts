@@ -120,6 +120,10 @@ export interface TournamentRules {
   matchDurationMinutes: number;
   periodsCount: number;
   tieBreakers: string[]; // ['goal_diff', 'head_to_head', 'goals_scored']
+  allowDraws?: boolean;
+  pointsForWin?: number;
+  pointsForDraw?: number;
+  pointsForLoss?: number;
   
   // Structure configuration
   numberOfTeams?: number;
@@ -159,6 +163,7 @@ export interface Tournament {
   startDate: string;
   endDate: string;
   organizerName: string;
+  ownerId?: string;
   visibility: 'PUBLIC' | 'PRIVATE';
   teams: Team[];
   groups: TournamentGroup[];
@@ -168,3 +173,14 @@ export interface Tournament {
   budget: BudgetItem[];
   auditLogs: AuditLog[];
 }
+
+export interface UserProfile {
+  uid: string;
+  phoneNumber: string;
+  displayName: string;
+  organization?: string;
+  role: 'ORGANIZER' | 'ADMIN';
+  createdAt: string;
+  updatedAt: string;
+}
+

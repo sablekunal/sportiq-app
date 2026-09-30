@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './auth/AuthContext';
 import { TournamentProvider, useTournament } from './context/TournamentContext';
 import { Header } from './components/common/Header';
 import { CreateTournamentModal } from './components/organizer/CreateTournamentModal';
@@ -14,14 +15,36 @@ import { BudgetAccounting } from './components/organizer/BudgetAccounting';
 import { ShareAndQRStudio } from './components/organizer/ShareAndQRStudio';
 import { PublicTournamentPortal } from './components/public/PublicTournamentPortal';
 import { MatchDayTools } from './components/tools/MatchDayTools';
+import { OrganizerAuthPage } from './components/auth/OrganizerAuthPage';
 
 const AppContent: React.FC = () => {
   const { viewMode, organizerTab } = useTournament();
+  const { loading: authLoading, isAuthenticated, isProfileComplete } = useAuth();
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  // If in public viewer mode, render the public spectator portal directly
+  // 1. PUBLIC SPECTATOR VIEW: Free public access without authentication
   if (viewMode === 'public') {
     return <PublicTournamentPortal />;
+  }
+
+  // 2. AUTH INITIALIZATION: Prevent visual flashes during Firebase auth verification
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-sport-midnight flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center shadow-glow-orange mb-4 animate-pulse">
+          <img src="/assests/logo-small.png" alt="SportIQ" className="w-10 h-10 object-contain drop-shadow" />
+        </div>
+        <h3 className="text-xl font-black text-white tracking-tight">
+          Sport<span className="text-sport-orange">IQ</span>
+        </h3>
+        <p className="text-xs text-slate-400 mt-1">Connecting to Secure Session...</p>
+      </div>
+    );
+  }
+
+  // 3. ORGANIZER ACCESS GUARD: Unauthenticated organizers must log in with Phone OTP
+  if (viewMode === 'organizer' && (!isAuthenticated || !isProfileComplete)) {
+    return <OrganizerAuthPage />;
   }
 
   return (
@@ -86,8 +109,10 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <TournamentProvider>
-      <AppContent />
-    </TournamentProvider>
+    <AuthProvider>
+      <TournamentProvider>
+        <AppContent />
+      </TournamentProvider>
+    </AuthProvider>
   );
 }

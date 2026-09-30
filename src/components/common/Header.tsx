@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTournament, AppViewMode } from '../../context/TournamentContext';
-import { Trophy, Globe, Wrench, Shield, PlusCircle, Radio, Sparkles } from 'lucide-react';
+import { useAuth } from '../../auth/AuthContext';
+import { Trophy, Globe, Wrench, Shield, PlusCircle, Radio, Sparkles, LogOut, User } from 'lucide-react';
 import { SPORT_CONFIGS } from '../../engines/sportEngine';
 
 interface HeaderProps {
@@ -15,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateModal }) => {
     activeTournament,
     setActiveTournamentId,
   } = useTournament();
+
+  const { profile, isAuthenticated, signOut } = useAuth();
 
   const sportConfig = activeTournament ? SPORT_CONFIGS[activeTournament.sport] : null;
   const liveMatchesCount = activeTournament?.fixtures.filter((m) => m.status === 'LIVE').length || 0;
@@ -132,13 +135,44 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCreateModal }) => {
             </div>
           )}
 
-          <button
-            onClick={onOpenCreateModal}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-sm hover:shadow transition active:scale-95 cursor-pointer"
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">New Tournament</span>
-          </button>
+          {isAuthenticated ? (
+            <>
+              <button
+                onClick={onOpenCreateModal}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-sm hover:shadow transition active:scale-95 cursor-pointer"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">New Tournament</span>
+              </button>
+
+              <div className="flex items-center gap-2 pl-2 border-l border-slate-700">
+                <div className="hidden lg:flex flex-col text-right">
+                  <span className="text-xs font-bold text-white leading-tight">
+                    {profile?.displayName || 'Organizer'}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {profile?.organization || 'SportIQ'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => signOut()}
+                  title="Sign Out"
+                  className="flex items-center gap-1.5 bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 border border-slate-700 hover:border-red-500/40 text-xs font-semibold px-2.5 py-2 rounded-lg transition cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <button
+              onClick={() => setViewMode('organizer')}
+              className="flex items-center gap-1.5 bg-sport-orange hover:bg-orange-600 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-sm transition cursor-pointer"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Organizer Login</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

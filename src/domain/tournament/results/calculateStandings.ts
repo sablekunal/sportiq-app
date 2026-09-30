@@ -29,9 +29,9 @@ export function calculateStandings(
     });
   });
 
-  const winPoints = rules.winPoints ?? 3;
-  const drawPoints = rules.drawPoints ?? 1;
-  const lossPoints = rules.lossPoints ?? 0;
+  const winPoints = rules.pointsForWin ?? rules.winPoints ?? 0;
+  const drawPoints = rules.pointsForDraw ?? rules.drawPoints ?? 0;
+  const lossPoints = rules.pointsForLoss ?? rules.lossPoints ?? 0;
 
   // Process completed matches
   for (const match of matches) {

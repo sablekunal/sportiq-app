@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import {
   Tournament,
   Match,
@@ -21,6 +21,7 @@ import { generateKnockout } from '../domain/tournament/fixtures/knockout';
 import { generateRoundRobin } from '../domain/tournament/fixtures/roundRobin';
 import { processMatchResult } from '../domain/tournament/results/processResult';
 import { adaptDomainMatchToLegacy } from '../services/matchAdapter';
+import { SPORT_CONFIGS } from '../engines/sportEngine';
 
 export type AppViewMode = 'organizer' | 'public' | 'tools';
 export type OrganizerTab =
@@ -164,6 +165,12 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const updateTournamentDoc = async (tournamentId: string, updater: (t: Tournament) => Tournament) => {
     const t = tournamentsRef.current.find(x => x.id === tournamentId);
     if (!t) return;
+
+    if (t.ownerId && auth.currentUser && t.ownerId !== auth.currentUser.uid) {
+      console.warn("Permission denied: You do not own this tournament.");
+      return;
+    }
+
     const updated = updater(t);
     try {
       await setDoc(doc(db, 'tournaments', tournamentId), updated);
@@ -175,6 +182,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const createTournament = async (data: Partial<Tournament>) => {
     const id = `t-${Date.now()}`;
     const slug = data.slug || (data.name ? data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : `tour-${Date.now()}`);
+    const sportConfig = SPORT_CONFIGS[data.sport || 'throwball'] || SPORT_CONFIGS.football;
     const newTournament: Tournament = {
       id,
       slug,
@@ -187,17 +195,22 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       startDate: data.startDate || new Date().toISOString().split('T')[0],
       endDate: data.endDate || new Date().toISOString().split('T')[0],
       organizerName: data.organizerName || 'Tournament Organizer',
+      ownerId: auth.currentUser?.uid || undefined,
       visibility: 'PUBLIC',
       venues: INITIAL_VENUES,
       teams: data.teams || [],
       groups: [],
       rules: data.rules || {
-        winPoints: 2,
-        drawPoints: 0,
-        lossPoints: 0,
-        matchDurationMinutes: 45,
-        periodsCount: 3,
+        winPoints: sportConfig.defaultWinPoints,
+        drawPoints: sportConfig.defaultDrawPoints,
+        lossPoints: sportConfig.defaultLossPoints,
+        pointsForWin: sportConfig.defaultWinPoints,
+        pointsForDraw: sportConfig.defaultDrawPoints,
+        pointsForLoss: sportConfig.defaultLossPoints,
+        matchDurationMinutes: sportConfig.defaultDurationMinutes,
+        periodsCount: sportConfig.defaultPeriods.length,
         tieBreakers: ['points', 'difference', 'scored'],
+        allowDraws: sportConfig.supportsDraw,
       },
       budget: [],
       auditLogs: [
@@ -223,6 +236,12 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const deleteTournament = async (tournamentId: string) => {
+    const t = tournamentsRef.current.find(x => x.id === tournamentId);
+    if (t?.ownerId && auth.currentUser && t.ownerId !== auth.currentUser.uid) {
+      console.warn("Permission denied: You do not own this tournament.");
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, 'tournaments', tournamentId));
       const remaining = tournamentsRef.current.filter((t) => t.id !== tournamentId);
@@ -488,7 +507,11 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     if (isDomainMatch) {
       const domainRules: TournamentRules = { 
-        allowDraws: activeTournament.format === 'ROUND_ROBIN' || activeTournament.format === 'GROUP_KNOCKOUT' 
+        allowDraws: Boolean(activeTournament.rules?.allowDraws),
+        winPoints: activeTournament.rules?.winPoints ?? activeTournament.rules?.pointsForWin ?? 0,
+        drawPoints: activeTournament.rules?.drawPoints ?? activeTournament.rules?.pointsForDraw ?? 0,
+        lossPoints: activeTournament.rules?.lossPoints ?? activeTournament.rules?.pointsForLoss ?? 0,
+        tieBreakers: activeTournament.rules?.tieBreakers,
       };
       
       try {

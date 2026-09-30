@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User profile documents
+    match /users/{userId} {
+      // Authenticated users can read organizer profiles
+      allow read: if request.auth != null;
+      // Users can only create and modify their own profile
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Helper functions for tournament ownership and visibility
+    function isTournamentPublic(tournamentId) {
+      return get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.visibility == 'PUBLIC';
+    }
+
+    function isTournamentOwner(tournamentData) {
+      return request.auth != null && (
+        tournamentData.ownerId == request.auth.uid ||
+        // Backward-compatibility: allow unowned legacy dev tournaments
+        !('ownerId' in tournamentData)
+      );
+    }
+
+    // Tournaments root collection
+    match /tournaments/{tournamentId} {
+      // Public tournaments can be read by anyone (spectators/public portal)
+      // Owners can always read their own tournaments even if private
+      allow read: if resource.data.visibility == 'PUBLIC' || (request.auth != null && resource.data.ownerId == request.auth.uid);
+      
+      // Creating a tournament requires authentication and setting ownerId to the creator's UID
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      
+      // Updating or deleting requires being the verified owner
+      allow update, delete: if isTournamentOwner(resource.data);
+
+      // Matches normalized subcollection
+      match /matches/{matchId} {
+        // Public viewers can read matches of public tournaments; owners can always read
+        allow read: if isTournamentPublic(tournamentId) || (request.auth != null && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.ownerId == request.auth.uid);
+        
+        // Only the tournament owner can write/update matches and scores
+        allow write: if isTournamentOwner(get(/databases/$(database)/documents/tournaments/$(tournamentId)).data);
+      }
+
+      // Teams normalized subcollection
+      match /teams/{teamId} {
+        allow read: if isTournamentPublic(tournamentId) || (request.auth != null && get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.ownerId == request.auth.uid);
+        allow write: if isTournamentOwner(get(/databases/$(database)/documents/tournaments/$(tournamentId)).data);
+      }
+    }
+  }
+}

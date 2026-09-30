@@ -1,11 +1,13 @@
 export type MatchParticipant =
   | { type: 'TEAM'; teamId: string }
-  | { type: 'TBD' }
+  | { type: 'TBD'; label?: string }
   | { type: 'BYE' };
 
 export interface MatchDependency {
-  sourceMatchId: string;
-  outcome: 'WINNER' | 'LOSER';
+  sourceMatchId?: string;
+  outcome?: 'WINNER' | 'LOSER';
+  sourceGroupId?: string;
+  rank?: number;
   targetSlot: 'A' | 'B';
 }
 
@@ -47,4 +49,9 @@ export interface TournamentRules {
   winPoints?: number;
   drawPoints?: number;
   lossPoints?: number;
+  pointsForWin?: number;
+  pointsForDraw?: number;
+  pointsForLoss?: number;
+  tieBreakers?: string[];
 }
+
