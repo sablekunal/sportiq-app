@@ -221,7 +221,7 @@ export const printFixtures = (
               <th>Stage</th>
               <th>Home Team</th>
               <th>Away Team</th>
-              <th>Sets (H : A)</th>
+              <th>Sets</th>
               <th>Winner</th>
             </tr>
           </thead>
@@ -250,9 +250,9 @@ export const printFixtures = (
     let scoreDisplay = '';
     
     if (isPlayed && (m.homeScore > 0 || m.awayScore > 0)) {
-       scoreDisplay = `<span class="score-box">${m.homeScore}</span> : <span class="score-box">${m.awayScore}</span>`;
+       scoreDisplay = `<span class="score-box">${m.homeScore}</span> - <span class="score-box">${m.awayScore}</span>`;
     } else {
-       scoreDisplay = `<span class="score-box"></span> : <span class="score-box"></span>`;
+       scoreDisplay = `<span class="score-box"></span> - <span class="score-box"></span>`;
     }
 
     const winner = m.winnerId ? (teams.find(t => t.id === m.winnerId)?.name || '_________________') : '_________________';
