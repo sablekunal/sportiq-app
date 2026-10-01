@@ -34,6 +34,7 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean }> = ({ isPublicVie
     assignGroupPosition,
     isGroupLocked,
     setLiveDrawActive,
+    setLiveDrawSpin,
   } = useTournament();
 
   const [isDrawing, setIsDrawing] = useState(false);
@@ -64,6 +65,23 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean }> = ({ isPublicVie
       drawWheel(currentAngleRef.current);
     }
   }, [remainingPool.length, isDrawing]);
+
+  // Synchronize remote spin for spectators
+  const lastProcessedSpinRef = useRef<number>(0);
+  useEffect(() => {
+    if (activeTournament?.liveSpin) {
+      const { teamId, timestamp } = activeTournament.liveSpin;
+      if (timestamp > lastProcessedSpinRef.current) {
+        lastProcessedSpinRef.current = timestamp;
+        if (isPublicView && !isDrawing) {
+          const finalTeam = wheelTeamsRef.current.find(t => t.id === teamId);
+          if (finalTeam) {
+            triggerSpinAnimation(finalTeam);
+          }
+        }
+      }
+    }
+  }, [activeTournament?.liveSpin, isPublicView, isDrawing]);
 
   if (!activeTournament) return null;
 
@@ -183,20 +201,18 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean }> = ({ isPublicVie
     ctx.fill();
   }, []);
 
-  // ─── Physics-based Spin Animation ─────────────────────────────────────
-  const handleDrawNext = async () => {
-    if (remainingPool.length === 0 || isDrawing || isGroupLocked) return;
-
-    const nextSlot = getNextEmptySlot();
-    if (!nextSlot) return;
-
+  const triggerSpinAnimation = (finalTeam: Team, onComplete?: () => void) => {
     setIsDrawing(true);
     setCurrentDrawnTeam(null);
 
-    const randomIdx = Math.floor(Math.random() * remainingPool.length);
-    const finalTeam = remainingPool[randomIdx];
+    // Find the index of the finalTeam in the wheelTeamsRef (which holds the pool before drawing)
+    const randomIdx = wheelTeamsRef.current.findIndex(t => t.id === finalTeam.id);
+    if (randomIdx === -1) {
+      setIsDrawing(false);
+      return;
+    }
 
-    const n = remainingPool.length;
+    const n = wheelTeamsRef.current.length;
     const sliceAngle = (Math.PI * 2) / n;
 
     const startAngle = currentAngleRef.current;
@@ -242,24 +258,51 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean }> = ({ isPublicVie
         currentAngleRef.current = startAngle + totalSpin;
         drawWheel(currentAngleRef.current);
         setCurrentDrawnTeam(finalTeam);
+        soundEffects.playCelebration();
 
-        (async () => {
-          try {
-            await assignGroupPosition(activeTournament.id, nextSlot.groupId, nextSlot.position, finalTeam.id);
-            soundEffects.playCelebration();
-            if (remainingPool.length <= 1) {
-              updateTournamentStatus(activeTournament.id, 'DRAW_COMPLETED');
-            }
-          } catch (err: any) {
-            alert(err.message || 'Error assigning group slot');
-          } finally {
-            setIsDrawing(false);
-          }
-        })();
+        if (onComplete) {
+          onComplete();
+        } else {
+          // If no onComplete is provided, it's a spectator just finishing the animation
+          setIsDrawing(false);
+        }
       }
     };
 
     animFrameRef.current = requestAnimationFrame(animate);
+  };
+
+  const handleDrawNext = async () => {
+    if (remainingPool.length === 0 || isDrawing || isGroupLocked) return;
+
+    const nextSlot = getNextEmptySlot();
+    if (!nextSlot) return;
+
+    const randomIdx = Math.floor(Math.random() * remainingPool.length);
+    const finalTeam = remainingPool[randomIdx];
+
+    // Trigger the spin on all public viewers simultaneously
+    await setLiveDrawSpin(activeTournament.id, {
+      teamId: finalTeam.id,
+      groupId: nextSlot.groupId,
+      position: nextSlot.position,
+      timestamp: Date.now()
+    });
+
+    triggerSpinAnimation(finalTeam, () => {
+      (async () => {
+        try {
+          await assignGroupPosition(activeTournament.id, nextSlot.groupId, nextSlot.position, finalTeam.id);
+          if (remainingPool.length <= 1) {
+            updateTournamentStatus(activeTournament.id, 'DRAW_COMPLETED');
+          }
+        } catch (err: any) {
+          alert(err.message || 'Error assigning group slot');
+        } finally {
+          setIsDrawing(false);
+        }
+      })();
+    });
   };
 
   // ─── Auto Draw All ────────────────────────────────────────────────────

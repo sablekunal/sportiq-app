@@ -56,6 +56,9 @@ export const StandingsTable: React.FC = () => {
 
     groups.forEach(grpKey => {
       const rows = fourGroupStandings[grpKey] || [];
+      const isGroupCompleted = rows.length > 0 && rows.every(r => r.played === rows.length - 1);
+      const topSpotTied = rows[0]?.isTied;
+
       html += `<h3>Group ${grpKey} Standings</h3>`;
       html += `
         <table>
@@ -80,10 +83,18 @@ export const StandingsTable: React.FC = () => {
       rows.forEach((row, idx) => {
         const sd = row.setsWon - row.setsLost;
         const pd = row.pointsFor - row.pointsAgainst;
+        
+        const hasPlayed = row.played > 0;
+        const isPartOfTopTie = topSpotTied && row.isTied && row.won === rows[0].won && row.setDifference === rows[0].setDifference && row.pointsFor === rows[0].pointsFor;
+        const shouldShowTied = isGroupCompleted && isPartOfTopTie;
+        
+        const qBadge = (row.qualified && hasPlayed) ? '(Q)' : '';
+        const tiedBadge = shouldShowTied ? '[TIED]' : '';
+
         html += `
             <tr>
               <td class="pos">${idx + 1}</td>
-              <td class="team-name">${row.teamName} ${row.qualified ? '(Q)' : ''}</td>
+              <td class="team-name">${row.teamName} ${qBadge} ${tiedBadge}</td>
               <td>${row.played}</td>
               <td>${row.won}</td>
               <td>${row.lost}</td>

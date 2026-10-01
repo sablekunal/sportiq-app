@@ -114,6 +114,7 @@ interface TournamentContextType {
   scheduleConflicts: ScheduleConflict[];
   domainMatches: DomainMatch[];
   setLiveDrawActive: (tournamentId: string, isActive: boolean) => Promise<void>;
+  setLiveDrawSpin: (tournamentId: string, spinData: any) => Promise<void>;
 }
 
 const TournamentContext = createContext<TournamentContextType | undefined>(undefined);
@@ -176,6 +177,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           groups: d.groups || [],
           budget: d.budget || [],
           auditLogs: d.auditLogs || [],
+          liveSpin: d.liveSpin,
           venues: d.venues?.length && d.venues[0].name === 'Center Court Arena' ? INITIAL_VENUES : (d.venues || INITIAL_VENUES),
         } as Tournament;
       });
@@ -250,6 +252,10 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const setLiveDrawActive = async (tournamentId: string, isActive: boolean) => {
     await updateTournamentDoc(tournamentId, (t) => ({ ...t, isLiveDrawActive: isActive }));
+  };
+
+  const setLiveDrawSpin = async (tournamentId: string, spinData: any) => {
+    await updateTournamentDoc(tournamentId, (t) => ({ ...t, liveSpin: spinData }));
   };
 
   const createTournament = async (data: Partial<Tournament>) => {
@@ -1264,6 +1270,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setActiveMatchId,
         setPublicSlug,
         setLiveDrawActive,
+        setLiveDrawSpin,
         createTournament,
         deleteTournament,
         loadThrowballDemo,

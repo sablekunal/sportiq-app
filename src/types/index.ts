@@ -271,6 +271,12 @@ export interface Tournament {
   budget: BudgetItem[];
   auditLogs: AuditLog[];
   isLiveDrawActive?: boolean;
+  liveSpin?: {
+    teamId: string;
+    groupId: string;
+    position: number;
+    timestamp: number;
+  };
 }
 
 export interface UserProfile {
