@@ -160,8 +160,6 @@ export const OverviewPanel: React.FC = () => {
         </div>
       </div>
 
-      </div>
-
       {/* Tournament Branding & Settings Section */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-4">
         <h3 className="text-sm font-bold text-sport-navy border-b border-slate-100 pb-2">

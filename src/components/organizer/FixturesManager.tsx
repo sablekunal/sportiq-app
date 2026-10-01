@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { MatchStatus } from '../../types';
-import { Calendar, Play, Radio, MapPin, Clock, Filter, Plus, CheckCircle2, Users } from 'lucide-react';
+import { Calendar, Play, Radio, MapPin, Clock, Filter, Plus, CheckCircle2, Users, Lock } from 'lucide-react';
 import { soundEffects } from '../../engines/audioEngine';
 import { MatchLineupModal } from './MatchLineupModal';
 import { Match } from '../../types';
