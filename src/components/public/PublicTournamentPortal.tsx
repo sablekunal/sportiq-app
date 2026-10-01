@@ -741,6 +741,9 @@ export const PublicTournamentPortal: React.FC = () => {
               const grpRows = fourGroupStandings[grpKey] || [];
               const sfTarget = grpKey === 'A' || grpKey === 'B' ? 'Semifinal 1 (SF1)' : 'Semifinal 2 (SF2)';
 
+              const isGroupCompleted = grpRows.length > 0 && grpRows.every((r) => r.played === grpRows.length - 1);
+              const topSpotTied = grpRows[0]?.isTied;
+
               return (
                 <div key={grpKey} className="space-y-3">
                   <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200">
@@ -808,11 +811,26 @@ export const PublicTournamentPortal: React.FC = () => {
                             </div>
                           </div>
 
-                          {row.qualified && row.played > 0 && (
-                            <div className="mt-2 text-center text-[10px] font-black text-emerald-700 bg-emerald-100 py-0.5 rounded">
-                              ✓ Rank #1 Qualifier ({sfTarget})
-                            </div>
-                          )}
+                          {(() => {
+                            const hasPlayed = row.played > 0;
+                            const isPartOfTopTie = topSpotTied && row.isTied && row.won === grpRows[0].won && row.setDifference === grpRows[0].setDifference && row.pointsFor === grpRows[0].pointsFor;
+                            const shouldShowTied = isGroupCompleted && isPartOfTopTie;
+
+                            return (
+                              <>
+                                {row.qualified && hasPlayed && !shouldShowTied && (
+                                  <div className="mt-2 text-center text-[10px] font-black text-emerald-700 bg-emerald-100 py-0.5 rounded">
+                                    ✓ Rank #1 Qualifier ({sfTarget})
+                                  </div>
+                                )}
+                                {shouldShowTied && (
+                                  <div className="mt-2 text-center text-[10px] font-black text-amber-800 bg-amber-100 py-0.5 rounded uppercase" title={row.tieBreakReason || 'Tie'}>
+                                    TIED FOR 1ST SPOT
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -856,22 +874,32 @@ export const PublicTournamentPortal: React.FC = () => {
                               <td className="py-2.5 px-3 font-bold text-sport-navy">
                                 <div className="flex items-center gap-2">
                                   <span className="truncate">{row.teamName}</span>
-                                  {row.qualified && row.played > 0 && (
-                                    <span
-                                      className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[9px] uppercase font-black"
-                                      title={`Qualifies for ${sfTarget}`}
-                                    >
-                                      Q
-                                    </span>
-                                  )}
-                                  {row.isTied && (
-                                    <span
-                                      className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] uppercase font-black"
-                                      title={row.tieBreakReason || 'Tie'}
-                                    >
-                                      TIED
-                                    </span>
-                                  )}
+                                  {(() => {
+                                    const hasPlayed = row.played > 0;
+                                    const isPartOfTopTie = topSpotTied && row.isTied && row.won === grpRows[0].won && row.setDifference === grpRows[0].setDifference && row.pointsFor === grpRows[0].pointsFor;
+                                    const shouldShowTied = isGroupCompleted && isPartOfTopTie;
+
+                                    return (
+                                      <>
+                                        {row.qualified && hasPlayed && (
+                                          <span
+                                            className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[9px] uppercase font-black"
+                                            title={`Qualifies for ${sfTarget}`}
+                                          >
+                                            Q
+                                          </span>
+                                        )}
+                                        {shouldShowTied && (
+                                          <span
+                                            className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] uppercase font-black"
+                                            title={row.tieBreakReason || 'Tie'}
+                                          >
+                                            TIED
+                                          </span>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </td>
                               <td className="py-2.5 px-2.5 text-center font-mono">{row.played}</td>
