@@ -186,6 +186,8 @@ export const StandingsTable: React.FC = () => {
         {groupsToDisplay.map((grpKey) => {
           const rows = fourGroupStandings[grpKey] || [];
           const qualifierTarget = grpKey === 'A' || grpKey === 'B' ? 'Semifinal 1 (SF1)' : 'Semifinal 2 (SF2)';
+          const isGroupCompleted = rows.length > 0 && rows.every(r => r.played === rows.length - 1);
+          const topSpotTied = rows[0]?.isTied;
 
           return (
             <div
@@ -244,6 +246,8 @@ export const StandingsTable: React.FC = () => {
                     {rows.map((row, idx) => {
                       const isLeader = idx === 0;
                       const hasPlayed = row.played > 0;
+                      const isPartOfTopTie = topSpotTied && row.isTied && row.won === rows[0].won && row.setDifference === rows[0].setDifference && row.pointsFor === rows[0].pointsFor;
+                      const shouldShowTied = isGroupCompleted && isPartOfTopTie;
 
                       return (
                         <tr
@@ -282,10 +286,10 @@ export const StandingsTable: React.FC = () => {
                                   <span>Q - SF</span>
                                 </span>
                               )}
-                              {row.isTied && (
+                              {shouldShowTied && (
                                 <span
                                   className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] uppercase font-black flex items-center gap-1"
-                                  title={row.tieBreakReason || 'Completely unresolved tie'}
+                                  title={row.tieBreakReason || 'Completely unresolved tie for top spot'}
                                 >
                                   <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
                                   <span>TIED</span>
