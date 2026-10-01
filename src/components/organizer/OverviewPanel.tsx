@@ -310,53 +310,7 @@ export const OverviewPanel: React.FC = () => {
                 );
               })()}
             </div>
-          ) : (
-            /* No live match banner - workflow prompt */
-            <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/5 p-6 rounded-2xl border border-orange-200/80">
-              <h3 className="text-base font-bold text-sport-navy flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-sport-orange" />
-                Tournament Automation Workflow
-              </h3>
-              <p className="text-xs text-slate-600 mt-1">
-                You can conduct a live randomized draw, automatically schedule all fixtures with conflict avoidance, or open match day tools.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-                <button
-                  onClick={() => setOrganizerTab('draw')}
-                  className="p-3 rounded-xl bg-white border border-slate-200 hover:border-sport-orange shadow-sm text-left transition cursor-pointer group"
-                >
-                  <div className="text-lg mb-1">🎰</div>
-                  <div className="text-xs font-bold text-sport-navy group-hover:text-sport-orange">
-                    Interactive Live Draw
-                  </div>
-                  <div className="text-[10px] text-slate-500">Pick slots with animation</div>
-                </button>
-
-                <button
-                  onClick={() => generateTournamentFixtures(activeTournament.id)}
-                  className="p-3 rounded-xl bg-white border border-slate-200 hover:border-sport-orange shadow-sm text-left transition cursor-pointer group"
-                >
-                  <div className="text-lg mb-1">⚡</div>
-                  <div className="text-xs font-bold text-sport-navy group-hover:text-sport-orange">
-                    Generate Fixtures
-                  </div>
-                  <div className="text-[10px] text-slate-500">Knockout / Group Engine</div>
-                </button>
-
-                <button
-                  onClick={() => setOrganizerTab('scoring')}
-                  className="p-3 rounded-xl bg-white border border-slate-200 hover:border-red-500 shadow-sm text-left transition cursor-pointer group"
-                >
-                  <div className="text-lg mb-1">🔴</div>
-                  <div className="text-xs font-bold text-sport-navy group-hover:text-red-600">
-                    Live Score Desk
-                  </div>
-                  <div className="text-[10px] text-slate-500">Cricbuzz-style live scoring</div>
-                </button>
-              </div>
-            </div>
-          )}
+          ) : null}
 
           {/* Fixtures Quick Preview */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">

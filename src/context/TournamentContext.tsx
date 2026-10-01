@@ -113,6 +113,7 @@ interface TournamentContextType {
   readiness: TournamentReadinessResult;
   scheduleConflicts: ScheduleConflict[];
   domainMatches: DomainMatch[];
+  setLiveDrawActive: (tournamentId: string, isActive: boolean) => Promise<void>;
 }
 
 const TournamentContext = createContext<TournamentContextType | undefined>(undefined);
@@ -245,6 +246,10 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } catch (error) {
       console.error("Error updating document: ", error);
     }
+  };
+
+  const setLiveDrawActive = async (tournamentId: string, isActive: boolean) => {
+    await updateTournamentDoc(tournamentId, (t) => ({ ...t, isLiveDrawActive: isActive }));
   };
 
   const createTournament = async (data: Partial<Tournament>) => {
@@ -1258,6 +1263,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setActiveTournamentId,
         setActiveMatchId,
         setPublicSlug,
+        setLiveDrawActive,
         createTournament,
         deleteTournament,
         loadThrowballDemo,

@@ -270,6 +270,7 @@ export interface Tournament {
   rules: TournamentRules;
   budget: BudgetItem[];
   auditLogs: AuditLog[];
+  isLiveDrawActive?: boolean;
 }
 
 export interface UserProfile {

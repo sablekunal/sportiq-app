@@ -88,10 +88,10 @@ export const InteractiveBracket: React.FC = () => {
     
     rounds.forEach(roundNum => {
       const matches = targetMatches.filter(m => m.round === roundNum).sort((a,b) => a.position - b.position);
-      const roundName = matches[0]?.roundName || \`Round \${roundNum}\`;
+      const roundName = matches[0]?.roundName || `Round ${roundNum}`;
       
-      html += \`<div class="round-col">\`;
-      html += \`<div class="round-title">\${roundName}</div>\`;
+      html += `<div class="round-col">`;
+      html += `<div class="round-title">${roundName}</div>`;
       
       matches.forEach(m => {
         const home = teams.find(t => t.id === m.homeTeamId)?.name || m.homePlaceholder || 'TBD (Awaiting)';
@@ -99,25 +99,25 @@ export const InteractiveBracket: React.FC = () => {
         const homeScore = m.homeScore ?? '-';
         const awayScore = m.awayScore ?? '-';
         
-        html += \`
+        html += `
           <div class="match">
             <div class="header">
-              <span>Match #\${m.fixtureNumber || m.position}</span>
-              <span>\${m.status === 'LIVE' ? 'LIVE' : m.status === 'COMPLETED' ? 'Done' : 'Scheduled'}</span>
+              <span>Match #${m.fixtureNumber || m.position}</span>
+              <span>${m.status === 'LIVE' ? 'LIVE' : m.status === 'COMPLETED' ? 'Done' : 'Scheduled'}</span>
             </div>
-            <div class="team"><span>\${home}</span> <span class="score">\${homeScore}</span></div>
-            <div class="team"><span>\${away}</span> <span class="score">\${awayScore}</span></div>
+            <div class="team"><span>${home}</span> <span class="score">${homeScore}</span></div>
+            <div class="team"><span>${away}</span> <span class="score">${awayScore}</span></div>
           </div>
-        \`;
+        `;
       });
-      html += \`</div>\`;
+      html += `</div>`;
     });
 
-    html += \`
+    html += `
           </div>
         </body>
       </html>
-    \`;
+    `;
     
     printWindow.document.write(html);
     printWindow.document.close();

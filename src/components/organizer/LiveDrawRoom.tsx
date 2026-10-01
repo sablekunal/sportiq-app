@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { Team } from '../../types';
-import { Sparkles, Play, RotateCcw, CheckCircle2, Shuffle, Trophy, Lock } from 'lucide-react';
+import { Sparkles, Play, RotateCcw, CheckCircle2, Shuffle, Trophy, Lock, Radio } from 'lucide-react';
 import { soundEffects } from '../../engines/audioEngine';
 
 const GROUPS = ['A', 'B', 'C', 'D'] as const;
@@ -26,13 +26,14 @@ const WHEEL_COLORS = [
   '#6D4C41', // Brown
 ];
 
-export const LiveDrawRoom: React.FC = () => {
+export const LiveDrawRoom: React.FC<{ isPublicView?: boolean }> = ({ isPublicView }) => {
   const {
     activeTournament,
     updateTournamentStatus,
     generateTournamentFixtures,
     assignGroupPosition,
     isGroupLocked,
+    setLiveDrawActive,
   } = useTournament();
 
   const [isDrawing, setIsDrawing] = useState(false);
@@ -328,34 +329,51 @@ export const LiveDrawRoom: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleResetDraw}
-            disabled={isGroupLocked || filledCount === 0}
-            className="px-3 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Reset
-          </button>
+        {!isPublicView && (
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => {
+                if (activeTournament) {
+                  setLiveDrawActive(activeTournament.id, !activeTournament.isLiveDrawActive);
+                }
+              }}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                activeTournament.isLiveDrawActive
+                  ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-glow-rose'
+                  : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+              }`}
+            >
+              <Radio className={`w-3.5 h-3.5 ${activeTournament.isLiveDrawActive ? 'animate-pulse' : ''}`} />
+              {activeTournament.isLiveDrawActive ? 'Stop Broadcast' : 'Broadcast Live'}
+            </button>
+            <button
+              onClick={handleResetDraw}
+              disabled={isGroupLocked || filledCount === 0}
+              className="px-3 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset
+            </button>
 
-          <button
-            onClick={handleAutoDrawAll}
-            disabled={remainingPool.length === 0 || isGroupLocked}
-            className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-          >
-            <Shuffle className="w-3.5 h-3.5" />
-            Auto Draw All
-          </button>
+            <button
+              onClick={handleAutoDrawAll}
+              disabled={remainingPool.length === 0 || isGroupLocked}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              Auto Draw
+            </button>
 
-          <button
-            onClick={handleDrawNext}
-            disabled={isDrawing || remainingPool.length === 0 || isGroupLocked}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange transition flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-40"
-          >
-            <Sparkles className="w-4 h-4" />
-            {isDrawing ? 'Spinning...' : `Draw Next Team (${remainingPool.length} Left)`}
-          </button>
-        </div>
+            <button
+              onClick={handleDrawNext}
+              disabled={isDrawing || remainingPool.length === 0 || isGroupLocked}
+              className="px-5 py-2 rounded-xl text-xs font-bold bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange transition flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-40"
+            >
+              <Sparkles className="w-4 h-4" />
+              {isDrawing ? 'Spinning...' : `Draw (${remainingPool.length})`}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Lock Guard Banner if competition has started */}
