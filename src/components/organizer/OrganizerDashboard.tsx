@@ -22,14 +22,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
-const LIFECYCLE_STEPS: { status: TournamentStatus; label: string }[] = [
-  { status: 'DRAFT', label: 'Draft' },
-  { status: 'TEAMS_ADDED', label: 'Teams' },
-  { status: 'DRAW_PENDING', label: 'Draw' },
-  { status: 'FIXTURES_GENERATED', label: 'Fixtures' },
-  { status: 'TOURNAMENT_LIVE', label: 'Live' },
-  { status: 'COMPLETED', label: 'Completed' },
-];
+
 
 interface Props {
   onOpenCreateModal: () => void;
@@ -41,7 +34,6 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
     organizerTab,
     setOrganizerTab,
     setViewMode,
-    updateTournamentStatus,
     generateTournamentFixtures,
     deleteTournament,
     clearAllData,
@@ -99,8 +91,6 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
   const liveCount = activeTournament.fixtures.filter((m) => m.status === 'LIVE').length;
   const completedCount = activeTournament.fixtures.filter((m) => m.status === 'COMPLETED').length;
 
-  const currentStepIdx = LIFECYCLE_STEPS.findIndex((s) => s.status === activeTournament.status);
-  const activeStepIndex = currentStepIdx === -1 ? 0 : currentStepIdx;
 
   const tabs: { id: OrganizerTab; label: string; icon: React.ReactNode; badge?: string | number }[] = [
     { id: 'overview', label: 'Overview', icon: <BarChart3 className="w-4 h-4" /> },
@@ -198,55 +188,6 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
           </div>
         </div>
 
-        {/* Tournament Lifecycle State Machine Stepper */}
-        <div className="mt-6 pt-5 border-t border-slate-800/80">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
-            <span>Tournament Lifecycle Progression Engine</span>
-            <div className="flex items-center gap-3">
-              <span className="text-sport-orange font-mono">
-                Step {activeStepIndex + 1} of {LIFECYCLE_STEPS.length}
-              </span>
-              <button
-                onClick={() => {
-                  if (window.confirm('Clear all tournament data and start fresh?')) {
-                    clearAllData();
-                  }
-                }}
-                className="text-[10px] text-slate-400 hover:text-rose-400 cursor-pointer transition flex items-center gap-1"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Reset Data
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-6 gap-2">
-            {LIFECYCLE_STEPS.map((step, idx) => {
-              const isPast = idx < activeStepIndex;
-              const isCurrent = idx === activeStepIndex;
-              return (
-                <button
-                  key={step.status}
-                  onClick={() => updateTournamentStatus(activeTournament.id, step.status)}
-                  className={`p-2 rounded-lg border text-left transition cursor-pointer ${
-                    isCurrent
-                      ? 'border-sport-orange bg-sport-orange/20 text-white font-bold ring-1 ring-sport-orange'
-                      : isPast
-                      ? 'border-emerald-500/40 bg-emerald-950/20 text-emerald-400'
-                      : 'border-slate-800 bg-slate-900/40 text-slate-500 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="font-mono">0{idx + 1}</span>
-                    {isPast && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
-                    {isCurrent && <span className="w-2 h-2 rounded-full bg-sport-orange animate-ping"></span>}
-                  </div>
-                  <div className="text-xs font-semibold mt-1 truncate">{step.label}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
       {/* Navigation Sub-Tabs */}
