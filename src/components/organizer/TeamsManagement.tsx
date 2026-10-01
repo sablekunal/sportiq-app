@@ -202,8 +202,8 @@ export const TeamsManagement: React.FC = () => {
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       players: updatedPlayers,
       rosterStatus: newStatus,
-      captainId: newCaptainId,
-      captainName: newCaptainName,
+      captainId: newCaptainId || null,
+      captainName: newCaptainName || null,
     });
 
     setPlayerName('');
@@ -234,8 +234,8 @@ export const TeamsManagement: React.FC = () => {
       players: updatedPlayers,
       isRosterLocked: false,
       rosterStatus: newStatus,
-      captainId: currentTeam.captainId === playerId ? remainingCap?.id : currentTeam.captainId,
-      captainName: currentTeam.captainId === playerId ? remainingCap?.name : currentTeam.captainName,
+      captainId: (currentTeam.captainId === playerId ? remainingCap?.id : currentTeam.captainId) || null,
+      captainName: (currentTeam.captainId === playerId ? remainingCap?.name : currentTeam.captainName) || null,
     });
 
   };
@@ -274,8 +274,8 @@ export const TeamsManagement: React.FC = () => {
       newCaptainId = playerId;
       newCaptainName = editPlayerName.trim();
     } else if (currentTeam.captainId === playerId) {
-      newCaptainId = undefined;
-      newCaptainName = undefined;
+      newCaptainId = null as any;
+      newCaptainName = null as any;
     }
 
     const updatedPlayers = currentTeam.players.map((p) => {
@@ -300,8 +300,8 @@ export const TeamsManagement: React.FC = () => {
 
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       players: updatedPlayers,
-      captainId: newCaptainId,
-      captainName: newCaptainName,
+      captainId: newCaptainId || null,
+      captainName: newCaptainName || null,
     });
     setEditingPlayerId(null);
     setPlayerError(null);
@@ -320,8 +320,8 @@ export const TeamsManagement: React.FC = () => {
     }));
 
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
-      captainId: newCaptainId,
-      captainName: capPlayer ? capPlayer.name : undefined,
+      captainId: newCaptainId || null,
+      captainName: capPlayer ? capPlayer.name : null,
       players: updatedPlayers,
     });
   };
@@ -341,8 +341,8 @@ export const TeamsManagement: React.FC = () => {
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       institution: editInstitution.trim(),
       isCaptainPlaying: editIsCaptainPlaying,
-      captainName: editIsCaptainPlaying ? (currentTeam.players.find(p => p.id === currentTeam.captainId)?.name || undefined) : editExternalCaptain.trim(),
-      captainId: editIsCaptainPlaying ? currentTeam.captainId : undefined,
+      captainName: editIsCaptainPlaying ? (currentTeam.players.find(p => p.id === currentTeam.captainId)?.name || null) : editExternalCaptain.trim(),
+      captainId: editIsCaptainPlaying ? (currentTeam.captainId || null) : null,
     });
     setIsEditingTeamProfile(false);
   };
@@ -362,8 +362,8 @@ export const TeamsManagement: React.FC = () => {
     const capPlayer = newPlayers.find((p) => p.isCaptain);
     updateTeamInTournament(activeTournament.id, team.id, {
       players: newPlayers,
-      captainId: capPlayer?.id,
-      captainName: capPlayer?.name,
+      captainId: capPlayer?.id || null,
+      captainName: capPlayer?.name || null,
       rosterStatus: 'COMPLETE',
     });
     soundEffects.playCelebration();
