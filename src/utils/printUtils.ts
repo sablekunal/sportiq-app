@@ -57,24 +57,24 @@ export const printKnockoutBrackets = (
     
     // Header
     html += '<tr><th>Team</th>';
-    for(let i = 1; i <= numSets; i++) html += `<th>Set \${i}</th>`;
+    for(let i = 1; i <= numSets; i++) html += `<th>Set ${i}</th>`;
     html += '<th>Win</th></tr>';
     
     // Home Row
-    html += `<tr><td class="team-name"><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">\${homeName}</div></td>`;
+    html += `<tr><td class="team-name"><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">${homeName}</div></td>`;
     for(let i = 1; i <= numSets; i++) {
       const s = setsData && setsData[i-1] ? setsData[i-1].scoreA : '&nbsp;';
-      html += `<td><div class="set-box">\${s}</div></td>`;
+      html += `<td><div class="set-box">${s}</div></td>`;
     }
-    html += `<td class="total-score">\${homeScore}</td></tr>`;
+    html += `<td class="total-score">${homeScore}</td></tr>`;
     
     // Away Row
-    html += `<tr><td class="team-name"><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">\${awayName}</div></td>`;
+    html += `<tr><td class="team-name"><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">${awayName}</div></td>`;
     for(let i = 1; i <= numSets; i++) {
       const s = setsData && setsData[i-1] ? setsData[i-1].scoreB : '&nbsp;';
-      html += `<td><div class="set-box">\${s}</div></td>`;
+      html += `<td><div class="set-box">${s}</div></td>`;
     }
-    html += `<td class="total-score">\${awayScore}</td></tr>`;
+    html += `<td class="total-score">${awayScore}</td></tr>`;
     
     html += '</table>';
     return html;
@@ -106,15 +106,15 @@ export const printKnockoutBrackets = (
     emptyRounds.forEach(r => {
       const isFinal = r.roundName.toLowerCase().includes('final') && !r.roundName.toLowerCase().includes('semi');
       html += `<div class="round-col">`;
-      html += `<div class="round-title">\${r.roundName}</div>`;
+      html += `<div class="round-title">${r.roundName}</div>`;
       r.matches.forEach((m, idx) => {
         html += `
           <div class="match">
             <div class="header">
-              <span>Match #\${m.position}</span>
+              <span>Match #${m.position}</span>
               <span>Scheduled</span>
             </div>
-            \${renderMatchScores(m.home, m.away, '-', '-', isFinal)}
+            ${renderMatchScores(m.home, m.away, '-', '-', isFinal)}
           </div>
         `;
       });
@@ -129,7 +129,7 @@ export const printKnockoutBrackets = (
       const isFinal = roundName.toLowerCase().includes('final') && !roundName.toLowerCase().includes('semi');
       
       html += `<div class="round-col">`;
-      html += `<div class="round-title">\${roundName}</div>`;
+      html += `<div class="round-title">${roundName}</div>`;
       
       matches.forEach(m => {
         const home = teams.find(t => t.id === m.homeTeamId)?.name || m.homePlaceholder || 'TBD (Awaiting)';
@@ -140,10 +140,10 @@ export const printKnockoutBrackets = (
         html += `
           <div class="match">
             <div class="header">
-              <span>Match #\${m.fixtureNumber || m.position}</span>
-              <span>\${m.status === 'LIVE' ? 'LIVE' : m.status === 'COMPLETED' ? 'Done' : 'Scheduled'}</span>
+              <span>Match #${m.fixtureNumber || m.position}</span>
+              <span>${m.status === 'LIVE' ? 'LIVE' : m.status === 'COMPLETED' ? 'Done' : 'Scheduled'}</span>
             </div>
-            \${renderMatchScores(home, away, homeScore, awayScore, isFinal, m.sets)}
+            ${renderMatchScores(home, away, homeScore, awayScore, isFinal, m.sets)}
           </div>
         `;
       });
