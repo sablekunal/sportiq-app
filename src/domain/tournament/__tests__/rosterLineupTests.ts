@@ -32,7 +32,7 @@ export function runRosterAndLineupTests() {
 
   const create8PlayerRoster = (prefix: string): Player[] => [
     makePlayer(`${prefix}-1`, 'Player 1', 1, { isCaptain: true }),
-    makePlayer(`${prefix}-2`, 'Player 2', 2, { isViceCaptain: true }),
+    makePlayer(`${prefix}-2`, 'Player 2', 2),
     makePlayer(`${prefix}-3`, 'Player 3', 3),
     makePlayer(`${prefix}-4`, 'Player 4', 4),
     makePlayer(`${prefix}-5`, 'Player 5', 5),
@@ -383,16 +383,13 @@ export function runRosterAndLineupTests() {
       color: '#f97316',
       seed: 1,
       captainId: 'sxb-1',
-      viceCaptainId: 'sxb-2',
+      captainName: 'Player 1',
       players: create8PlayerRoster('sxb'),
     };
     assert.strictEqual(team.players.length, 8, 'Public team must have 8 players');
     assert.strictEqual(team.captainId, 'sxb-1');
-    assert.strictEqual(team.viceCaptainId, 'sxb-2');
     const cap = team.players.find((p) => p.isCaptain);
-    const vc = team.players.find((p) => p.isViceCaptain);
     assert.strictEqual(cap?.id, 'sxb-1');
-    assert.strictEqual(vc?.id, 'sxb-2');
     console.log('✅ Test 17: Public tournament can display roster passed.');
   } catch (err: any) {
     console.error('❌ Test 17 failed:', err.message);

@@ -68,12 +68,11 @@ export function getRosterStatus(
  * - Valid positive jersey number (1-99)
  * - Unique jersey numbers within team
  * - Unique player IDs within team
- * - At most 1 captain and at most 1 vice-captain
- * - A player cannot be both captain and vice-captain
+ * - Exactly or at most 1 captain (no vice-captain required)
  */
 export function validateTeamRoster(
   teamOrPlayers:
-    | { id?: string; name?: string; players: Player[]; captainId?: string; viceCaptainId?: string; isRosterLocked?: boolean; rosterStatus?: RosterStatus }
+    | { id?: string; name?: string; players: Player[]; captainId?: string; captainName?: string; isRosterLocked?: boolean; rosterStatus?: RosterStatus }
     | Player[],
   rules: RosterRules = THROWBALL_ROSTER_RULES,
   options?: ValidateRosterOptions
@@ -86,7 +85,6 @@ export function validateTeamRoster(
     : teamOrPlayers?.players || [];
 
   const captainId = Array.isArray(teamOrPlayers) ? undefined : teamOrPlayers?.captainId;
-  const viceCaptainId = Array.isArray(teamOrPlayers) ? undefined : teamOrPlayers?.viceCaptainId;
   const teamName = Array.isArray(teamOrPlayers) ? 'Team' : teamOrPlayers?.name || 'Team';
 
   const status = getRosterStatus(teamOrPlayers, options?.isLocked);
@@ -113,7 +111,6 @@ export function validateTeamRoster(
   const seenIds = new Set<string>();
   const seenJerseys = new Set<number>();
   let captainCount = 0;
-  let viceCaptainCount = 0;
 
   for (let i = 0; i < players.length; i++) {
     const p = players[i];
@@ -144,22 +141,13 @@ export function validateTeamRoster(
       seenJerseys.add(p.jerseyNumber);
     }
 
-    // Captain / Vice-Captain flags
+    // Captain flag
     const isCap = p.isCaptain || p.role?.includes('Captain (C)') || (captainId && captainId === p.id);
-    const isVc = p.isViceCaptain || p.role?.includes('Vice-Captain (VC)') || (viceCaptainId && viceCaptainId === p.id);
-
     if (isCap) captainCount++;
-    if (isVc) viceCaptainCount++;
-    if (isCap && isVc) {
-      errors.push(`Player "${p.name}" cannot be both Captain and Vice-Captain.`);
-    }
   }
 
   if (captainCount > 1) {
     errors.push(`Team has ${captainCount} captains. At most 1 captain is allowed.`);
-  }
-  if (viceCaptainCount > 1) {
-    errors.push(`Team has ${viceCaptainCount} vice-captains. At most 1 vice-captain is allowed.`);
   }
 
   const isValid = errors.length === 0;

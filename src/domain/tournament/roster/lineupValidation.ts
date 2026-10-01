@@ -7,7 +7,6 @@ export interface PlayerLineupSnapshot {
   jerseyNumber: number;
   role?: string;
   isCaptain?: boolean;
-  isViceCaptain?: boolean;
 }
 
 export interface MatchLineup {
@@ -145,7 +144,6 @@ export function createDefaultLineup(
   let players: Player[] = [];
   let rules: RosterRules = THROWBALL_ROSTER_RULES;
   let captainId: string | undefined;
-  let viceCaptainId: string | undefined;
 
   if (typeof teamOrId === 'string') {
     teamId = teamOrId;
@@ -156,7 +154,6 @@ export function createDefaultLineup(
     players = teamOrId.players || [];
     rules = (playersOrRules as RosterRules) || THROWBALL_ROSTER_RULES;
     captainId = teamOrId.captainId;
-    viceCaptainId = teamOrId.viceCaptainId;
   }
 
   const starters = players.slice(0, rules.startingPlayers).map((p) => p.id);
@@ -170,7 +167,6 @@ export function createDefaultLineup(
     jerseyNumber: p.jerseyNumber ?? 0,
     role: p.role,
     isCaptain: p.isCaptain || p.role?.includes('Captain (C)') || (captainId === p.id),
-    isViceCaptain: p.isViceCaptain || p.role?.includes('Vice-Captain (VC)') || (viceCaptainId === p.id),
   }));
 
   return {

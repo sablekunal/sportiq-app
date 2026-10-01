@@ -1025,7 +1025,6 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           name: p.name,
           jerseyNumber: p.jerseyNumber,
           isCaptain: p.isCaptain,
-          isViceCaptain: p.isViceCaptain,
         })),
         isLocked: false,
       };
@@ -1068,7 +1067,6 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           name: p.name,
           jerseyNumber: p.jerseyNumber,
           isCaptain: p.isCaptain,
-          isViceCaptain: p.isViceCaptain,
         })),
         isLocked: false,
       };

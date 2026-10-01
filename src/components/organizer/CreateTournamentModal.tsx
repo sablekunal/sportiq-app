@@ -87,9 +87,11 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
         shortName: `SQ${i + 1}`,
         seed: i + 1,
         color: colors[i % colors.length],
+        captainId: `p-${i}-1`,
+        captainName: `Player ${i + 1}-A`,
         players: [
-          { id: `p-${i}-1`, name: `Player ${i + 1}-A`, jerseyNumber: 10, role: 'Captain' },
-          { id: `p-${i}-2`, name: `Player ${i + 1}-B`, jerseyNumber: 7, role: 'Vice Captain' },
+          { id: `p-${i}-1`, name: `Player ${i + 1}-A`, jerseyNumber: 10, role: 'Captain', isCaptain: true },
+          { id: `p-${i}-2`, name: `Player ${i + 1}-B`, jerseyNumber: 7, role: 'Court Player', isCaptain: false },
         ],
       }));
     }

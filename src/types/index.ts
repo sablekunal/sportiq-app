@@ -56,7 +56,6 @@ export interface PlayerLineupSnapshot {
   jerseyNumber: number;
   role?: string;
   isCaptain?: boolean;
-  isViceCaptain?: boolean;
 }
 
 export interface MatchLineup {
@@ -73,13 +72,12 @@ export interface Player {
   id: string;
   name: string;
   jerseyNumber?: number;
-  role?: string; // e.g. "Striker", "Captain", "All-Rounder", "Raider"
+  role?: string; // e.g. "Striker", "Captain", "Court Player"
   photoUrl?: string;
   dateOfBirth?: string;
   email?: string;
   phone?: string;
   isCaptain?: boolean;
-  isViceCaptain?: boolean;
   status?: PlayerStatus;
 }
 
@@ -90,7 +88,7 @@ export interface Team {
   logoUrl?: string;
   color?: string;
   captainId?: string;
-  viceCaptainId?: string;
+  captainName?: string;
   seed?: number;
   groupId?: string;
   players: Player[];

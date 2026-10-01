@@ -29,7 +29,7 @@ export function runOperationsTests() {
 
   const create8PlayerRoster = (prefix: string): Player[] => [
     makePlayer(`${prefix}-1`, 'Player 1', 1, { isCaptain: true }),
-    makePlayer(`${prefix}-2`, 'Player 2', 2, { isViceCaptain: true }),
+    makePlayer(`${prefix}-2`, 'Player 2', 2),
     makePlayer(`${prefix}-3`, 'Player 3', 3),
     makePlayer(`${prefix}-4`, 'Player 4', 4),
     makePlayer(`${prefix}-5`, 'Player 5', 5),

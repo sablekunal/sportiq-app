@@ -12,6 +12,7 @@ import {
   Hash,
   Info,
   Award,
+  Crown,
   AlertCircle,
   Edit2,
   CheckCircle2,
@@ -52,12 +53,14 @@ export const TeamsManagement: React.FC = () => {
   // New Player Form State
   const [playerName, setPlayerName] = useState('');
   const [jerseyNumber, setJerseyNumber] = useState<number>(7);
+  const [isNewCaptain, setIsNewCaptain] = useState(false);
   const [playerError, setPlayerError] = useState<string | null>(null);
 
   // Inline Player Edit State
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editPlayerName, setEditPlayerName] = useState('');
   const [editJerseyNumber, setEditJerseyNumber] = useState<number>(1);
+  const [editIsCaptain, setEditIsCaptain] = useState(false);
 
   if (!activeTournament) return null;
 
@@ -111,6 +114,7 @@ export const TeamsManagement: React.FC = () => {
         ];
 
     const initialStatus: RosterStatus = squadPlayers.length === 8 ? 'COMPLETE' : 'INCOMPLETE';
+    const capPlayer = squadPlayers.find((p) => p.isCaptain);
 
     addTeamToTournament(activeTournament.id, {
       name: teamName.trim(),
@@ -121,7 +125,8 @@ export const TeamsManagement: React.FC = () => {
       players: squadPlayers,
       rosterStatus: initialStatus,
       isRosterLocked: false,
-      captainId: squadPlayers.find((p) => p.isCaptain)?.id,
+      captainId: capPlayer?.id,
+      captainName: capPlayer?.name,
     });
 
     setTeamName('');
@@ -151,23 +156,44 @@ export const TeamsManagement: React.FC = () => {
       return;
     }
 
+    const shouldBeCaptain = isNewCaptain || currentTeam.players.length === 0;
     const newPlayer: Player = {
       id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: playerName.trim(),
       jerseyNumber: num,
-      role: 'Court Player',
-      isCaptain: false,
-      isViceCaptain: false,
+      role: shouldBeCaptain ? 'Captain (C)' : 'Court Player',
+      isCaptain: shouldBeCaptain,
     };
 
-    const updatedPlayers = [...currentTeam.players, newPlayer];
+    let updatedPlayers: Player[];
+    let newCaptainId = currentTeam.captainId;
+    let newCaptainName = currentTeam.captainName;
+
+    if (shouldBeCaptain) {
+      newCaptainId = newPlayer.id;
+      newCaptainName = newPlayer.name;
+      updatedPlayers = [
+        ...currentTeam.players.map((p) => ({
+          ...p,
+          isCaptain: false,
+          role: p.role === 'Captain (C)' ? 'Court Player' : (p.role || 'Court Player'),
+        })),
+        newPlayer,
+      ];
+    } else {
+      updatedPlayers = [...currentTeam.players, newPlayer];
+    }
+
     const newStatus: RosterStatus = updatedPlayers.length === 8 ? 'COMPLETE' : 'INCOMPLETE';
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       players: updatedPlayers,
       rosterStatus: newStatus,
+      captainId: newCaptainId,
+      captainName: newCaptainName,
     });
 
     setPlayerName('');
+    setIsNewCaptain(false);
     setJerseyNumber((prev) => (prev < 99 ? prev + 1 : 1));
     soundEffects.playWhistle();
   };
@@ -188,11 +214,14 @@ export const TeamsManagement: React.FC = () => {
 
     const updatedPlayers = currentTeam.players.filter((item) => item.id !== playerId);
     const newStatus: RosterStatus = updatedPlayers.length === 8 ? 'COMPLETE' : 'INCOMPLETE';
+    const remainingCap = updatedPlayers.find((p) => p.isCaptain && p.id !== playerId);
+
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       players: updatedPlayers,
       isRosterLocked: false,
       rosterStatus: newStatus,
-      captainId: currentTeam.captainId === playerId ? undefined : currentTeam.captainId,
+      captainId: currentTeam.captainId === playerId ? remainingCap?.id : currentTeam.captainId,
+      captainName: currentTeam.captainId === playerId ? remainingCap?.name : currentTeam.captainName,
     });
     soundEffects.playWhistle();
   };
@@ -200,7 +229,8 @@ export const TeamsManagement: React.FC = () => {
   const handleStartEditPlayer = (p: Player) => {
     setEditingPlayerId(p.id);
     setEditPlayerName(p.name);
-    setEditJerseyNumber(p.jerseyNumber);
+    setEditJerseyNumber(p.jerseyNumber ?? 1);
+    setEditIsCaptain(Boolean(p.isCaptain || currentTeam?.captainId === p.id));
     setPlayerError(null);
   };
 
@@ -223,12 +253,41 @@ export const TeamsManagement: React.FC = () => {
       return;
     }
 
-    const updatedPlayers = currentTeam.players.map((p) =>
-      p.id === playerId ? { ...p, name: editPlayerName.trim(), jerseyNumber: num } : p
-    );
+    let newCaptainId = currentTeam.captainId;
+    let newCaptainName = currentTeam.captainName;
+
+    if (editIsCaptain) {
+      newCaptainId = playerId;
+      newCaptainName = editPlayerName.trim();
+    } else if (currentTeam.captainId === playerId) {
+      newCaptainId = undefined;
+      newCaptainName = undefined;
+    }
+
+    const updatedPlayers = currentTeam.players.map((p) => {
+      if (p.id === playerId) {
+        return {
+          ...p,
+          name: editPlayerName.trim(),
+          jerseyNumber: num,
+          isCaptain: editIsCaptain,
+          role: editIsCaptain ? 'Captain (C)' : 'Court Player',
+        };
+      }
+      if (editIsCaptain && (p.isCaptain || p.id === currentTeam.captainId)) {
+        return {
+          ...p,
+          isCaptain: false,
+          role: 'Court Player',
+        };
+      }
+      return p;
+    });
 
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       players: updatedPlayers,
+      captainId: newCaptainId,
+      captainName: newCaptainName,
     });
     setEditingPlayerId(null);
     setPlayerError(null);
@@ -238,16 +297,17 @@ export const TeamsManagement: React.FC = () => {
     if (!currentTeam || !activeTournament) return;
     const isCurrentlyCap = currentTeam.captainId === playerId || currentTeam.players.find(p => p.id === playerId)?.isCaptain;
     const newCaptainId = isCurrentlyCap ? undefined : playerId;
+    const capPlayer = currentTeam.players.find(p => p.id === newCaptainId);
 
     const updatedPlayers = currentTeam.players.map((p) => ({
       ...p,
       isCaptain: p.id === newCaptainId,
-      isViceCaptain: false,
-      role: p.id === newCaptainId ? 'Captain (C)' : (p.role === 'Captain (C)' || p.role === 'Vice-Captain (VC)' ? 'Court Player' : p.role),
+      role: p.id === newCaptainId ? 'Captain (C)' : 'Court Player',
     }));
 
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       captainId: newCaptainId,
+      captainName: capPlayer ? capPlayer.name : undefined,
       players: updatedPlayers,
     });
   };
@@ -264,9 +324,12 @@ export const TeamsManagement: React.FC = () => {
       return;
     }
     const newPlayers = generateRegulation8Squad(team.shortName);
+    const capPlayer = newPlayers.find((p) => p.isCaptain);
     updateTeamInTournament(activeTournament.id, team.id, {
       players: newPlayers,
-      captainId: newPlayers.find((p) => p.isCaptain)?.id,
+      captainId: capPlayer?.id,
+      captainName: capPlayer?.name,
+      rosterStatus: 'COMPLETE',
     });
     soundEffects.playCelebration();
   };
@@ -491,22 +554,30 @@ export const TeamsManagement: React.FC = () => {
                         </span>
                       )}
                     </h4>
-                    <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
-                      <span>Seed #{team.seed || '-'}</span>
-                      <span>•</span>
-                      {rosterStatus === 'LOCKED' ? (
-                        <span className="text-purple-700 font-extrabold flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded bg-purple-50 border border-purple-200">
-                          <Lock className="w-2.5 h-2.5" /> LOCKED (8/8)
-                        </span>
-                      ) : rosterStatus === 'COMPLETE' ? (
-                        <span className="text-emerald-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200">
-                          COMPLETE (8/8)
-                        </span>
-                      ) : (
-                        <span className="text-amber-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-amber-50 border border-amber-200">
-                          INCOMPLETE ({team.players.length}/8)
-                        </span>
-                      )}
+                    <div className="text-[11px] text-slate-500 flex flex-col gap-0.5 mt-0.5">
+                      <div className="flex items-center gap-2">
+                        <span>Seed #{team.seed || '-'}</span>
+                        <span>•</span>
+                        {rosterStatus === 'LOCKED' ? (
+                          <span className="text-purple-700 font-extrabold flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded bg-purple-50 border border-purple-200">
+                            <Lock className="w-2.5 h-2.5" /> LOCKED (8/8)
+                          </span>
+                        ) : rosterStatus === 'COMPLETE' ? (
+                          <span className="text-emerald-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200">
+                            COMPLETE (8/8)
+                          </span>
+                        ) : (
+                          <span className="text-amber-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-amber-50 border border-amber-200">
+                            INCOMPLETE ({team.players.length}/8)
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-slate-600 flex items-center gap-1">
+                        <span className="text-slate-400">Captain:</span>
+                        <strong className="text-amber-800 font-semibold truncate">
+                          {team.captainName || team.players.find((p) => p.isCaptain || team.captainId === p.id)?.name || 'Not assigned'}
+                        </strong>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -561,8 +632,19 @@ export const TeamsManagement: React.FC = () => {
                         </span>
                       )}
                     </h4>
-                    <p className="text-xs text-slate-500">
-                      Code: <strong className="font-mono text-sport-orange">{currentTeam.shortName}</strong> • Seed #{currentTeam.seed || 'Unseeded'} • Status: <strong className="text-sport-navy">{getRosterStatus(currentTeam)}</strong>
+                    <p className="text-xs text-slate-500 flex flex-wrap items-center gap-2 mt-0.5">
+                      <span>Code: <strong className="font-mono text-sport-orange">{currentTeam.shortName}</strong></span>
+                      <span>•</span>
+                      <span>Seed #{currentTeam.seed || 'Unseeded'}</span>
+                      <span>•</span>
+                      <span>
+                        Captain:{' '}
+                        <strong className="text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-bold">
+                          ★ {currentTeam.captainName || currentTeam.players.find((p) => p.isCaptain || currentTeam.captainId === p.id)?.name || 'Not Designated'}
+                        </strong>
+                      </span>
+                      <span>•</span>
+                      <span>Status: <strong className="text-sport-navy">{getRosterStatus(currentTeam)}</strong></span>
                     </p>
                   </div>
                 </div>
@@ -673,6 +755,19 @@ export const TeamsManagement: React.FC = () => {
                     />
                   </div>
 
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 rounded-lg px-3 py-2 cursor-pointer hover:border-amber-400 select-none">
+                    <input
+                      type="checkbox"
+                      checked={isNewCaptain}
+                      onChange={(e) => setIsNewCaptain(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400 cursor-pointer"
+                    />
+                    <span className="flex items-center gap-1">
+                      <Crown className="w-3 h-3 text-amber-600" />
+                      <span>Set as Captain</span>
+                    </span>
+                  </label>
+
                   <button
                     type="submit"
                     className="px-4 py-2 bg-sport-navy hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
@@ -690,7 +785,7 @@ export const TeamsManagement: React.FC = () => {
                     <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px]">
                       <th className="py-2.5 px-3">Jersey #</th>
                       <th className="py-2.5 px-3">Player Full Name</th>
-                      <th className="py-2.5 px-3 text-center">Captain</th>
+                      <th className="py-2.5 px-3 text-center">Captain (Select)</th>
                       <th className="py-2.5 px-3 text-center">Match Eligibility</th>
                       <th className="py-2.5 px-3 text-right">Actions</th>
                     </tr>
@@ -701,7 +796,7 @@ export const TeamsManagement: React.FC = () => {
                       const isCap = p.isCaptain || currentTeam.captainId === p.id;
 
                       return (
-                        <tr key={p.id || idx} className="hover:bg-slate-50/80 transition">
+                        <tr key={p.id || idx} className={`hover:bg-slate-50/80 transition ${isCap ? 'bg-amber-50/25' : ''}`}>
                           <td className="py-2.5 px-3">
                             {isEditing ? (
                               <input
@@ -728,24 +823,57 @@ export const TeamsManagement: React.FC = () => {
                                 className="w-full text-xs font-bold text-sport-navy px-2 py-1 border rounded bg-white"
                               />
                             ) : (
-                              <span className="font-bold text-sport-navy">{p.name}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-sport-navy">{p.name}</span>
+                                {isCap && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded font-black bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-0.5">
+                                    <Crown className="w-2.5 h-2.5 text-amber-600 inline" /> CAP
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </td>
 
                           <td className="py-2.5 px-3 text-center">
-                            <button
-                              type="button"
-                              disabled={isCurrentTeamLocked}
-                              onClick={() => handleToggleCaptain(p.id)}
-                              title={isCap ? 'Remove Captain' : 'Assign as Team Captain'}
-                              className={`px-2.5 py-1 rounded text-[10px] font-extrabold transition cursor-pointer mx-auto ${
-                                isCap
-                                  ? 'bg-amber-500 text-white shadow-sm'
-                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
-                              }`}
-                            >
-                              {isCap ? '★ CAPTAIN' : 'Make Captain'}
-                            </button>
+                            {isEditing ? (
+                              <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-bold text-amber-800 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                <input
+                                  type="checkbox"
+                                  checked={editIsCaptain}
+                                  onChange={(e) => setEditIsCaptain(e.target.checked)}
+                                  className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-400 cursor-pointer"
+                                />
+                                <span>Captain</span>
+                              </label>
+                            ) : (
+                              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="radio"
+                                  name={`captain-select-${currentTeam.id}`}
+                                  checked={isCap}
+                                  disabled={isCurrentTeamLocked}
+                                  onChange={() => handleToggleCaptain(p.id)}
+                                  className="w-4 h-4 text-amber-500 focus:ring-amber-400 cursor-pointer"
+                                  title="Select as Team Captain"
+                                />
+                                <span
+                                  className={`px-2.5 py-1 rounded text-[10px] font-extrabold transition cursor-pointer flex items-center gap-1 ${
+                                    isCap
+                                      ? 'bg-amber-500 text-white shadow-xs'
+                                      : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
+                                  }`}
+                                >
+                                  {isCap ? (
+                                    <>
+                                      <Crown className="w-3 h-3 inline" />
+                                      <span>CAPTAIN</span>
+                                    </>
+                                  ) : (
+                                    <span>Make Captain</span>
+                                  )}
+                                </span>
+                              </label>
+                            )}
                           </td>
 
                           <td className="py-2.5 px-3 text-center">
