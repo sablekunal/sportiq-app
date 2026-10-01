@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../firebase';
 import { useAuth } from '../../auth/AuthContext';
 import { maskPhoneNumber } from '../../auth/authService';
 import { useTournament } from '../../context/TournamentContext';
@@ -60,6 +62,12 @@ export const OrganizerAuthPage: React.FC = () => {
   const [organization, setOrganization] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
+  // Email Auth State
+  const [isEmailLogin, setIsEmailLogin] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isEmailLoggingIn, setIsEmailLoggingIn] = useState(false);
+
   // Focus first OTP box when entering OTP step
   useEffect(() => {
     if (authStep === 'OTP' && otpInputRefs.current[0]) {
@@ -79,6 +87,22 @@ export const OrganizerAuthPage: React.FC = () => {
       }
     } finally {
       setIsSendingOtp(false);
+    }
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+    setIsEmailLoggingIn(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged in AuthContext will handle the rest
+      soundEffects.playCelebration();
+    } catch (err: any) {
+      console.error('Email login error:', err);
+      // You could use useAuth's mapAuthError but error strings are easy enough for test
+    } finally {
+      setIsEmailLoggingIn(false);
     }
   };
 
@@ -204,7 +228,7 @@ export const OrganizerAuthPage: React.FC = () => {
             </div>
           )}
 
-          {/* STEP 1: ENTER MOBILE NUMBER */}
+          {/* STEP 1: ENTER MOBILE NUMBER OR EMAIL */}
           {authStep === 'PHONE' && (
             <div>
               <div className="mb-6 text-center">
@@ -213,67 +237,140 @@ export const OrganizerAuthPage: React.FC = () => {
                 </div>
                 <h3 className="text-base font-bold text-white">Organizer Login</h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  Enter your mobile number to receive a secure one-time passcode (OTP).
+                  {isEmailLogin 
+                    ? "Enter your email and password to login."
+                    : "Enter your mobile number to receive a secure one-time passcode (OTP)."
+                  }
                 </p>
               </div>
 
-              <form onSubmit={handlePhoneSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Mobile Number
-                  </label>
-                  <div className="flex items-center rounded-xl bg-slate-900 border border-slate-700 focus-within:border-sport-orange focus-within:ring-1 focus-within:ring-sport-orange transition overflow-hidden">
-                    {/* Country Code Select */}
-                    <div className="relative border-r border-slate-700 bg-slate-800/60 px-2.5 xs:px-3 py-2.5 flex items-center shrink-0">
-                      <select
-                        value={selectedCountry}
-                        onChange={(e) => setSelectedCountry(e.target.value)}
-                        className="bg-transparent text-xs font-bold text-white outline-none cursor-pointer pr-4 appearance-none"
-                      >
-                        {COUNTRY_CODES.map((c) => (
-                          <option key={c.code} value={c.code} className="bg-slate-900 text-white">
-                            {c.flag} {c.code}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="pointer-events-none absolute right-1 text-slate-400 text-[10px]">▼</span>
-                    </div>
+              {!isEmailLogin ? (
+                <form onSubmit={handlePhoneSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Mobile Number
+                    </label>
+                    <div className="flex items-center rounded-xl bg-slate-900 border border-slate-700 focus-within:border-sport-orange focus-within:ring-1 focus-within:ring-sport-orange transition overflow-hidden">
+                      {/* Country Code Select */}
+                      <div className="relative border-r border-slate-700 bg-slate-800/60 px-2.5 xs:px-3 py-2.5 flex items-center shrink-0">
+                        <select
+                          value={selectedCountry}
+                          onChange={(e) => setSelectedCountry(e.target.value)}
+                          className="bg-transparent text-xs font-bold text-white outline-none cursor-pointer pr-4 appearance-none"
+                        >
+                          {COUNTRY_CODES.map((c) => (
+                            <option key={c.code} value={c.code} className="bg-slate-900 text-white">
+                              {c.flag} {c.code}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="pointer-events-none absolute right-1 text-slate-400 text-[10px]">▼</span>
+                      </div>
 
-                    {/* Number Input */}
+                      {/* Number Input */}
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="98765 43210"
+                        maxLength={15}
+                        required
+                        autoFocus
+                        className="w-full bg-transparent px-3 py-2.5 text-xs xs:text-sm font-semibold text-white placeholder-slate-500 outline-none tracking-wider min-w-0"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1.5">
+                      Default: India (+91). Standard SMS verification applies.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSendingOtp || !phoneNumber.trim()}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-glow-orange disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer active:scale-[0.99]"
+                  >
+                    {isSendingOtp ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Sending OTP...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Send OTP</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                  
+                  <div className="text-center mt-4">
+                    <button
+                      type="button"
+                      onClick={() => { setIsEmailLogin(true); clearError(); }}
+                      className="text-xs text-slate-400 hover:text-white transition cursor-pointer"
+                    >
+                      Sign in with Email instead
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Email Address
+                    </label>
                     <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="98765 43210"
-                      maxLength={15}
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@sportiq.com"
                       required
                       autoFocus
-                      className="w-full bg-transparent px-3 py-2.5 text-xs xs:text-sm font-semibold text-white placeholder-slate-500 outline-none tracking-wider min-w-0"
+                      className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2.5 text-xs xs:text-sm font-semibold text-white placeholder-slate-500 outline-none focus:border-sport-orange focus:ring-1 focus:ring-sport-orange transition"
                     />
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1.5">
-                    Default: India (+91). Standard SMS verification applies.
-                  </p>
-                </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2.5 text-xs xs:text-sm font-semibold text-white placeholder-slate-500 outline-none focus:border-sport-orange focus:ring-1 focus:ring-sport-orange transition"
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={isSendingOtp || !phoneNumber.trim()}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-glow-orange disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer active:scale-[0.99]"
-                >
-                  {isSendingOtp ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Sending OTP...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Send OTP</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    disabled={isEmailLoggingIn || !email.trim() || !password.trim()}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-glow-orange disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer active:scale-[0.99]"
+                  >
+                    {isEmailLoggingIn ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Signing In...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Sign In</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center mt-4">
+                    <button
+                      type="button"
+                      onClick={() => { setIsEmailLogin(false); clearError(); }}
+                      className="text-xs text-slate-400 hover:text-white transition cursor-pointer"
+                    >
+                      Sign in with Mobile Number instead
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
 
