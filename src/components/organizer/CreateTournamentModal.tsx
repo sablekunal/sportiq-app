@@ -1,14 +1,127 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { SportType, TournamentFormat } from '../../types';
 import { SPORT_CONFIGS } from '../../engines/sportEngine';
 import { initialTeamsData } from '../../data/initialTeams';
-import { X, Trophy, MapPin, Calendar, Users, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, Crosshair, Shield } from 'lucide-react';
+import { X, Trophy, MapPin, Calendar, Users, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, Crosshair, Shield, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
+
+// Parse an uploaded Excel file into team objects
+const parseExcelFile = (file: File): Promise<any[]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        const headerKey = Object.keys(rows[0] || {})[0] || '';
+        const colKeys = ['__EMPTY', '__EMPTY_1', '__EMPTY_2', '__EMPTY_3', '__EMPTY_4', '__EMPTY_5', '__EMPTY_6', '__EMPTY_7'];
+
+        const attributes = ['Team Name', 'Institution / Parish Name', 'Captain Name', 'Contact Number',
+          'Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6', 'Player 7', 'Player 8'];
+
+        const rawTeams: any[] = [];
+        let currentTeamOffset = 0;
+
+        for (let i = 0; i < rows.length; i++) {
+          const rowType = (rows[i] as any)[headerKey]?.toString().trim();
+          if (!rowType) continue;
+
+          if (rowType === 'Team Name' || rowType === 'Team Name ') {
+            colKeys.forEach((k, idx) => {
+              if (!rawTeams[currentTeamOffset + idx]) rawTeams[currentTeamOffset + idx] = {};
+              if ((rows[i] as any)[k]) rawTeams[currentTeamOffset + idx]['Team Name'] = (rows[i] as any)[k];
+            });
+          } else if (rowType.startsWith('Institution') || rowType.startsWith('Parish')) {
+            colKeys.forEach((k, idx) => {
+              if ((rows[i] as any)[k]) rawTeams[currentTeamOffset + idx] = rawTeams[currentTeamOffset + idx] || {};
+              if ((rows[i] as any)[k]) rawTeams[currentTeamOffset + idx]['Institution'] = (rows[i] as any)[k];
+            });
+          } else if (rowType === 'Captain Name' || rowType === 'Captain Name ') {
+            colKeys.forEach((k, idx) => {
+              rawTeams[currentTeamOffset + idx] = rawTeams[currentTeamOffset + idx] || {};
+              if ((rows[i] as any)[k]) rawTeams[currentTeamOffset + idx]['Captain Name'] = (rows[i] as any)[k];
+            });
+          } else if (rowType.startsWith('Player')) {
+            colKeys.forEach((k, idx) => {
+              rawTeams[currentTeamOffset + idx] = rawTeams[currentTeamOffset + idx] || {};
+              if (!rawTeams[currentTeamOffset + idx]['Players']) rawTeams[currentTeamOffset + idx]['Players'] = [];
+              if ((rows[i] as any)[k]) {
+                rawTeams[currentTeamOffset + idx]['Players'].push((rows[i] as any)[k]);
+              }
+            });
+            if (rowType === 'Player 8') {
+              currentTeamOffset += 8;
+            }
+          }
+        }
+
+        const colors = [
+          '#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA', '#00ACC1',
+          '#FFB300', '#D81B60', '#3949AB', '#00897B', '#7CB342', '#F4511E',
+          '#5E35B1', '#039BE5', '#C0CA33', '#6D4C41'
+        ];
+
+        const structuredTeams = rawTeams
+          .filter(rt => rt && rt['Team Name'])
+          .map((rt, idx) => {
+            const teamName = rt['Team Name']?.toString().trim();
+            const shortName = teamName.slice(0, 3).toUpperCase();
+            const institution = rt['Institution']?.toString().trim() || '';
+            const captainName = rt['Captain Name']?.toString().trim() || '';
+            const playersList: string[] = rt['Players'] || [];
+
+            // Check if captain is in the players list
+            const captainInList = playersList.some(p =>
+              p?.toLowerCase().trim() === captainName.toLowerCase()
+            );
+            const isCaptainPlaying = captainInList;
+
+            // Build players array
+            const players = playersList.map((p, i) => ({
+              id: `p-${Date.now()}-${idx}-${i}`,
+              name: p.trim(),
+              jerseyNumber: i + 1,
+              role: p.trim().toLowerCase() === captainName.toLowerCase() ? 'Captain (C)' : 'Court Player',
+              isCaptain: p.trim().toLowerCase() === captainName.toLowerCase(),
+            }));
+
+            // If captain is not in player list but we have a captain name, add as external
+            const captainPlayer = players.find(p => p.isCaptain);
+
+            return {
+              id: `team-${Date.now()}-${idx + 1}`,
+              name: teamName,
+              shortName,
+              institution,
+              captainName,
+              isCaptainPlaying,
+              captainId: captainPlayer?.id || null,
+              seed: idx + 1,
+              color: colors[idx % colors.length],
+              players,
+              rosterStatus: players.length >= 8 ? 'COMPLETE' : 'INCOMPLETE',
+              isRosterLocked: false,
+            };
+          });
+
+        resolve(structuredTeams);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+};
 
 export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { createTournament } = useTournament();
@@ -16,14 +129,14 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1);
 
   // Step 1: Basics
-  const [name, setName] = useState('All-India Open Throwball Championship 2026');
+  const [name, setName] = useState('');
   const [sport, setSport] = useState<SportType>('throwball');
-  const [location, setLocation] = useState('Kanteerava Indoor Stadium, Bangalore');
+  const [location, setLocation] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(
     new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
-  const [organizerName, setOrganizerName] = useState('Throwball Federation & Sports Club');
+  const [organizerName, setOrganizerName] = useState('');
 
   // Step 2: Format
   const [format, setFormat] = useState<TournamentFormat>('GROUP_KNOCKOUT');
@@ -31,81 +144,77 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // Step 3: Structure
   const [numTeams, setNumTeams] = useState<number>(16);
   const [numGroups, setNumGroups] = useState<number>(4);
-  const [qualifiersPerGroup, setQualifiersPerGroup] = useState<number>(2);
+  const [qualifiersPerGroup, setQualifiersPerGroup] = useState<number>(1);
   const [headToHead, setHeadToHead] = useState<'SINGLE' | 'DOUBLE'>('SINGLE');
 
   // Step 4: Teams
   const [teamGenMode, setTeamGenMode] = useState<'AUTO' | 'CUSTOM' | 'EXCEL'>('AUTO');
   const [teamNamesInput, setTeamNamesInput] = useState('');
+  const [excelTeams, setExcelTeams] = useState<any[]>([]);
+  const [excelFileName, setExcelFileName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
   const handleSportSelect = (selectedSport: SportType) => {
     setSport(selectedSport);
-    if (selectedSport === 'throwball') {
-      setName('All-India Open Throwball Championship 2026');
-      setLocation('Kanteerava Indoor Stadium, Bangalore');
-    } else if (selectedSport === 'football') {
-      setName('Champions League Trophy 2026');
-      setLocation('Balewadi Stadium, Pune');
-    } else if (selectedSport === 'cricket') {
-      setName('Super T20 Cup 2026');
-      setLocation('Gymkhana Grounds, Mumbai');
-    }
   };
 
   const handleNext = () => setStep(prev => Math.min(prev + 1, 4));
   const handleBack = () => setStep(prev => Math.max(prev - 1, 1));
+
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const teams = await parseExcelFile(file);
+      setExcelTeams(teams);
+      setExcelFileName(file.name);
+      setNumTeams(teams.length);
+    } catch (err) {
+      alert('Failed to parse Excel file. Please check the format.');
+      console.error(err);
+    }
+  };
+
+  // Compute preview teams based on mode
+  const getPreviewTeamNames = (): string[] => {
+    if (teamGenMode === 'EXCEL' && excelTeams.length > 0) {
+      return excelTeams.map(t => t.name);
+    }
+    if (teamGenMode === 'CUSTOM' && teamNamesInput.trim()) {
+      return teamNamesInput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    }
+    return Array.from({ length: numTeams }, (_, i) => `${sport.charAt(0).toUpperCase() + sport.slice(1)} Squad ${i + 1}`);
+  };
+
+  const previewTeams = getPreviewTeamNames();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
     let finalTeams: any[] = [];
-    const colors = ['#f97316', '#2563eb', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#eab308', '#ec4899'];
+    const colors = ['#E53935', '#1E88E5', '#43A047', '#FB8C00', '#8E24AA', '#00ACC1', '#FFB300', '#D81B60',
+      '#3949AB', '#00897B', '#7CB342', '#F4511E', '#5E35B1', '#039BE5', '#C0CA33', '#6D4C41'];
 
-    if (teamGenMode === 'EXCEL') {
-      // Deep-clone Excel data so IDs are unique per tournament creation
-      finalTeams = initialTeamsData.map((t, i) => {
-        const newPlayers = t.players.map((p, j) => ({
+    if (teamGenMode === 'EXCEL' && excelTeams.length > 0) {
+      // Use the uploaded & parsed teams directly (already have unique IDs from parse time)
+      finalTeams = excelTeams.map((t, i) => ({
+        ...t,
+        id: `team-${Date.now()}-${i + 1}`,
+        seed: i + 1,
+        players: t.players.map((p: any, j: number) => ({
           ...p,
           id: `p-${Date.now()}-${i}-${j}`,
-        }));
-        const captainPlayer = newPlayers.find(p => p.isCaptain);
-        return {
-          ...t,
-          id: `team-${Date.now()}-${i + 1}`,
-          seed: i + 1,
-          players: newPlayers,
-          captainId: captainPlayer?.id || null,
-          captainName: t.captainName || captainPlayer?.name || null,
-          institution: t.institution || '',
-          isCaptainPlaying: t.isCaptainPlaying ?? true,
-          rosterStatus: t.rosterStatus || 'INCOMPLETE',
-          isRosterLocked: false,
-        };
+        })),
+        captainId: null, // will be set below
+      }));
+      // Re-link captainId
+      finalTeams = finalTeams.map((t: any) => {
+        const cap = t.players.find((p: any) => p.isCaptain);
+        return { ...t, captainId: cap?.id || null };
       });
-      
-      // If we need exactly 16 for 4x4 groups and only have 15, add a filler
-      if (finalTeams.length < 16 && format === 'GROUP_KNOCKOUT') {
-        const fillerCount = 16 - finalTeams.length;
-        for (let f = 0; f < fillerCount; f++) {
-          finalTeams.push({
-            id: `team-${Date.now()}-filler-${f + 1}`,
-            name: `TBD Team ${f + 1}`,
-            shortName: `TB${f + 1}`,
-            seed: finalTeams.length + 1,
-            color: '#94a3b8',
-            institution: '',
-            captainId: null,
-            captainName: null,
-            isCaptainPlaying: false,
-            players: [],
-            rosterStatus: 'INCOMPLETE',
-            isRosterLocked: false,
-          });
-        }
-      }
     } else if (teamGenMode === 'CUSTOM' && teamNamesInput.trim()) {
       const parsedLines = teamNamesInput
         .split('\n')
@@ -118,10 +227,13 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
         shortName: teamName.slice(0, 3).toUpperCase(),
         seed: i + 1,
         color: colors[i % colors.length],
-        players: [
-          { id: `p-${i}-1`, name: `${teamName} Captain`, jerseyNumber: 7, role: 'Captain' },
-          { id: `p-${i}-2`, name: `${teamName} Player 2`, jerseyNumber: 10, role: 'Player' },
-        ],
+        captainId: null,
+        captainName: null,
+        isCaptainPlaying: false,
+        institution: '',
+        isRosterLocked: false,
+        rosterStatus: 'INCOMPLETE',
+        players: [],
       }));
     } else {
       finalTeams = Array.from({ length: numTeams }, (_, i) => ({
@@ -132,6 +244,10 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
         color: colors[i % colors.length],
         captainId: `p-${i}-1`,
         captainName: `Player ${i + 1}-A`,
+        isCaptainPlaying: true,
+        institution: '',
+        isRosterLocked: false,
+        rosterStatus: 'INCOMPLETE',
         players: [
           { id: `p-${i}-1`, name: `Player ${i + 1}-A`, jerseyNumber: 10, role: 'Captain', isCaptain: true },
           { id: `p-${i}-2`, name: `Player ${i + 1}-B`, jerseyNumber: 7, role: 'Court Player', isCaptain: false },
@@ -199,108 +315,127 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </span>
           </div>
           {i < 3 && (
-            <div
-              className={`w-16 h-0.5 mx-4 mt-[-15px] ${
-                step > s.num + 0.5 ? 'bg-sport-orange' : 'bg-slate-200'
-              }`}
-            />
+            <div className={`w-12 h-0.5 mx-2 -mt-5 ${step > s.num ? 'bg-sport-orange' : 'bg-slate-300'}`} />
           )}
         </div>
       ))}
     </div>
   );
 
+  const sportOptions: { type: SportType; name: string; icon: string; desc: string }[] = [
+    { type: 'throwball', name: 'Throwball', icon: '🤾', desc: '7-a-side net sport' },
+    { type: 'football', name: 'Football', icon: '⚽', desc: '11-a-side pitch sport' },
+    { type: 'cricket', name: 'Cricket', icon: '🏏', desc: 'T20/ODI Format' },
+    { type: 'volleyball', name: 'Volleyball', icon: '🏐', desc: '6-a-side net sport' },
+    { type: 'basketball', name: 'Basketball', icon: '🏀', desc: '5-a-side court sport' },
+    { type: 'badminton', name: 'Badminton', icon: '🏸', desc: 'Racquet sport' },
+    { type: 'kabaddi', name: 'Kabaddi', icon: '💪', desc: 'Contact team sport' },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-sport-navy/80 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="bg-sport-navy p-4 text-white flex items-center justify-between">
+        <div className="px-8 py-5 bg-gradient-to-r from-sport-navy to-sport-midnight text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className="hover:bg-white/10 p-1.5 rounded-lg transition">
-              <X className="w-5 h-5" />
-            </button>
-            <h2 className="text-sm font-bold tracking-wide">Create Tournament</h2>
+            <Trophy className="w-6 h-6 text-sport-orange" />
+            <div>
+              <h2 className="text-lg font-black">Create New Tournament</h2>
+              <p className="text-[11px] text-blue-200 font-medium">
+                Set up a professional competition in 4 simple steps
+              </p>
+            </div>
           </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-white/20 transition cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {renderStepper()}
 
-        {/* Form Body */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto px-8 py-6">
+          {/* ─── Step 1: Basics ─────────────────────────────── */}
           {step === 1 && (
-            <div className="space-y-6 max-w-2xl mx-auto animate-fadeIn">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                  Select Sport
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {(Object.keys(SPORT_CONFIGS) as SportType[]).map((sType) => {
-                    const s = SPORT_CONFIGS[sType];
-                    const isSelected = sport === sType;
-                    return (
-                      <button
-                        key={sType}
-                        type="button"
-                        onClick={() => handleSportSelect(sType)}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition cursor-pointer ${
-                          isSelected
-                            ? 'border-sport-orange bg-orange-50 text-sport-navy font-bold ring-2 ring-sport-orange/20'
-                            : 'border-slate-200 hover:border-slate-300 text-slate-600'
-                        }`}
-                      >
-                        <span className="text-3xl">{s.icon}</span>
-                        <span className="text-xs font-bold">{s.displayName}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+            <div className="space-y-6 max-w-xl mx-auto animate-fadeIn">
+              <h3 className="text-lg font-bold text-sport-navy mb-4">Sport & Tournament Basics</h3>
+
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                {sportOptions.map((s) => (
+                  <button
+                    key={s.type}
+                    onClick={() => handleSportSelect(s.type)}
+                    className={`p-3 rounded-xl border-2 text-center transition cursor-pointer ${
+                      sport === s.type
+                        ? 'border-sport-navy bg-blue-50/50 ring-2 ring-blue-100'
+                        : 'border-slate-100 hover:border-slate-200'
+                    }`}
+                  >
+                    <div className="text-xl">{s.icon}</div>
+                    <div className="text-[11px] font-bold text-sport-navy mt-1">{s.name}</div>
+                  </button>
+                ))}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
-                  Tournament Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full text-sm font-semibold px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sport-orange"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase text-slate-600 mb-2 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> Location
-                  </label>
+                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Tournament Name *</label>
                   <input
                     type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full text-xs font-medium px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sport-orange"
+                    required
+                    placeholder="e.g. SXY Throwball Tournament 2026"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-2 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> Start
+                    <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
+                      <MapPin className="w-3 h-3 inline mr-1" />Location
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. St. Xaviers Church Ground"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Organizer</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. SXY Sports Committee"
+                      value={organizerName}
+                      onChange={(e) => setOrganizerName(e.target.value)}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
+                      <Calendar className="w-3 h-3 inline mr-1" />Start Date
                     </label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full text-xs font-medium px-3 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sport-orange"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold uppercase text-slate-600 mb-2 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> End
-                    </label>
+                    <label className="block text-xs font-bold uppercase text-slate-600 mb-1">End Date</label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full text-xs font-medium px-3 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-sport-orange"
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
                     />
                   </div>
                 </div>
@@ -308,81 +443,60 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           )}
 
+          {/* ─── Step 2: Format ─────────────────────────────── */}
           {step === 2 && (
-            <div className="space-y-4 max-w-2xl mx-auto animate-fadeIn">
-              <h3 className="text-lg font-bold text-sport-navy mb-4">Select Tournament Format</h3>
-              {[
-                {
-                  id: 'GROUP_KNOCKOUT' as TournamentFormat,
-                  title: 'Groups + Knockout',
-                  desc: 'Teams split into groups, play within their group, then advance to knockouts.',
-                  icon: <LayoutGrid className="w-5 h-5" />
-                },
-                {
-                  id: 'KNOCKOUT' as TournamentFormat,
-                  title: 'Knockout',
-                  desc: 'Lose once, you\'re eliminated.',
-                  icon: <Crosshair className="w-5 h-5" />
-                },
-                {
-                  id: 'DOUBLE_KNOCKOUT' as TournamentFormat,
-                  title: 'Double Knockout',
-                  desc: 'Lose twice before you\'re eliminated.',
-                  icon: <Shield className="w-5 h-5" />
-                },
-                {
-                  id: 'ROUND_ROBIN' as TournamentFormat,
-                  title: 'Round Robin (League)',
-                  desc: 'Every team plays each other; standings determine winner.',
-                  icon: <Users className="w-5 h-5" />
-                }
-              ].map(fmt => (
-                <button
-                  key={fmt.id}
-                  onClick={() => setFormat(fmt.id)}
-                  className={`w-full flex items-start gap-4 p-5 rounded-2xl border-2 transition text-left cursor-pointer ${
-                    format === fmt.id
-                      ? 'border-sport-navy bg-blue-50/50'
-                      : 'border-slate-100 hover:border-slate-300 bg-white'
-                  }`}
-                >
-                  <div className={`p-2 rounded-lg ${format === fmt.id ? 'bg-sport-navy text-white' : 'bg-slate-100 text-slate-500'}`}>
-                    {fmt.icon}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-bold text-sport-navy">{fmt.title}</h4>
-                    <p className="text-xs text-slate-500 mt-1">{fmt.desc}</p>
-                  </div>
-                  {format === fmt.id && <CheckCircle2 className="w-5 h-5 text-sport-navy" />}
-                </button>
-              ))}
+            <div className="space-y-6 max-w-xl mx-auto animate-fadeIn">
+              <h3 className="text-lg font-bold text-sport-navy mb-4">Tournament Format</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  { val: 'GROUP_KNOCKOUT' as TournamentFormat, title: 'Group + Knockout', icon: <LayoutGrid className="w-5 h-5" />, desc: 'Round-robin groups → knockout bracket' },
+                  { val: 'KNOCKOUT' as TournamentFormat, title: 'Single Elimination', icon: <Crosshair className="w-5 h-5" />, desc: 'Win or go home format' },
+                  { val: 'ROUND_ROBIN' as TournamentFormat, title: 'Round Robin', icon: <Shield className="w-5 h-5" />, desc: 'Everyone plays everyone' },
+                ].map((f) => (
+                  <button
+                    key={f.val}
+                    onClick={() => setFormat(f.val)}
+                    className={`p-5 rounded-2xl border-2 text-left transition cursor-pointer ${
+                      format === f.val
+                        ? 'border-sport-navy bg-blue-50/30 ring-2 ring-blue-100'
+                        : 'border-slate-100 hover:border-slate-200'
+                    }`}
+                  >
+                    <div className="text-sport-navy mb-2">{f.icon}</div>
+                    <div className="font-bold text-sm text-sport-navy">{f.title}</div>
+                    <div className="text-[11px] text-slate-500 mt-1">{f.desc}</div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
+          {/* ─── Step 3: Structure ─────────────────────────── */}
           {step === 3 && (
-            <div className="space-y-6 max-w-3xl mx-auto animate-fadeIn">
-              <h3 className="text-lg font-bold text-sport-navy mb-4">Structure</h3>
-              
+            <div className="space-y-6 max-w-xl mx-auto animate-fadeIn">
+              <h3 className="text-lg font-bold text-sport-navy mb-4">Tournament Structure</h3>
+
               <div className="bg-white border border-slate-200 rounded-2xl p-6">
-                <label className="block text-xs font-bold uppercase text-slate-600 mb-3">Number of teams</label>
+                <label className="block text-xs font-bold uppercase text-slate-600 mb-3">
+                  <Users className="w-3 h-3 inline mr-1" />Number of Teams
+                </label>
                 <input
                   type="number"
-                  min={2}
-                  max={128}
+                  min={4}
+                  max={64}
                   value={numTeams}
                   onChange={(e) => setNumTeams(Number(e.target.value))}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:border-sport-navy"
                 />
-                <p className="text-[11px] text-slate-400 mt-2">Minimum 2, Maximum 128.</p>
               </div>
 
               {format === 'GROUP_KNOCKOUT' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
                   <div className="bg-white border border-slate-200 rounded-2xl p-6">
-                    <label className="block text-xs font-bold uppercase text-slate-600 mb-3">Number of groups</label>
+                    <label className="block text-xs font-bold uppercase text-slate-600 mb-3">Number of Groups</label>
                     <input
                       type="number"
-                      min={1}
+                      min={2}
                       max={8}
                       value={numGroups}
                       onChange={(e) => setNumGroups(Number(e.target.value))}
@@ -435,22 +549,72 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           )}
 
+          {/* ─── Step 4: Review & Finalize ────────────────── */}
           {step === 4 && (
             <div className="space-y-8 max-w-4xl mx-auto animate-fadeIn">
               <h3 className="text-lg font-bold text-sport-navy mb-2">Review & Finalize</h3>
               
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <label className="text-xs font-bold uppercase text-slate-700">Participating Teams ({numTeams})</label>
+                  <label className="text-xs font-bold uppercase text-slate-700">Participating Teams ({teamGenMode === 'EXCEL' && excelTeams.length > 0 ? excelTeams.length : numTeams})</label>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setTeamGenMode('AUTO')} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${teamGenMode === 'AUTO' ? 'bg-sport-navy text-white' : 'text-slate-500 hover:bg-slate-200'}`}>Auto-Generate</button>
                     <button onClick={() => setTeamGenMode('CUSTOM')} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${teamGenMode === 'CUSTOM' ? 'bg-sport-navy text-white' : 'text-slate-500 hover:bg-slate-200'}`}>Custom Names</button>
-                    <button onClick={() => setTeamGenMode('EXCEL')} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${teamGenMode === 'EXCEL' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>Load 2026 Excel Data</button>
+                    <button onClick={() => setTeamGenMode('EXCEL')} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${teamGenMode === 'EXCEL' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>Upload Excel File</button>
                   </div>
                 </div>
+
                 {teamGenMode === 'EXCEL' ? (
-                  <div className="text-sm text-slate-500 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
-                    <strong>15 Teams</strong> will be imported directly from the official 2026 registration Excel file, complete with rosters, jerseys, institutions, and captain configurations.
+                  <div className="space-y-4">
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleExcelUpload}
+                      className="hidden"
+                    />
+                    
+                    {excelTeams.length === 0 ? (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full p-8 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 hover:bg-emerald-100 transition cursor-pointer flex flex-col items-center gap-3"
+                      >
+                        <Upload className="w-8 h-8 text-emerald-600" />
+                        <div className="text-sm font-bold text-emerald-700">Click to select Excel file from your device</div>
+                        <div className="text-[11px] text-emerald-500">Supports .xlsx, .xls, .csv formats</div>
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            <span className="text-sm font-bold text-emerald-700">{excelFileName}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{excelTeams.length} Teams loaded</span>
+                            <button
+                              onClick={() => fileInputRef.current?.click()}
+                              className="text-xs font-bold text-slate-500 hover:text-slate-700 underline cursor-pointer"
+                            >
+                              Change file
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="max-h-40 overflow-y-auto space-y-1 bg-white rounded-xl border border-slate-200 p-3">
+                          {excelTeams.map((team, i) => (
+                            <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-50 text-xs">
+                              <span className="w-5 h-5 rounded-md text-white font-bold text-[9px] flex items-center justify-center" style={{ backgroundColor: team.color }}>{i + 1}</span>
+                              <span className="font-bold text-sport-navy">{team.name}</span>
+                              <span className="text-slate-400">•</span>
+                              <span className="text-slate-500">{team.institution || '—'}</span>
+                              <span className="ml-auto text-[10px] text-slate-400 font-mono">{team.players.length} players</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : teamGenMode === 'CUSTOM' ? (
                   <textarea
@@ -471,20 +635,25 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold uppercase text-slate-500">Groups Preview</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {Array.from({ length: Math.min(numGroups, 4) }).map((_, i) => (
-                      <div key={i} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                        <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 text-xs font-bold text-sport-navy">
-                          GROUP {String.fromCharCode(65 + i)}
+                    {Array.from({ length: Math.min(numGroups, 4) }).map((_, i) => {
+                      const teamsPerGroup = Math.ceil(previewTeams.length / numGroups);
+                      const groupTeams = previewTeams.slice(i * teamsPerGroup, (i + 1) * teamsPerGroup);
+                      
+                      return (
+                        <div key={i} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 text-xs font-bold text-sport-navy">
+                            GROUP {String.fromCharCode(65 + i)}
+                          </div>
+                          <div className="p-2 space-y-1">
+                            {groupTeams.map((teamName, j) => (
+                              <div key={j} className="px-3 py-2 bg-slate-50/50 rounded-lg text-xs text-slate-700 border border-slate-100 font-semibold">
+                                {teamName}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="p-2 space-y-1">
-                          {Array.from({ length: Math.ceil(numTeams / numGroups) }).map((_, j) => (
-                            <div key={j} className="px-3 py-2 bg-slate-50/50 rounded-lg text-xs text-slate-600 border border-slate-100 font-medium">
-                              Team {String.fromCharCode(65 + i)}{j + 1}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {numGroups > 4 && (
                       <div className="flex items-center justify-center p-4 text-xs font-bold text-slate-400 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
                         + {numGroups - 4} more groups
