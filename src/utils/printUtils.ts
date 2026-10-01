@@ -10,7 +10,7 @@ export const printKnockoutBrackets = (
   
   const targetMatches = knockoutMatches.filter(m => {
     const isSemi = m.roundName.toLowerCase().includes('semi');
-    const isFinal = m.roundName.toLowerCase().includes('final');
+    const isFinal = m.roundName.toLowerCase().includes('final') && !isSemi;
     if (printMode === 'SEMIS') return isSemi;
     if (printMode === 'FINAL') return isFinal;
     return isSemi || isFinal;
