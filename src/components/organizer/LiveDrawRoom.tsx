@@ -413,14 +413,6 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean; onDrawComplete?: (
               Auto Draw
             </button>
 
-            <button
-              onClick={handleDrawNext}
-              disabled={isDrawing || remainingPool.length === 0 || isGroupLocked}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange transition flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-40"
-            >
-              <Sparkles className="w-4 h-4" />
-              {isDrawing ? 'Spinning...' : `Draw (${remainingPool.length})`}
-            </button>
           </div>
         )}
       </div>
@@ -467,10 +459,10 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean; onDrawComplete?: (
               />
             </div>
 
-            {/* Result Display */}
-            <div className="min-h-[80px] flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-slate-900 to-sport-midnight border border-slate-800 relative overflow-hidden">
-              {currentDrawnTeam ? (
-                <div className="animate-fadeIn">
+            {/* Result Display & Controls */}
+            <div className="min-h-[80px] flex flex-col items-center justify-center p-4 rounded-xl bg-gradient-to-br from-slate-900 to-sport-midnight border border-slate-800 relative overflow-hidden gap-3">
+              {currentDrawnTeam && !isDrawing && (
+                <div className="animate-fadeIn w-full flex flex-col items-center mb-2">
                   <div className="text-base font-extrabold text-white mb-1 flex items-center gap-2 justify-center">
                     <span className="w-4 h-4 rounded-full border-2 border-white" style={{ backgroundColor: WHEEL_COLORS[teams.indexOf(currentDrawnTeam) % WHEEL_COLORS.length] }}></span>
                     {currentDrawnTeam.name}
@@ -479,12 +471,43 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean; onDrawComplete?: (
                     ✓ Selected Team
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {!isPublicView && (
+                <div className="w-full flex items-center justify-center">
+                  <button
+                    onClick={handleDrawNext}
+                    disabled={isDrawing || remainingPool.length === 0 || isGroupLocked}
+                    className={`w-full py-3.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2 shadow-lg ${
+                      isDrawing 
+                        ? 'bg-orange-500/20 text-orange-400 cursor-wait' 
+                        : isGroupLocked || remainingPool.length === 0
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-50'
+                        : 'bg-gradient-to-r from-sport-orange to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white cursor-pointer active:scale-95 shadow-glow-orange hover:shadow-orange-500/50'
+                    }`}
+                  >
+                    {isDrawing ? (
+                      <span className="animate-pulse flex items-center gap-2">
+                        <Radio className="w-5 h-5 animate-spin" /> Spinning...
+                      </span>
+                    ) : remainingPool.length === 0 ? (
+                      <span>All Teams Drawn</span>
+                    ) : (
+                      <>
+                        <Sparkles className="w-5 h-5" />
+                        <span>Draw Next Team ({remainingPool.length})</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {isPublicView && !currentDrawnTeam && (
                 <div className="text-slate-400 text-xs font-semibold">
                   {isDrawing ? (
                     <span className="animate-pulse">🎰 Spinning the wheel...</span>
                   ) : (
-                    'Click "Draw Next Team" to spin the wheel!'
+                    'Waiting for organizer to draw...'
                   )}
                 </div>
               )}
