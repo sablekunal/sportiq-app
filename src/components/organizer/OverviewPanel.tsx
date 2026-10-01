@@ -16,7 +16,11 @@ import {
   Globe,
   Lock,
   Clock,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../../firebase';
 
 export const OverviewPanel: React.FC = () => {
   const {
@@ -32,6 +36,26 @@ export const OverviewPanel: React.FC = () => {
   const [bannerUrl, setBannerUrl] = React.useState(activeTournament?.bannerUrl || '');
   const [description, setDescription] = React.useState(activeTournament?.description || '');
   const [isSavingBranding, setIsSavingBranding] = React.useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
+    const file = e.target.files?.[0];
+    if (!file || !activeTournament) return;
+
+    setIsSavingBranding(true);
+    try {
+      const storageRef = ref(storage, `tournaments/${activeTournament.id}/${type}_${Date.now()}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      
+      if (type === 'logo') setLogoUrl(url);
+      else setBannerUrl(url);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image. Please check your connection and try again.');
+    } finally {
+      setIsSavingBranding(false);
+    }
+  };
 
   React.useEffect(() => {
     if (activeTournament) {
@@ -178,24 +202,36 @@ export const OverviewPanel: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Logo URL (Optional)</label>
-              <input
-                type="text"
-                placeholder="e.g. https://example.com/logo.png"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. https://example.com/logo.png"
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
+                />
+                <label className="flex-shrink-0 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl cursor-pointer transition flex items-center justify-center" title="Upload Logo Image">
+                  <Upload className="w-4 h-4" />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, 'logo')} />
+                </label>
+              </div>
               <p className="text-[10px] text-slate-400 mt-1">Replaces the trophy icon in public view.</p>
             </div>
             <div>
               <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Banner URL (Optional)</label>
-              <input
-                type="text"
-                placeholder="e.g. https://example.com/banner.jpg"
-                value={bannerUrl}
-                onChange={(e) => setBannerUrl(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. https://example.com/banner.jpg"
+                  value={bannerUrl}
+                  onChange={(e) => setBannerUrl(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
+                />
+                <label className="flex-shrink-0 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl cursor-pointer transition flex items-center justify-center" title="Upload Banner Image">
+                  <Upload className="w-4 h-4" />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, 'banner')} />
+                </label>
+              </div>
               <p className="text-[10px] text-slate-400 mt-1">Custom background for the public header.</p>
             </div>
           </div>
