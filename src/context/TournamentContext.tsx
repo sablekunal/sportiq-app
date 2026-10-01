@@ -116,6 +116,7 @@ interface TournamentContextType {
   domainMatches: DomainMatch[];
   setLiveDrawActive: (tournamentId: string, isActive: boolean) => Promise<void>;
   setLiveDrawSpin: (tournamentId: string, spinData: any) => Promise<void>;
+  updateTournamentSettings: (tournamentId: string, settings: { logoUrl?: string; bannerUrl?: string; name?: string; description?: string }) => Promise<void>;
 }
 
 const TournamentContext = createContext<TournamentContextType | undefined>(undefined);
@@ -259,6 +260,16 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const setLiveDrawSpin = async (tournamentId: string, spinData: any) => {
     await updateTournamentDoc(tournamentId, (t) => ({ ...t, liveSpin: spinData }));
+  };
+
+  const updateTournamentSettings = async (
+    tournamentId: string,
+    settings: { logoUrl?: string; bannerUrl?: string; name?: string; description?: string }
+  ) => {
+    await updateTournamentDoc(tournamentId, (t) => ({
+      ...t,
+      ...settings,
+    }));
   };
 
   const createTournament = async (data: Partial<Tournament>) => {
@@ -1343,6 +1354,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         readiness,
         scheduleConflicts,
         domainMatches,
+        updateTournamentSettings,
       }}
     >
       {children}
