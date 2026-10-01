@@ -30,14 +30,16 @@ export const OverviewPanel: React.FC = () => {
 
   const [logoUrl, setLogoUrl] = React.useState(activeTournament?.logoUrl || '');
   const [bannerUrl, setBannerUrl] = React.useState(activeTournament?.bannerUrl || '');
+  const [description, setDescription] = React.useState(activeTournament?.description || '');
   const [isSavingBranding, setIsSavingBranding] = React.useState(false);
 
   React.useEffect(() => {
     if (activeTournament) {
       setLogoUrl(activeTournament.logoUrl || '');
       setBannerUrl(activeTournament.bannerUrl || '');
+      setDescription(activeTournament.description || '');
     }
-  }, [activeTournament?.logoUrl, activeTournament?.bannerUrl]);
+  }, [activeTournament?.logoUrl, activeTournament?.bannerUrl, activeTournament?.description]);
 
   if (!activeTournament) return null;
 
@@ -163,50 +165,61 @@ export const OverviewPanel: React.FC = () => {
       {/* Tournament Branding & Settings Section */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-4">
         <h3 className="text-sm font-bold text-sport-navy border-b border-slate-100 pb-2">
-          Tournament Branding
+          Tournament Branding & Info
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Logo URL (Optional)</label>
-            <input
-              type="text"
-              placeholder="e.g. https://example.com/logo.png"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
+            <label className="block text-xs font-bold uppercase text-slate-600 mb-1">About Tournament (Optional)</label>
+            <textarea
+              placeholder="Enter a brief description of the tournament..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy min-h-[80px]"
             />
-            <p className="text-[10px] text-slate-400 mt-1">Replaces the trophy icon in public view.</p>
           </div>
-          <div>
-            <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Banner URL (Optional)</label>
-            <input
-              type="text"
-              placeholder="e.g. https://example.com/banner.jpg"
-              value={bannerUrl}
-              onChange={(e) => setBannerUrl(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
-            />
-            <p className="text-[10px] text-slate-400 mt-1">Custom background for the public header.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Logo URL (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. https://example.com/logo.png"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Replaces the trophy icon in public view.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-600 mb-1">Banner URL (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. https://example.com/banner.jpg"
+                value={bannerUrl}
+                onChange={(e) => setBannerUrl(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-sport-navy"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Custom background for the public header.</p>
+            </div>
           </div>
         </div>
         <div className="flex justify-end">
           <button
-            disabled={isSavingBranding || (logoUrl === (activeTournament.logoUrl || '') && bannerUrl === (activeTournament.bannerUrl || ''))}
+            disabled={isSavingBranding || (logoUrl === (activeTournament.logoUrl || '') && bannerUrl === (activeTournament.bannerUrl || '') && description === (activeTournament.description || ''))}
             onClick={async () => {
               setIsSavingBranding(true);
               if (activeTournament) {
-                await updateTournamentSettings(activeTournament.id, { logoUrl, bannerUrl });
+                await updateTournamentSettings(activeTournament.id, { logoUrl, bannerUrl, description });
                 // Show temporary success feedback?
                 setTimeout(() => setIsSavingBranding(false), 500);
               }
             }}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer ${
-              (logoUrl !== (activeTournament.logoUrl || '') || bannerUrl !== (activeTournament.bannerUrl || ''))
+              (logoUrl !== (activeTournament.logoUrl || '') || bannerUrl !== (activeTournament.bannerUrl || '') || description !== (activeTournament.description || ''))
                 ? 'bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange'
                 : 'bg-slate-100 text-slate-400'
             }`}
           >
-            {isSavingBranding ? 'Saving...' : 'Save Branding'}
+            {isSavingBranding ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </div>

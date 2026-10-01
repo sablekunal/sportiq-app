@@ -449,7 +449,7 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
               <h3 className="text-lg font-bold text-sport-navy mb-4">Tournament Format</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
-                  { val: 'GROUP_KNOCKOUT' as TournamentFormat, title: 'Group + Knockout', icon: <LayoutGrid className="w-5 h-5" />, desc: 'Round-robin groups → knockout bracket' },
+                  { val: 'GROUP_KNOCKOUT' as TournamentFormat, title: 'League + Knockout', icon: <LayoutGrid className="w-5 h-5" />, desc: 'Round-robin groups → knockout bracket' },
                   { val: 'KNOCKOUT' as TournamentFormat, title: 'Single Elimination', icon: <Crosshair className="w-5 h-5" />, desc: 'Win or go home format' },
                   { val: 'ROUND_ROBIN' as TournamentFormat, title: 'Round Robin', icon: <Shield className="w-5 h-5" />, desc: 'Everyone plays everyone' },
                 ].map((f) => (

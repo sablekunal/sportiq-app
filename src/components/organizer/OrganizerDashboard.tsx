@@ -137,7 +137,7 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
                 {sportConfig.icon}
               </span>
               <span className="text-xs uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full bg-sport-orange/20 text-sport-orange border border-sport-orange/30">
-                {sportConfig.displayName} • {activeTournament.format.replace('_', ' ')}
+                {sportConfig.displayName} • {activeTournament.format === 'GROUP_KNOCKOUT' ? 'LEAGUE + KNOCKOUT' : activeTournament.format.replace('_', ' ')}
               </span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
                 {activeTournament.status}

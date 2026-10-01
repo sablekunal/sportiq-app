@@ -218,7 +218,7 @@ export const PublicTournamentPortal: React.FC = () => {
                 {activeTournament.sport} Championship
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300">
-                {activeTournament.format.replace('_', ' ')}
+                {activeTournament.format === 'GROUP_KNOCKOUT' ? 'League + Knockout' : activeTournament.format.replace('_', ' ')}
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-500/30">
                 ● Live Broadcast
@@ -426,7 +426,7 @@ export const PublicTournamentPortal: React.FC = () => {
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Format</span>
                     <span className="font-bold text-sport-navy">
-                      {activeTournament.format.replace('_', ' ')}
+                      {activeTournament.format === 'GROUP_KNOCKOUT' ? 'League + Knockout' : activeTournament.format.replace('_', ' ')}
                     </span>
                   </div>
                   <div>
