@@ -1,8 +1,7 @@
 import { Tournament, Team, Venue, BudgetItem } from '../types';
 
 export const INITIAL_VENUES: Venue[] = [
-  { id: 'v1', name: 'Center Court Arena', location: 'Main Sports Complex', capacity: 5000 },
-  { id: 'v2', name: 'Court B & Indoor Hall', location: 'University Sports Pavilion', capacity: 2000 },
+  { id: 'v1', name: 'Barco Hall Ground, Camp', location: 'Barco Hall Ground, Camp' },
 ];
 
 export const INITIAL_TOURNAMENTS: Tournament[] = [];

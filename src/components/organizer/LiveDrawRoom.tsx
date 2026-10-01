@@ -586,7 +586,7 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean }> = ({ isPublicVie
             )}
 
             {/* If draw finished, show generate fixtures CTA */}
-            {isCompleted && (
+            {isCompleted && !isPublicView && (
               <div className="pt-4 border-t border-slate-200 flex items-center justify-between bg-orange-50/70 p-4 rounded-xl border border-orange-200">
                 <div>
                   <div className="text-xs font-bold text-sport-navy">Group Draw Successfully Finalized!</div>

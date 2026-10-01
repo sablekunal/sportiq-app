@@ -176,7 +176,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           groups: d.groups || [],
           budget: d.budget || [],
           auditLogs: d.auditLogs || [],
-          venues: d.venues || [],
+          venues: d.venues?.length && d.venues[0].name === 'Center Court Arena' ? INITIAL_VENUES : (d.venues || INITIAL_VENUES),
         } as Tournament;
       });
       setTournaments(data);
