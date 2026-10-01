@@ -66,15 +66,25 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     if (teamGenMode === 'EXCEL') {
       // Deep-clone Excel data so IDs are unique per tournament creation
-      finalTeams = initialTeamsData.map((t, i) => ({
-        ...t,
-        id: `team-${Date.now()}-${i + 1}`,
-        seed: i + 1,
-        players: t.players.map((p, j) => ({
+      finalTeams = initialTeamsData.map((t, i) => {
+        const newPlayers = t.players.map((p, j) => ({
           ...p,
           id: `p-${Date.now()}-${i}-${j}`,
-        })),
-      }));
+        }));
+        const captainPlayer = newPlayers.find(p => p.isCaptain);
+        return {
+          ...t,
+          id: `team-${Date.now()}-${i + 1}`,
+          seed: i + 1,
+          players: newPlayers,
+          captainId: captainPlayer?.id || null,
+          captainName: t.captainName || captainPlayer?.name || null,
+          institution: t.institution || '',
+          isCaptainPlaying: t.isCaptainPlaying ?? true,
+          rosterStatus: t.rosterStatus || 'INCOMPLETE',
+          isRosterLocked: false,
+        };
+      });
       
       // If we need exactly 16 for 4x4 groups and only have 15, add a filler
       if (finalTeams.length < 16 && format === 'GROUP_KNOCKOUT') {
@@ -87,10 +97,12 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
             seed: finalTeams.length + 1,
             color: '#94a3b8',
             institution: '',
-            captainName: '',
+            captainId: null,
+            captainName: null,
             isCaptainPlaying: false,
             players: [],
             rosterStatus: 'INCOMPLETE',
+            isRosterLocked: false,
           });
         }
       }
