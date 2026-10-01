@@ -202,26 +202,44 @@ export const LiveDrawRoom: React.FC = () => {
         <div className="lg:col-span-1 space-y-4">
           {/* Chamber */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-              Draw Spotlight Chamber
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-6">
+              Official Draw Wheel
             </div>
 
-            <div className="h-44 flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-sport-midnight border border-slate-800 relative overflow-hidden">
+            <div className="relative w-48 h-48 mx-auto mb-6">
+              {/* Needle */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-8 bg-sport-orange z-20" style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%)', filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))' }}></div>
+              
+              {/* Wheel */}
+              <div 
+                className={`w-full h-full rounded-full border-8 border-slate-900 shadow-[0_0_25px_rgba(0,0,0,0.15)] overflow-hidden ${isDrawing ? 'animate-[spin_0.3s_linear_infinite]' : 'transition-transform duration-1000'}`}
+                style={{
+                  background: remainingPool.length > 0 
+                    ? `conic-gradient(${remainingPool.map((t, i, arr) => `${t.color || '#cbd5e1'} ${i * (100/arr.length)}% ${(i+1) * (100/arr.length)}%`).join(', ')})`
+                    : currentDrawnTeam ? currentDrawnTeam.color : '#1e293b'
+                }}
+              />
+
+              {/* Hub */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-slate-900 rounded-full border-4 border-slate-800 flex items-center justify-center z-10 shadow-xl">
+                <div className="w-4 h-4 bg-sport-orange rounded-full animate-pulse"></div>
+              </div>
+            </div>
+
+            <div className="min-h-[90px] flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-slate-900 to-sport-midnight border border-slate-800 relative overflow-hidden">
               {currentDrawnTeam ? (
-                <div className={`transition-all transform ${isDrawing ? 'scale-90 opacity-80' : 'scale-105'}`}>
-                  <div
-                    className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-white text-lg font-black shadow-glow-orange mb-3"
-                    style={{ backgroundColor: currentDrawnTeam.color || '#f97316' }}
-                  >
-                    {currentDrawnTeam.shortName}
+                <div className={`transition-all transform ${isDrawing ? 'scale-90 opacity-40' : 'scale-100 animate-fadeIn'}`}>
+                  <div className="text-sm font-extrabold text-white mb-1 flex items-center gap-2 justify-center">
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: currentDrawnTeam.color || '#f97316' }}></span>
+                    {currentDrawnTeam.name}
                   </div>
-                  <div className="text-base font-extrabold text-white">{currentDrawnTeam.name}</div>
-                  <div className="text-xs text-sport-orange font-mono">Seed #{currentDrawnTeam.seed || '-'}</div>
+                  <div className="text-[10px] text-sport-orange font-mono uppercase tracking-widest bg-orange-500/10 px-2 py-0.5 rounded-full inline-block">
+                    Selected Team
+                  </div>
                 </div>
               ) : (
-                <div className="text-slate-500 text-xs">
-                  <div className="text-4xl mb-2 animate-bounce">🎱</div>
-                  Click "Draw Next Team" to reveal the lottery selection!
+                <div className="text-slate-400 text-xs font-semibold">
+                  Click "Draw Next Team" to spin the wheel!
                 </div>
               )}
             </div>
