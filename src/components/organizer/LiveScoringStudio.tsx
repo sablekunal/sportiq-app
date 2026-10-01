@@ -71,6 +71,20 @@ export const LiveScoringStudio: React.FC = () => {
 
   if (!activeTournament) return null;
 
+  const isSetPointReached = (scoreA: number, scoreB: number) => {
+    // 25-25 draw
+    if (scoreA === 25 && scoreB === 25) return true;
+    // Hard cap at 25 points
+    if (scoreA === 25 || scoreB === 25) return true;
+    
+    // Normal 15 points, must win by 2
+    if (scoreA >= 15 || scoreB >= 15) {
+      if (Math.abs(scoreA - scoreB) >= 2) return true;
+    }
+    
+    return false;
+  };
+
   if (!currentMatch) {
     return (
       <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
@@ -196,17 +210,18 @@ export const LiveScoringStudio: React.FC = () => {
     await updateMatchSets(currentMatch.id, updatedSets, activeSet.setNumber);
   };
 
-  // Conclude the current set (15 rally points reached)
+  // Conclude the current set
   const handleConcludeSet = async () => {
-    if (activeSet.scoreA === activeSet.scoreB) {
-      alert('Set cannot conclude in a tie. One team must win the set (15 rally points).');
+    const isDraw = activeSet.scoreA === 25 && activeSet.scoreB === 25;
+
+    if (!isDraw && activeSet.scoreA === activeSet.scoreB) {
+      alert('Set cannot conclude in a tie. One team must win the set by 2 points (or reach 25).');
       return;
     }
 
-    const setWinnerId = activeSet.scoreA > activeSet.scoreB ? currentMatch.homeTeamId : currentMatch.awayTeamId;
-    const setWinnerTeam = activeSet.scoreA > activeSet.scoreB ? homeTeam : awayTeam;
+    const setWinnerId = isDraw ? 'DRAW' : (activeSet.scoreA > activeSet.scoreB ? currentMatch.homeTeamId : currentMatch.awayTeamId);
 
-    if (!setWinnerId) {
+    if (!setWinnerId && !isDraw) {
       alert('Valid set winner could not be resolved.');
       return;
     }
@@ -226,8 +241,8 @@ export const LiveScoringStudio: React.FC = () => {
     const updatedSetsWonA = updatedSets.filter((s) => s.status === 'COMPLETED' && s.winnerId === currentMatch.homeTeamId).length;
     const updatedSetsWonB = updatedSets.filter((s) => s.status === 'COMPLETED' && s.winnerId === currentMatch.awayTeamId).length;
 
-    if (updatedSetsWonA >= 2 || updatedSetsWonB >= 2) {
-      // Match won! (2-0 or 2-1)
+    if (updatedSetsWonA >= 2 || updatedSetsWonB >= 2 || updatedSets.length >= 3) {
+      // Match won! (2-0 or 2-1) or all 3 sets completed
       await updateMatchSets(currentMatch.id, updatedSets, activeSet.setNumber);
       soundEffects.playCelebration();
       return;
@@ -624,15 +639,21 @@ export const LiveScoringStudio: React.FC = () => {
         </div>
 
         {/* Set Point & Conclude Set Action Bar */}
-        {activeSet.status === 'LIVE' && (activeSet.scoreA >= 15 || activeSet.scoreB >= 15) && (
+        {activeSet.status === 'LIVE' && isSetPointReached(activeSet.scoreA, activeSet.scoreB) && (
           <div className="relative z-10 my-3 p-3.5 bg-amber-500/20 border border-amber-500/40 rounded-2xl flex flex-wrap items-center justify-between gap-3 animate-fadeIn">
             <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
               <Trophy className="w-4 h-4 text-amber-400" />
               <span>
-                15 Rally Points reached! Winner:{' '}
-                <strong className="text-white">
-                  {activeSet.scoreA > activeSet.scoreB ? homeTeam?.name : awayTeam?.name} ({activeSet.scoreA}–{activeSet.scoreB})
-                </strong>
+                {activeSet.scoreA === 25 && activeSet.scoreB === 25 ? (
+                  <strong className="text-white">25-25 Limit Reached! Set Drawn.</strong>
+                ) : (
+                  <>
+                    Set Point Reached! Winner:{' '}
+                    <strong className="text-white">
+                      {activeSet.scoreA > activeSet.scoreB ? homeTeam?.name : awayTeam?.name} ({activeSet.scoreA}–{activeSet.scoreB})
+                    </strong>
+                  </>
+                )}
               </span>
             </div>
 
