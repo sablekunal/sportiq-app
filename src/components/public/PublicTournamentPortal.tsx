@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useDevice } from '../../hooks/useDevice';
 import { SPORT_CONFIGS, calculateSportStandings } from '../../engines/sportEngine';
 import { calculateAllFourGroupStandings } from '../../domain/tournament/results/throwballStandings';
+import { printKnockoutBrackets } from '../../utils/printUtils';
 import { Match } from '../../types';
 import {
   Trophy,
@@ -23,6 +24,7 @@ import {
   Shield,
   LayoutGrid,
   Table as TableIcon,
+  Printer
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { getNextScheduledMatch } from '../../domain/tournament/operations/scheduleManager';
@@ -939,51 +941,74 @@ export const PublicTournamentPortal: React.FC = () => {
           <div className="bg-slate-900 p-4 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
               <h3 className="text-base font-bold text-white">Playoff Bracket</h3>
-              <span className="text-[11px] text-slate-400 flex items-center gap-1 font-medium sm:hidden">
-                <span>👈 Swipe horizontally to view rounds 👉</span>
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] text-slate-400 flex items-center gap-1 font-medium sm:hidden">
+                  <span>👈 Swipe horizontally to view rounds 👉</span>
+                </span>
+                <button
+                  onClick={() => {
+                    const knockoutMatches = fixtures.filter(
+                      (m) => m.stage === 'KNOCKOUT' || m.stage === 'FINAL' || m.stage === 'WINNERS_BRACKET'
+                    );
+                    printKnockoutBrackets(knockoutMatches, teams);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition font-bold text-xs shadow-sm cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print Semis & Finals
+                </button>
+              </div>
             </div>
             <div className="overflow-x-auto touch-scroll pb-4 no-scrollbar">
               <div className="flex items-center gap-8 sm:gap-12 min-w-[650px]">
-                {[1, 2, 3].map((r) => {
-                  const roundMatches = fixtures.filter(
-                    (m) => (m.stage === 'KNOCKOUT' || m.stage === 'FINAL') && m.round === r
-                  );
-                  if (roundMatches.length === 0) return null;
+                {fixtures.filter(m => m.stage === 'KNOCKOUT' || m.stage === 'FINAL').length === 0 ? (
+                  <div className="w-full text-center py-20">
+                    <h4 className="text-base font-bold text-slate-500">No Knockout Bracket Generated</h4>
+                    <p className="text-xs text-slate-600 mt-1 mb-4">
+                      The organizer has not generated playoff fixtures yet.
+                    </p>
+                  </div>
+                ) : (
+                  [1, 2, 3].map((r) => {
+                    const roundMatches = fixtures.filter(
+                      (m) => (m.stage === 'KNOCKOUT' || m.stage === 'FINAL') && m.round === r
+                    );
+                    if (roundMatches.length === 0) return null;
 
-                  return (
-                    <div key={r} className="flex-1 space-y-6">
-                      <div className="text-center pb-2 border-b border-slate-800 text-xs font-black uppercase text-sport-orange">
-                        {roundMatches[0]?.roundName || `Round ${r}`}
+                    return (
+                      <div key={r} className="flex-1 space-y-6">
+                        <div className="text-center pb-2 border-b border-slate-800 text-xs font-black uppercase text-sport-orange">
+                          {roundMatches[0]?.roundName || `Round ${r}`}
+                        </div>
+                        {roundMatches.map((m) => {
+                          const h = teams.find((t) => t.id === m.homeTeamId);
+                          const a = teams.find((t) => t.id === m.awayTeamId);
+
+                          return (
+                            <div
+                              key={m.id}
+                              onClick={() => setSelectedMatch(m)}
+                              className="bg-slate-950 p-3 rounded-xl border border-slate-800 hover:border-sport-orange transition cursor-pointer text-xs space-y-1.5"
+                            >
+                              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pb-1 border-b border-slate-900">
+                                <span className="font-bold text-sport-orange">{m.matchCode || `Match #${m.fixtureNumber}`}</span>
+                                <span>{m.status}</span>
+                              </div>
+                              <div className="flex items-center justify-between font-semibold text-slate-300">
+                                <span className="truncate">{h?.name || m.homePlaceholder || 'TBD'}</span>
+                                <span className="font-mono text-white">{m.homeScore}</span>
+                              </div>
+                              <div className="flex items-center justify-between font-semibold text-slate-300">
+                                <span className="truncate">{a?.name || m.awayPlaceholder || 'TBD'}</span>
+                                <span className="font-mono text-white">{m.awayScore}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      {roundMatches.map((m) => {
-                        const h = teams.find((t) => t.id === m.homeTeamId);
-                        const a = teams.find((t) => t.id === m.awayTeamId);
-
-                        return (
-                          <div
-                            key={m.id}
-                            onClick={() => setSelectedMatch(m)}
-                            className="bg-slate-950 p-3 rounded-xl border border-slate-800 hover:border-sport-orange transition cursor-pointer text-xs space-y-1.5"
-                          >
-                            <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono pb-1 border-b border-slate-900">
-                              <span className="font-bold text-sport-orange">{m.matchCode || `Match #${m.fixtureNumber}`}</span>
-                              <span>{m.status}</span>
-                            </div>
-                            <div className="flex items-center justify-between font-semibold text-slate-300">
-                              <span className="truncate">{h?.name || m.homePlaceholder || 'TBD'}</span>
-                              <span className="font-mono text-white">{m.homeScore}</span>
-                            </div>
-                            <div className="flex items-center justify-between font-semibold text-slate-300">
-                              <span className="truncate">{a?.name || m.awayPlaceholder || 'TBD'}</span>
-                              <span className="font-mono text-white">{m.awayScore}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

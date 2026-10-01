@@ -2,6 +2,7 @@ import React from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { Match } from '../../types';
 import { Trophy, GitBranch, Radio, CheckCircle2, ChevronRight, Printer } from 'lucide-react';
+import { printKnockoutBrackets } from '../../utils/printUtils';
 
 export const InteractiveBracket: React.FC = () => {
   const { activeTournament, setActiveMatchId, setOrganizerTab } = useTournament();
@@ -27,100 +28,12 @@ export const InteractiveBracket: React.FC = () => {
     .map(Number)
     .sort((a, b) => a - b);
 
-  if (knockoutMatches.length === 0) {
-    return (
-      <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
-        <GitBranch className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <h4 className="text-base font-bold text-slate-700">No Knockout Bracket Generated</h4>
-        <p className="text-xs text-slate-500 mt-1 mb-4">
-          Generate fixtures under the Fixtures tab to view the live playoff bracket.
-        </p>
-      </div>
-    );
-  }
-
   // Find championship winner if final is completed
   const finalMatch = knockoutMatches.find((m) => m.stage === 'FINAL' && m.status === 'COMPLETED');
   const championTeam = finalMatch ? teams.find((t) => t.id === finalMatch.winnerId) : null;
 
   const handlePrintBrackets = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    
-    const targetMatches = knockoutMatches.filter(m => 
-      m.roundName.toLowerCase().includes('semi') || 
-      m.roundName.toLowerCase().includes('final')
-    );
-
-    let html = `
-      <html>
-        <head>
-          <title>Print Brackets - Semifinals & Finals</title>
-          <style>
-            body { font-family: 'Inter', sans-serif; padding: 40px; color: #0f172a; }
-            h2 { text-align: center; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
-            .grid { display: flex; gap: 40px; justify-content: center; margin-top: 40px; flex-wrap: wrap; }
-            .round-col { display: flex; flex-direction: column; gap: 30px; }
-            .round-title { text-align: center; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #f97316; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;}
-            .match { border: 2px solid #e2e8f0; padding: 12px; border-radius: 12px; width: 260px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-            .header { font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 10px; display: flex; justify-content: space-between; }
-            .team { display: flex; justify-content: space-between; padding: 8px 10px; margin-bottom: 6px; background: #f8fafc; border-radius: 8px; font-weight: 600; font-size: 13px; border: 1px solid #f1f5f9; }
-            .team:last-child { margin-bottom: 0; }
-            .score { font-family: monospace; font-size: 14px; }
-            @media print {
-              body { padding: 0; background: #fff; }
-              button { display: none; }
-              .match { break-inside: avoid; box-shadow: none; border: 2px solid #cbd5e1; }
-            }
-          </style>
-        </head>
-        <body>
-          <h2>Tournament Championship Brackets</h2>
-          <div style="text-align: center; margin-bottom: 30px;">
-            <button onclick="window.print()" style="padding: 10px 20px; background: #0f172a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
-              Print Now
-            </button>
-          </div>
-          <div class="grid">
-    `;
-
-    const rounds = [...new Set(targetMatches.map(m => m.round))].sort((a,b) => a - b);
-    
-    rounds.forEach(roundNum => {
-      const matches = targetMatches.filter(m => m.round === roundNum).sort((a,b) => a.position - b.position);
-      const roundName = matches[0]?.roundName || `Round ${roundNum}`;
-      
-      html += `<div class="round-col">`;
-      html += `<div class="round-title">${roundName}</div>`;
-      
-      matches.forEach(m => {
-        const home = teams.find(t => t.id === m.homeTeamId)?.name || m.homePlaceholder || 'TBD (Awaiting)';
-        const away = teams.find(t => t.id === m.awayTeamId)?.name || m.awayPlaceholder || 'TBD (Awaiting)';
-        const homeScore = m.homeScore ?? '-';
-        const awayScore = m.awayScore ?? '-';
-        
-        html += `
-          <div class="match">
-            <div class="header">
-              <span>Match #${m.fixtureNumber || m.position}</span>
-              <span>${m.status === 'LIVE' ? 'LIVE' : m.status === 'COMPLETED' ? 'Done' : 'Scheduled'}</span>
-            </div>
-            <div class="team"><span>${home}</span> <span class="score">${homeScore}</span></div>
-            <div class="team"><span>${away}</span> <span class="score">${awayScore}</span></div>
-          </div>
-        `;
-      });
-      html += `</div>`;
-    });
-
-    html += `
-          </div>
-        </body>
-      </html>
-    `;
-    
-    printWindow.document.write(html);
-    printWindow.document.close();
+    printKnockoutBrackets(knockoutMatches, teams);
   };
 
   return (
@@ -157,10 +70,19 @@ export const InteractiveBracket: React.FC = () => {
 
       {/* Bracket Tree Canvas */}
       <div className="bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl overflow-x-auto min-h-[500px]">
-        <div className="flex items-center gap-12 sm:gap-16 min-w-[700px]">
-          {roundNumbers.map((rNum, rIdx) => {
-            const matchesInRound = roundsMap[rNum].sort((a, b) => a.position - b.position);
-            const roundTitle = matchesInRound[0]?.roundName.split('(')[0] || `Round ${rNum}`;
+        {knockoutMatches.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center pt-20">
+            <GitBranch className="w-12 h-12 text-slate-700 mx-auto mb-3" />
+            <h4 className="text-base font-bold text-slate-500">No Knockout Bracket Generated</h4>
+            <p className="text-xs text-slate-600 mt-1 mb-4">
+              Generate fixtures under the Fixtures tab to view the live playoff bracket.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-12 sm:gap-16 min-w-[700px]">
+            {roundNumbers.map((rNum, rIdx) => {
+              const matchesInRound = roundsMap[rNum].sort((a, b) => a.position - b.position);
+              const roundTitle = matchesInRound[0]?.roundName.split('(')[0] || `Round ${rNum}`;
 
             return (
               <div key={rNum} className="flex-1 flex flex-col justify-around space-y-8">
@@ -274,9 +196,10 @@ export const InteractiveBracket: React.FC = () => {
                   })}
                 </div>
               </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
