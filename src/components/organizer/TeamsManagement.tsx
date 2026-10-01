@@ -580,13 +580,9 @@ export const TeamsManagement: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <span>Seed #{team.seed || '-'}</span>
                         <span>•</span>
-                        {rosterStatus === 'LOCKED' ? (
-                          <span className="text-purple-700 font-extrabold flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded bg-purple-50 border border-purple-200">
-                            <Lock className="w-2.5 h-2.5" /> LOCKED (12/12)
-                          </span>
-                        ) : rosterStatus === 'COMPLETE' ? (
+                        {rosterStatus === 'COMPLETE' ? (
                           <span className="text-emerald-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200">
-                            COMPLETE (12/12)
+                            READY ({team.players.length}/12)
                           </span>
                         ) : (
                           <span className="text-amber-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-amber-50 border border-amber-200">
