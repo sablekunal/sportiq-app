@@ -438,10 +438,10 @@ export const PublicTournamentPortal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Recent Results Preview */}
+              {/* Upcoming Matches Preview */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-sport-navy">Recent Matches & Results</h3>
+                  <h3 className="text-sm font-bold text-sport-navy">Upcoming Matches</h3>
                   <button
                     onClick={() => setActiveTab('fixtures')}
                     className="text-xs font-bold text-sport-orange hover:underline cursor-pointer"
@@ -451,7 +451,16 @@ export const PublicTournamentPortal: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  {fixtures.slice(0, 4).map((m) => {
+                  {(() => {
+                    const upcomingMatches = fixtures
+                      .filter((m) => m.status !== 'COMPLETED')
+                      .sort((a, b) => (a.fixtureNumber || a.position) - (b.fixtureNumber || b.position));
+                    
+                    if (upcomingMatches.length === 0) {
+                      return <div className="text-xs text-slate-400 text-center py-4 italic">No upcoming matches at this time.</div>;
+                    }
+
+                    return upcomingMatches.slice(0, 4).map((m) => {
                     const h = teams.find((t) => t.id === m.homeTeamId);
                     const a = teams.find((t) => t.id === m.awayTeamId);
 
@@ -497,7 +506,7 @@ export const PublicTournamentPortal: React.FC = () => {
                         </span>
                       </div>
                     );
-                  })}
+                  })})()}
                 </div>
               </div>
             </div>
