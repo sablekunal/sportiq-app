@@ -142,12 +142,8 @@ export const LiveScoringStudio: React.FC = () => {
   const handleScorePoint = async (team: 'HOME' | 'AWAY', actionLabel?: string) => {
     if (isMatchComplete) return;
 
-    // Throwball Set Winning Rules: First to 15 points wins (No deuce)
-    const thresholdA = 15;
-    const thresholdB = 15;
-
-    if (activeSet.scoreA >= thresholdA || activeSet.scoreB >= thresholdB) {
-      alert(`Set ${activeSet.setNumber} is already won! Please conclude the set using the 'End Set' controls.`);
+    if (isSetPointReached(activeSet.scoreA, activeSet.scoreB)) {
+      alert(`Set ${activeSet.setNumber} has already reached its conclusion point! Please conclude the set using the 'Conclude Set' controls.`);
       return;
     }
 
