@@ -569,8 +569,10 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const isHome = domainMatches.find(m => m.id === matchId)?.participantA.type === 'TEAM' && 
         (domainMatches.find(m => m.id === matchId)?.participantA as any).teamId === event.teamId;
 
+      const cleanEvent = Object.fromEntries(Object.entries(event).filter(([_, v]) => v !== undefined));
+
       const updates: any = {
-        events: arrayUnion(event),
+        events: arrayUnion(cleanEvent),
         status: 'LIVE'
       };
 
