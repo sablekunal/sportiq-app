@@ -62,6 +62,11 @@ export const TeamsManagement: React.FC = () => {
   const [editJerseyNumber, setEditJerseyNumber] = useState<number>(1);
   const [editIsCaptain, setEditIsCaptain] = useState(false);
 
+  // Team Profile Edit State
+  const [isEditingTeamProfile, setIsEditingTeamProfile] = useState(false);
+  const [editInstitution, setEditInstitution] = useState('');
+  const [editIsCaptainPlaying, setEditIsCaptainPlaying] = useState(true);
+  const [editExternalCaptain, setEditExternalCaptain] = useState('');
   if (!activeTournament) return null;
 
   const teams = activeTournament.teams;
@@ -310,6 +315,27 @@ export const TeamsManagement: React.FC = () => {
       captainName: capPlayer ? capPlayer.name : undefined,
       players: updatedPlayers,
     });
+  };
+
+  const openTeamEdit = () => {
+    if (!currentTeam) return;
+    setEditInstitution(currentTeam.institution || '');
+    setEditIsCaptainPlaying(currentTeam.isCaptainPlaying !== false);
+    setEditExternalCaptain(currentTeam.isCaptainPlaying === false ? currentTeam.captainName || '' : '');
+    setIsEditingTeamProfile(true);
+  };
+
+  const saveTeamEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTeam) return;
+    
+    updateTeamInTournament(activeTournament.id, currentTeam.id, {
+      institution: editInstitution.trim(),
+      isCaptainPlaying: editIsCaptainPlaying,
+      captainName: editIsCaptainPlaying ? (currentTeam.players.find(p => p.id === currentTeam.captainId)?.name || undefined) : editExternalCaptain.trim(),
+      captainId: editIsCaptainPlaying ? currentTeam.captainId : undefined,
+    });
+    setIsEditingTeamProfile(false);
   };
 
   const handlePopulateSquad = (team: Team) => {
@@ -615,8 +641,82 @@ export const TeamsManagement: React.FC = () => {
           {currentTeam ? (
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
               {/* Team Profile Banner */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
+              {isEditingTeamProfile ? (
+                <form onSubmit={saveTeamEdit} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                  <h4 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Edit Team Details</h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Institution / Parish</label>
+                      <input
+                        type="text"
+                        value={editInstitution}
+                        onChange={(e) => setEditInstitution(e.target.value)}
+                        placeholder="e.g. St. Peter's Church"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-sport-orange focus:ring-1 focus:ring-sport-orange outline-none"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="border-t border-slate-200 pt-3">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Team Captain Configuration</label>
+                    <div className="flex items-center gap-4 mb-3">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="radio"
+                          checked={editIsCaptainPlaying}
+                          onChange={() => setEditIsCaptainPlaying(true)}
+                          className="w-4 h-4 text-sport-orange focus:ring-sport-orange"
+                        />
+                        <span className="font-semibold text-slate-700">Captain is in the team roster</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="radio"
+                          checked={!editIsCaptainPlaying}
+                          onChange={() => setEditIsCaptainPlaying(false)}
+                          className="w-4 h-4 text-sport-orange focus:ring-sport-orange"
+                        />
+                        <span className="font-semibold text-slate-700">Captain is external (Manager)</span>
+                      </label>
+                    </div>
+
+                    {!editIsCaptainPlaying ? (
+                      <div>
+                        <input
+                          type="text"
+                          value={editExternalCaptain}
+                          onChange={(e) => setEditExternalCaptain(e.target.value)}
+                          placeholder="Enter External Captain Name"
+                          className="w-full sm:w-1/2 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-sport-orange focus:ring-1 focus:ring-sport-orange outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 bg-amber-50 p-2 rounded-lg border border-amber-100">
+                        Select the captain directly from the <strong>Roster table</strong> below using the "Captain" checkboxes.
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTeamProfile(false)}
+                      className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 rounded-lg transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-sport-navy hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                    >
+                      Save Details
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-sm shadow-md"
                     style={{ backgroundColor: currentTeam.color || '#f97316' }}
@@ -643,13 +743,27 @@ export const TeamsManagement: React.FC = () => {
                           ★ {currentTeam.captainName || currentTeam.players.find((p) => p.isCaptain || currentTeam.captainId === p.id)?.name || 'Not Designated'}
                         </strong>
                       </span>
+                      {currentTeam.institution && (
+                        <>
+                          <span>•</span>
+                          <span>From: <strong className="text-sport-navy">{currentTeam.institution}</strong></span>
+                        </>
+                      )}
                       <span>•</span>
                       <span>Status: <strong className="text-sport-navy">{getRosterStatus(currentTeam)}</strong></span>
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={openTeamEdit}
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5 cursor-pointer"
+                      title="Edit Team Details (Institution, Captain)"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Edit Profile</span>
+                    </button>
                   {/* Finalize Roster Button */}
                   {currentTeam.players.length === 8 && !isCurrentTeamLocked && (
                     <button
@@ -702,6 +816,7 @@ export const TeamsManagement: React.FC = () => {
                   </span>
                 </div>
               </div>
+              )}
 
               {/* Roster Status & Validation Messages */}
               {!currentValidation.isValid && (

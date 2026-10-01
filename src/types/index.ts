@@ -87,8 +87,10 @@ export interface Team {
   shortName: string;
   logoUrl?: string;
   color?: string;
+  institution?: string; // e.g. Parish or College Name
   captainId?: string;
   captainName?: string;
+  isCaptainPlaying?: boolean;
   seed?: number;
   groupId?: string;
   players: Player[];
