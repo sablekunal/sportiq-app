@@ -151,7 +151,7 @@ export const SPORT_CONFIGS: Record<SportType, SportConfig> = {
     defaultDurationMinutes: 45,
     scoreUnit: 'Sets / Points',
     supportsDraw: false,
-    defaultWinPoints: 2,
+    defaultWinPoints: 1,
     defaultDrawPoints: 0,
     defaultLossPoints: 0,
     allowedEvents: [
