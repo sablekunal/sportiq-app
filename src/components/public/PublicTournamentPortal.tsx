@@ -44,6 +44,22 @@ export const PublicTournamentPortal: React.FC = () => {
   const [matchModalTab, setMatchModalTab] = useState<'commentary' | 'lineups'>('commentary');
   const [publicStageFilter, setPublicStageFilter] = useState<'ALL' | 'A' | 'B' | 'C' | 'D' | 'KNOCKOUT'>('ALL');
   const [standingsGroupFilter, setStandingsGroupFilter] = useState<'ALL' | 'A' | 'B' | 'C' | 'D'>('ALL');
+  const [localLiveDrawActive, setLocalLiveDrawActive] = useState(false);
+
+  React.useEffect(() => {
+    if (activeTournament?.isLiveDrawActive) {
+      setLocalLiveDrawActive(true);
+    } else {
+      setLocalLiveDrawActive(false);
+    }
+  }, [activeTournament?.isLiveDrawActive]);
+
+  const handleDrawComplete = React.useCallback(() => {
+    // Wait 1 minute after all slots are filled, then hide the broadcast.
+    setTimeout(() => {
+      setLocalLiveDrawActive(false);
+    }, 60000);
+  }, []);
 
   const venueMap = React.useMemo(
     () => new Map((activeTournament?.venues || []).map((v) => [v.id, v])),
@@ -327,9 +343,9 @@ export const PublicTournamentPortal: React.FC = () => {
         </div>
       ) : null}
       {/* Live Draw Broadcast Section */}
-      {activeTournament.isLiveDrawActive && (
+      {localLiveDrawActive && (
         <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto px-4 sm:px-6 lg:px-8 mt-8 mb-8 relative z-20">
-          <LiveDrawRoom isPublicView={true} />
+          <LiveDrawRoom isPublicView={true} onDrawComplete={handleDrawComplete} />
         </div>
       )}
 
@@ -951,18 +967,6 @@ export const PublicTournamentPortal: React.FC = () => {
                 <span className="text-[11px] text-slate-400 flex items-center gap-1 font-medium sm:hidden">
                   <span>👈 Swipe horizontally to view rounds 👉</span>
                 </span>
-                <button
-                  onClick={() => {
-                    const knockoutMatches = fixtures.filter(
-                      (m) => m.stage === 'KNOCKOUT' || m.stage === 'FINAL' || m.stage === 'WINNERS_BRACKET'
-                    );
-                    printKnockoutBrackets(knockoutMatches, teams);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl transition font-bold text-xs shadow-sm cursor-pointer"
-                >
-                  <Printer className="w-4 h-4" />
-                  Print Semis & Finals
-                </button>
               </div>
             </div>
             <div className="overflow-x-auto touch-scroll pb-4 no-scrollbar">

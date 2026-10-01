@@ -32,8 +32,8 @@ export const InteractiveBracket: React.FC = () => {
   const finalMatch = knockoutMatches.find((m) => m.stage === 'FINAL' && m.status === 'COMPLETED');
   const championTeam = finalMatch ? teams.find((t) => t.id === finalMatch.winnerId) : null;
 
-  const handlePrintBrackets = () => {
-    printKnockoutBrackets(knockoutMatches, teams);
+  const handlePrintBrackets = (mode: 'ALL' | 'SEMIS' | 'FINAL') => {
+    printKnockoutBrackets(knockoutMatches, teams, mode);
   };
 
   return (
@@ -51,13 +51,29 @@ export const InteractiveBracket: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={handlePrintBrackets}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl transition font-bold text-xs shadow-sm cursor-pointer"
-          >
-            <Printer className="w-4 h-4" />
-            Print Semis & Finals
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-2">
+            <button
+              onClick={() => handlePrintBrackets('SEMIS')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl transition font-bold text-xs shadow-sm cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print Semis
+            </button>
+            <button
+              onClick={() => handlePrintBrackets('FINAL')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl transition font-bold text-xs shadow-sm cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print Finals
+            </button>
+            <button
+              onClick={() => handlePrintBrackets('ALL')}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sport-navy hover:bg-slate-800 text-white border border-slate-700 rounded-xl transition font-bold text-xs shadow-sm cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print All
+            </button>
+          </div>
           
           {championTeam && (
             <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl shadow-md font-bold text-xs animate-bounce">

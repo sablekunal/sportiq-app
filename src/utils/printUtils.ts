@@ -1,13 +1,20 @@
 import { Match, Team } from '../types';
 
-export const printKnockoutBrackets = (knockoutMatches: Match[], teams: Team[]) => {
+export const printKnockoutBrackets = (
+  knockoutMatches: Match[], 
+  teams: Team[], 
+  printMode: 'ALL' | 'SEMIS' | 'FINAL' = 'ALL'
+) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
   
-  const targetMatches = knockoutMatches.filter(m => 
-    m.roundName.toLowerCase().includes('semi') || 
-    m.roundName.toLowerCase().includes('final')
-  );
+  const targetMatches = knockoutMatches.filter(m => {
+    const isSemi = m.roundName.toLowerCase().includes('semi');
+    const isFinal = m.roundName.toLowerCase().includes('final');
+    if (printMode === 'SEMIS') return isSemi;
+    if (printMode === 'FINAL') return isFinal;
+    return isSemi || isFinal;
+  });
 
   let html = `
     <html>
@@ -43,23 +50,26 @@ export const printKnockoutBrackets = (knockoutMatches: Match[], teams: Team[]) =
 
   if (targetMatches.length === 0) {
     // Render an empty template for printing
-    const emptyRounds = [
-      {
+    const emptyRounds = [];
+    if (printMode === 'ALL' || printMode === 'SEMIS') {
+      emptyRounds.push({
         roundNum: 1,
         roundName: 'Semi-Finals',
         matches: [
           { position: 1, home: 'Winner Group A', away: 'Winner Group C' },
           { position: 2, home: 'Winner Group B', away: 'Winner Group D' }
         ]
-      },
-      {
+      });
+    }
+    if (printMode === 'ALL' || printMode === 'FINAL') {
+      emptyRounds.push({
         roundNum: 2,
         roundName: 'Final',
         matches: [
           { position: 1, home: 'Winner SF1', away: 'Winner SF2' }
         ]
-      }
-    ];
+      });
+    }
 
     emptyRounds.forEach(r => {
       html += `<div class="round-col">`;

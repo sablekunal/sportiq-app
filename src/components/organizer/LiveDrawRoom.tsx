@@ -26,7 +26,7 @@ const WHEEL_COLORS = [
   '#6D4C41', // Brown
 ];
 
-export const LiveDrawRoom: React.FC<{ isPublicView?: boolean }> = ({ isPublicView }) => {
+export const LiveDrawRoom: React.FC<{ isPublicView?: boolean; onDrawComplete?: () => void }> = ({ isPublicView, onDrawComplete }) => {
   const {
     activeTournament,
     updateTournamentStatus,
@@ -97,6 +97,12 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean }> = ({ isPublicVie
     ? assignedTeamIds.size
     : teams.length - remainingPool.length;
   const isCompleted = isGroupKnockout ? filledCount === 16 || (filledCount === teams.length && remainingPool.length === 0) : remainingPool.length === 0;
+
+  useEffect(() => {
+    if (isCompleted && onDrawComplete) {
+      onDrawComplete();
+    }
+  }, [isCompleted, onDrawComplete]);
 
   const getNextEmptySlot = (): { groupId: string; position: number } | null => {
     for (const g of GROUPS) {
