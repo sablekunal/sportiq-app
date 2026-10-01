@@ -65,7 +65,35 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
     const colors = ['#f97316', '#2563eb', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#eab308', '#ec4899'];
 
     if (teamGenMode === 'EXCEL') {
-      finalTeams = initialTeamsData;
+      // Deep-clone Excel data so IDs are unique per tournament creation
+      finalTeams = initialTeamsData.map((t, i) => ({
+        ...t,
+        id: `team-${Date.now()}-${i + 1}`,
+        seed: i + 1,
+        players: t.players.map((p, j) => ({
+          ...p,
+          id: `p-${Date.now()}-${i}-${j}`,
+        })),
+      }));
+      
+      // If we need exactly 16 for 4x4 groups and only have 15, add a filler
+      if (finalTeams.length < 16 && format === 'GROUP_KNOCKOUT') {
+        const fillerCount = 16 - finalTeams.length;
+        for (let f = 0; f < fillerCount; f++) {
+          finalTeams.push({
+            id: `team-${Date.now()}-filler-${f + 1}`,
+            name: `TBD Team ${f + 1}`,
+            shortName: `TB${f + 1}`,
+            seed: finalTeams.length + 1,
+            color: '#94a3b8',
+            institution: '',
+            captainName: '',
+            isCaptainPlaying: false,
+            players: [],
+            rosterStatus: 'INCOMPLETE',
+          });
+        }
+      }
     } else if (teamGenMode === 'CUSTOM' && teamNamesInput.trim()) {
       const parsedLines = teamNamesInput
         .split('\n')
@@ -99,6 +127,7 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
       }));
     }
 
+    const actualTeamCount = finalTeams.length;
     const config = SPORT_CONFIGS[sport];
 
     createTournament({
@@ -118,7 +147,7 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
         matchDurationMinutes: config.defaultDurationMinutes,
         periodsCount: config.defaultPeriods.length,
         tieBreakers: ['points', 'difference', 'scored'],
-        numberOfTeams: numTeams,
+        numberOfTeams: actualTeamCount,
         numberOfGroups: format === 'GROUP_KNOCKOUT' ? numGroups : undefined,
         qualifiersPerGroup: format === 'GROUP_KNOCKOUT' ? qualifiersPerGroup : undefined,
         headToHead: headToHead
