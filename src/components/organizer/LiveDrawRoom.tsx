@@ -503,12 +503,16 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean; onDrawComplete?: (
               )}
 
               {isPublicView && !currentDrawnTeam && (
-                <div className="text-slate-400 text-xs font-semibold">
-                  {isDrawing ? (
-                    <span className="animate-pulse">🎰 Spinning the wheel...</span>
-                  ) : (
-                    'Waiting for organizer to draw...'
-                  )}
+                <div className="w-full flex items-center justify-center p-2">
+                  <div className={`w-full max-w-[280px] py-3.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 border border-slate-700 ${isDrawing ? 'bg-orange-500/10 text-orange-400 border-orange-500/30 shadow-[0_0_15px_rgba(249,115,22,0.2)]' : 'bg-slate-800 text-slate-400'}`}>
+                    {isDrawing ? (
+                      <span className="animate-pulse flex items-center gap-2">
+                        <Radio className="w-5 h-5 animate-spin" /> Team getting picked...
+                      </span>
+                    ) : (
+                      'Waiting for organizer to draw...'
+                    )}
+                  </div>
                 </div>
               )}
             </div>
