@@ -491,9 +491,9 @@ export const LiveScoringStudio: React.FC = () => {
         </div>
 
         {/* Big Live Score Arena */}
-        <div className="relative z-10 py-6 grid grid-cols-1 md:grid-cols-7 gap-6 items-center">
+        <div className="relative z-10 py-6 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 items-center">
           {/* Home Team Score Console */}
-          <div className="md:col-span-3 text-center sm:text-right space-y-3">
+          <div className="text-center sm:text-right space-y-3">
             <div className="flex items-center justify-center sm:justify-end gap-3">
               <div>
                 <h3 className="text-xl sm:text-2xl font-black text-white flex items-center justify-center sm:justify-end gap-2">
@@ -575,9 +575,9 @@ export const LiveScoringStudio: React.FC = () => {
           </div>
 
           {/* Large Center Scorecard */}
-          <div className="md:col-span-1 text-center">
-            <div className="inline-block bg-slate-950/95 px-6 py-4 rounded-3xl border border-slate-700/80 shadow-2xl">
-              <div className="text-5xl sm:text-6xl font-black text-amber-300 tracking-tight font-mono">
+          <div className="text-center">
+            <div className="inline-block bg-slate-950/95 px-6 py-4 rounded-3xl border border-slate-700/80 shadow-2xl min-w-[200px]">
+              <div className="text-5xl sm:text-6xl font-black text-amber-300 tracking-tight font-mono whitespace-nowrap">
                 {activeSet.scoreA} : {activeSet.scoreB}
               </div>
               <div className="text-[11px] font-extrabold text-sport-orange uppercase tracking-wider mt-1">
@@ -587,7 +587,7 @@ export const LiveScoringStudio: React.FC = () => {
           </div>
 
           {/* Away Team Score Console */}
-          <div className="md:col-span-3 text-center sm:text-left space-y-3">
+          <div className="text-center sm:text-left space-y-3">
             <div className="flex items-center justify-center sm:justify-start gap-3">
               <div
                 className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-lg order-last sm:order-first"
