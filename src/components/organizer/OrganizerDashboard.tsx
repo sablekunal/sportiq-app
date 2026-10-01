@@ -44,7 +44,6 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
     updateTournamentStatus,
     generateTournamentFixtures,
     deleteTournament,
-    loadThrowballDemo,
     clearAllData,
     scheduleConflicts,
   } = useTournament();
@@ -74,14 +73,6 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
               >
                 <PlusCircle className="w-4 h-4" />
                 Create New Tournament
-              </button>
-
-              <button
-                onClick={loadThrowballDemo}
-                className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer flex items-center gap-2"
-              >
-                <span>🤾</span>
-                Load Throwball Championship Demo
               </button>
             </div>
 
