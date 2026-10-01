@@ -85,12 +85,10 @@ export const TeamsManagement: React.FC = () => {
     );
   };
 
-  const isCurrentTeamLocked = currentTeam
-    ? Boolean(currentTeam.isRosterLocked) || hasPlayedMatches(currentTeam.id)
-    : false;
+  const isCurrentTeamLocked = false; // user requested to remove the finalize lock
 
-  // Helper to generate a regulation 8-player squad (6 starters + 2 substitutes spec)
-  const generateRegulation8Squad = (teamShort: string): Player[] => {
+  // Helper to generate a regulation 12-player squad (6 starters + 6 substitutes spec)
+  const generateRegulation12Squad = (teamShort: string): Player[] => {
     const timestamp = Date.now();
     return [
       { id: `p-${timestamp}-1`, name: `${teamShort} Captain`, jerseyNumber: 10, role: 'Captain (C)', isCaptain: true },
@@ -101,6 +99,10 @@ export const TeamsManagement: React.FC = () => {
       { id: `p-${timestamp}-6`, name: `${teamShort} Right Wing`, jerseyNumber: 4, role: 'Court Player' },
       { id: `p-${timestamp}-7`, name: `${teamShort} Defender 1`, jerseyNumber: 8, role: 'Court Player' },
       { id: `p-${timestamp}-8`, name: `${teamShort} Defender 2`, jerseyNumber: 11, role: 'Court Player' },
+      { id: `p-${timestamp}-9`, name: `${teamShort} Sub 1`, jerseyNumber: 12, role: 'Court Player' },
+      { id: `p-${timestamp}-10`, name: `${teamShort} Sub 2`, jerseyNumber: 14, role: 'Court Player' },
+      { id: `p-${timestamp}-11`, name: `${teamShort} Sub 3`, jerseyNumber: 16, role: 'Court Player' },
+      { id: `p-${timestamp}-12`, name: `${teamShort} Sub 4`, jerseyNumber: 18, role: 'Court Player' },
     ];
   };
 
@@ -111,7 +113,7 @@ export const TeamsManagement: React.FC = () => {
     const code = (shortName || teamName.slice(0, 3)).toUpperCase().trim().slice(0, 4);
 
     const squadPlayers = withRegulationSquad
-      ? generateRegulation8Squad(code)
+      ? generateRegulation12Squad(code)
       : [
           {
             id: `p-${Date.now()}-1`,
@@ -122,7 +124,7 @@ export const TeamsManagement: React.FC = () => {
           },
         ];
 
-    const initialStatus: RosterStatus = squadPlayers.length === 8 ? 'COMPLETE' : 'INCOMPLETE';
+    const initialStatus: RosterStatus = squadPlayers.length === 12 ? 'COMPLETE' : 'INCOMPLETE';
     const capPlayer = squadPlayers.find((p) => p.isCaptain);
 
     addTeamToTournament(activeTournament.id, {
@@ -154,8 +156,8 @@ export const TeamsManagement: React.FC = () => {
     setPlayerError(null);
     if (!playerName.trim() || !currentTeam || !activeTournament) return;
 
-    if (currentTeam.players.length >= 8) {
-      setPlayerError('Throwball competition limit reached: exactly 8 registered players allowed per team.');
+    if (currentTeam.players.length >= 12) {
+      setPlayerError('Throwball competition limit reached: exactly 12 registered players allowed per team.');
       return;
     }
 
@@ -198,7 +200,7 @@ export const TeamsManagement: React.FC = () => {
       updatedPlayers = [...currentTeam.players, newPlayer];
     }
 
-    const newStatus: RosterStatus = updatedPlayers.length === 8 ? 'COMPLETE' : 'INCOMPLETE';
+    const newStatus: RosterStatus = updatedPlayers.length === 12 ? 'COMPLETE' : 'INCOMPLETE';
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       players: updatedPlayers,
       rosterStatus: newStatus,
@@ -227,7 +229,7 @@ export const TeamsManagement: React.FC = () => {
     }
 
     const updatedPlayers = currentTeam.players.filter((item) => item.id !== playerId);
-    const newStatus: RosterStatus = updatedPlayers.length === 8 ? 'COMPLETE' : 'INCOMPLETE';
+    const newStatus: RosterStatus = updatedPlayers.length === 12 ? 'COMPLETE' : 'INCOMPLETE';
     const remainingCap = updatedPlayers.find((p) => p.isCaptain && p.id !== playerId);
 
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
@@ -354,11 +356,11 @@ export const TeamsManagement: React.FC = () => {
     }
     if (
       team.players.length > 0 &&
-      !window.confirm(`Replace current roster for ${team.name} with regulation 8-player squad?`)
+      !window.confirm(`Replace current roster for ${team.name} with regulation 12-player squad?`)
     ) {
       return;
     }
-    const newPlayers = generateRegulation8Squad(team.shortName);
+    const newPlayers = generateRegulation12Squad(team.shortName);
     const capPlayer = newPlayers.find((p) => p.isCaptain);
     updateTeamInTournament(activeTournament.id, team.id, {
       players: newPlayers,
@@ -376,60 +378,7 @@ export const TeamsManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Official Throwball Regulation Specifications Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-sport-navy to-sport-midnight text-white p-5 rounded-2xl border border-slate-800 shadow-md">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-xl bg-sport-orange/20 text-sport-orange border border-sport-orange/30 shrink-0 mt-0.5">
-            <Info className="w-5 h-5" />
-          </div>
-          <div className="space-y-2 flex-1">
-            <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
-              St. Xavier's Girls Throwball — Official Competition Roster Specification
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-xs pt-1 text-slate-300">
-              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
-                <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  1. Registered Roster
-                </span>
-                <span className="font-semibold text-white">Exactly 8 Players</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">Required before competition publication</p>
-              </div>
 
-              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
-                <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  2. Match Day Lineup
-                </span>
-                <span className="font-semibold text-white">6 Starters + 2 Subs</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">Selected per match; not permanent roles</p>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
-                <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  3. Catholic Quota
-                </span>
-                <span className="font-semibold text-white">Min 3 Catholics</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">Compulsory per team (Official Rule)</p>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
-                <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  4. Sets & Points
-                </span>
-                <span className="font-semibold text-white">Best of 3 Sets</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">15 rally pts per set (No 3rd set if 2-0)</p>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
-                <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  5. Jersey Numbers
-                </span>
-                <span className="font-semibold text-white">#1 to #99 (Unique)</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">No duplicate jerseys within same team</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -439,7 +388,7 @@ export const TeamsManagement: React.FC = () => {
             Tournament Teams & Squad Rosters
           </h3>
           <p className="text-xs text-slate-500">
-            Dynamic team registration: Add, edit, remove players. Teams reach 8 players to finalize ({teams.length} Teams Registered)
+            Dynamic team registration: Add, edit, remove players. Teams reach 12 players to finalize ({teams.length} Teams Registered)
           </p>
         </div>
 
@@ -560,7 +509,7 @@ export const TeamsManagement: React.FC = () => {
                   onChange={(e) => setWithRegulationSquad(e.target.checked)}
                   className="rounded text-sport-orange focus:ring-sport-orange w-4 h-4 cursor-pointer"
                 />
-                <span>Auto-generate Regulation 8-Player Squad (6 starters + 2 substitutes spec with unique jerseys)</span>
+                <span>Auto-generate Regulation 12-Player Squad (6 starters + 6 substitutes spec with unique jerseys)</span>
               </label>
               <span className="text-[10px] uppercase font-black text-sport-orange px-2 py-0.5 rounded bg-orange-100">
                 Recommended
@@ -598,7 +547,7 @@ export const TeamsManagement: React.FC = () => {
           {teams.map((team) => {
             const isSelected = currentTeam?.id === team.id;
             const validation = validateTeamRoster(team.players, THROWBALL_ROSTER_RULES);
-            const teamLocked = hasPlayedMatches(team.id) || Boolean(team.isRosterLocked);
+            const teamLocked = false; // User requested to remove the finalize lock from teams
             const rosterStatus = getRosterStatus(team);
 
             return (
@@ -633,15 +582,15 @@ export const TeamsManagement: React.FC = () => {
                         <span>•</span>
                         {rosterStatus === 'LOCKED' ? (
                           <span className="text-purple-700 font-extrabold flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded bg-purple-50 border border-purple-200">
-                            <Lock className="w-2.5 h-2.5" /> LOCKED (8/8)
+                            <Lock className="w-2.5 h-2.5" /> LOCKED (12/12)
                           </span>
                         ) : rosterStatus === 'COMPLETE' ? (
                           <span className="text-emerald-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200">
-                            COMPLETE (8/8)
+                            COMPLETE (12/12)
                           </span>
                         ) : (
                           <span className="text-amber-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-amber-50 border border-amber-200">
-                            INCOMPLETE ({team.players.length}/8)
+                            INCOMPLETE ({team.players.length}/12)
                           </span>
                         )}
                       </div>

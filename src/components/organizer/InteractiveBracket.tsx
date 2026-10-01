@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { Match } from '../../types';
-import { Trophy, GitBranch, Radio, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Trophy, GitBranch, Radio, CheckCircle2, ChevronRight, Printer } from 'lucide-react';
 
 export const InteractiveBracket: React.FC = () => {
   const { activeTournament, setActiveMatchId, setOrganizerTab } = useTournament();
@@ -43,6 +43,86 @@ export const InteractiveBracket: React.FC = () => {
   const finalMatch = knockoutMatches.find((m) => m.stage === 'FINAL' && m.status === 'COMPLETED');
   const championTeam = finalMatch ? teams.find((t) => t.id === finalMatch.winnerId) : null;
 
+  const handlePrintBrackets = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    const targetMatches = knockoutMatches.filter(m => 
+      m.roundName.toLowerCase().includes('semi') || 
+      m.roundName.toLowerCase().includes('final')
+    );
+
+    let html = `
+      <html>
+        <head>
+          <title>Print Brackets - Semifinals & Finals</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #0f172a; }
+            h2 { text-align: center; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; }
+            .grid { display: flex; gap: 40px; justify-content: center; margin-top: 40px; flex-wrap: wrap; }
+            .round-col { display: flex; flex-direction: column; gap: 30px; }
+            .round-title { text-align: center; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #f97316; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;}
+            .match { border: 2px solid #e2e8f0; padding: 12px; border-radius: 12px; width: 260px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+            .header { font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 10px; display: flex; justify-content: space-between; }
+            .team { display: flex; justify-content: space-between; padding: 8px 10px; margin-bottom: 6px; background: #f8fafc; border-radius: 8px; font-weight: 600; font-size: 13px; border: 1px solid #f1f5f9; }
+            .team:last-child { margin-bottom: 0; }
+            .score { font-family: monospace; font-size: 14px; }
+            @media print {
+              body { padding: 0; background: #fff; }
+              button { display: none; }
+              .match { break-inside: avoid; box-shadow: none; border: 2px solid #cbd5e1; }
+            }
+          </style>
+        </head>
+        <body>
+          <h2>Tournament Championship Brackets</h2>
+          <div style="text-align: center; margin-bottom: 30px;">
+            <button onclick="window.print()" style="padding: 10px 20px; background: #0f172a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+              Print Now
+            </button>
+          </div>
+          <div class="grid">
+    `;
+
+    const rounds = [...new Set(targetMatches.map(m => m.round))].sort((a,b) => a - b);
+    
+    rounds.forEach(roundNum => {
+      const matches = targetMatches.filter(m => m.round === roundNum).sort((a,b) => a.position - b.position);
+      const roundName = matches[0]?.roundName || \`Round \${roundNum}\`;
+      
+      html += \`<div class="round-col">\`;
+      html += \`<div class="round-title">\${roundName}</div>\`;
+      
+      matches.forEach(m => {
+        const home = teams.find(t => t.id === m.homeTeamId)?.name || m.homePlaceholder || 'TBD (Awaiting)';
+        const away = teams.find(t => t.id === m.awayTeamId)?.name || m.awayPlaceholder || 'TBD (Awaiting)';
+        const homeScore = m.homeScore ?? '-';
+        const awayScore = m.awayScore ?? '-';
+        
+        html += \`
+          <div class="match">
+            <div class="header">
+              <span>Match #\${m.fixtureNumber || m.position}</span>
+              <span>\${m.status === 'LIVE' ? 'LIVE' : m.status === 'COMPLETED' ? 'Done' : 'Scheduled'}</span>
+            </div>
+            <div class="team"><span>\${home}</span> <span class="score">\${homeScore}</span></div>
+            <div class="team"><span>\${away}</span> <span class="score">\${awayScore}</span></div>
+          </div>
+        \`;
+      });
+      html += \`</div>\`;
+    });
+
+    html += \`
+          </div>
+        </body>
+      </html>
+    \`;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -57,12 +137,22 @@ export const InteractiveBracket: React.FC = () => {
           </p>
         </div>
 
-        {championTeam && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl shadow-md font-bold text-xs animate-bounce">
-            <Trophy className="w-4 h-4 text-yellow-200" />
-            Tournament Champion: {championTeam.name}
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handlePrintBrackets}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl transition font-bold text-xs shadow-sm cursor-pointer"
+          >
+            <Printer className="w-4 h-4" />
+            Print Semis & Finals
+          </button>
+          
+          {championTeam && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl shadow-md font-bold text-xs animate-bounce">
+              <Trophy className="w-4 h-4 text-yellow-200" />
+              Tournament Champion: {championTeam.name}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bracket Tree Canvas */}

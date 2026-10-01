@@ -27,7 +27,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { getNextScheduledMatch } from '../../domain/tournament/operations/scheduleManager';
 
-type PublicTab = 'overview' | 'fixtures' | 'standings' | 'bracket' | 'teams';
+type PublicTab = 'overview' | 'fixtures' | 'standings' | 'bracket' | 'teams' | 'draw';
 
 export const PublicTournamentPortal: React.FC = () => {
   const { activeTournament, setViewMode, tournaments, setActiveTournamentId } = useTournament();
@@ -333,6 +333,7 @@ export const PublicTournamentPortal: React.FC = () => {
             { id: 'standings' as PublicTab, label: 'Standings', icon: <BarChart3 className="w-4 h-4" /> },
             { id: 'bracket' as PublicTab, label: 'Bracket', icon: <GitBranch className="w-4 h-4" /> },
             { id: 'teams' as PublicTab, label: 'Teams & Rosters', icon: <Users className="w-4 h-4" /> },
+            ...(activeTournament.format === 'GROUP_KNOCKOUT' ? [{ id: 'draw' as PublicTab, label: 'Draw Results', icon: <Radio className="w-4 h-4" /> }] : []),
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1007,6 +1008,79 @@ export const PublicTournamentPortal: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* 6. Draw Results Tab */}
+        {activeTab === 'draw' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <h3 className="text-lg font-bold text-sport-navy mb-4">Official Draw Results</h3>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="py-3 px-4 font-bold text-slate-600 uppercase text-xs">Draw Order</th>
+                    <th className="py-3 px-4 font-bold text-slate-600 uppercase text-xs">Team</th>
+                    <th className="py-3 px-4 font-bold text-slate-600 uppercase text-xs">Assigned Group</th>
+                    <th className="py-3 px-4 font-bold text-slate-600 uppercase text-xs">Position</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(() => {
+                    const drawList = [];
+                    // Simulated chronological order: A1, B1, C1, D1, A2, B2...
+                    if (activeTournament?.groups) {
+                      for (let pos = 1; pos <= 4; pos++) {
+                        for (const g of ['A', 'B', 'C', 'D']) {
+                          const group = activeTournament.groups.find(gr => gr.id === g);
+                          if (group && group.teamIds && group.teamIds[pos - 1]) {
+                            const teamId = group.teamIds[pos - 1];
+                            const team = teams.find(t => t.id === teamId);
+                            if (team) {
+                              drawList.push({
+                                teamName: team.name,
+                                shortName: team.shortName,
+                                color: team.color,
+                                group: group.name,
+                                position: `${g}${pos}`
+                              });
+                            }
+                          }
+                        }
+                      }
+                    }
+                    
+                    if (drawList.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-slate-400 italic">
+                            Live draw has not been conducted yet.
+                          </td>
+                        </tr>
+                      );
+                    }
+                    
+                    return drawList.map((draw, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 transition">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-500">#{idx + 1}</td>
+                        <td className="py-3 px-4 font-bold text-sport-navy flex items-center gap-3">
+                          <span 
+                            className="w-6 h-6 rounded flex items-center justify-center text-white text-[9px] font-black"
+                            style={{ backgroundColor: draw.color || '#f97316' }}
+                          >
+                            {draw.shortName || 'T'}
+                          </span>
+                          {draw.teamName}
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-slate-700">{draw.group}</td>
+                        <td className="py-3 px-4 font-mono font-black text-sport-orange">{draw.position}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

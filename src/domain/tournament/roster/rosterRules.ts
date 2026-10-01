@@ -11,9 +11,9 @@ export interface RosterRules {
 }
 
 export const THROWBALL_ROSTER_RULES: RosterRules = {
-  rosterSize: 8,
+  rosterSize: 12,
   startingPlayers: 6,
-  substitutePlayers: 2,
+  substitutePlayers: 6,
   minCatholics: 3,
 };
 

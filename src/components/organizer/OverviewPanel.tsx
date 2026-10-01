@@ -156,27 +156,11 @@ export const OverviewPanel: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase font-extrabold tracking-wider text-slate-400">
-                Operations Engine
-              </span>
-              <span
-                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                  readiness.status === 'READY'
-                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                    : readiness.status === 'WARNING'
-                    ? 'bg-amber-100 text-amber-700 border border-amber-300'
-                    : 'bg-rose-100 text-rose-700 border border-rose-300'
-                }`}
-              >
-                ● {readiness.status}
-              </span>
-            </div>
             <h3 className="text-lg font-black text-sport-navy mt-0.5">
-              Tournament Readiness Checklist
+              Tournament Publishing
             </h3>
             <p className="text-xs text-slate-500">
-              Verifies all known Throwball competition rules (16 teams, 8 players, 4 groups, 27 fixtures, scheduling).
+              Publish your tournament to make it visible to participants.
             </p>
           </div>
 
@@ -203,7 +187,7 @@ export const OverviewPanel: React.FC = () => {
               </>
             ) : (
               <button
-                disabled={!readiness.canPublish || isPublishing}
+                disabled={isPublishing}
                 onClick={async () => {
                   setIsPublishing(true);
                   setPublishFeedback(null);
@@ -217,18 +201,10 @@ export const OverviewPanel: React.FC = () => {
                   }
                   setIsPublishing(false);
                 }}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer active:scale-95 ${
-                  readiness.canPublish
-                    ? 'bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange'
-                    : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                }`}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer active:scale-95 bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange`}
               >
                 <Globe className="w-4 h-4" />
-                {isPublishing
-                  ? 'Publishing...'
-                  : readiness.canPublish
-                  ? 'Publish Tournament'
-                  : 'Publish Blocked (Resolve Errors)'}
+                {isPublishing ? 'Publishing...' : 'Publish Tournament'}
               </button>
             )}
           </div>
@@ -252,46 +228,7 @@ export const OverviewPanel: React.FC = () => {
           </div>
         )}
 
-        {/* Readiness Checklist Items Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {readiness.items.map((item) => (
-            <div
-              key={item.id}
-              className={`p-3 rounded-xl border transition ${
-                item.status === 'READY'
-                  ? 'bg-slate-50/60 border-slate-200'
-                  : item.status === 'WARNING'
-                  ? 'bg-amber-50/40 border-amber-200'
-                  : 'bg-rose-50/50 border-rose-200'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-1 mb-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
-                  {item.category}
-                </span>
-                {item.status === 'READY' ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                ) : item.status === 'WARNING' ? (
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                )}
-              </div>
 
-              <div className="text-xs font-bold text-slate-900 leading-snug">{item.label}</div>
-
-              {item.message && (
-                <p className="text-[11px] text-slate-600 mt-1 leading-normal">{item.message}</p>
-              )}
-
-              {item.details && (
-                <div className="text-[10px] text-slate-400 font-mono mt-1 truncate">
-                  {item.details}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Main Grid: Quick Action Workflows & Live Match Highlight */}

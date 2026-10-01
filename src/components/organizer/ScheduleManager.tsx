@@ -205,40 +205,6 @@ export const ScheduleManager: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* View Mode Toggle: List View vs Court Matrix */}
-          <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                viewMode === 'list'
-                  ? 'bg-white text-sport-navy shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" />
-              List View
-            </button>
-            <button
-              onClick={() => setViewMode('court')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                viewMode === 'court'
-                  ? 'bg-white text-sport-navy shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Columns className="w-3.5 h-3.5" />
-              Court View
-            </button>
-          </div>
-
-          {/* Manage Courts Button */}
-          <button
-            onClick={() => setVenueModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 shadow-sm transition cursor-pointer"
-          >
-            <MapPin className="w-3.5 h-3.5 text-sport-orange" />
-            Courts ({venues.length})
-          </button>
         </div>
       </div>
 
@@ -270,16 +236,7 @@ export const ScheduleManager: React.FC = () => {
           </div>
         </div>
 
-        {/* Metric 3: Missing Court */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Unassigned Court</div>
-            <div className="text-xl font-black text-slate-700 mt-0.5">{noCourtCount}</div>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center">
-            <MapPin className="w-5 h-5" />
-          </div>
-        </div>
+
 
         {/* Metric 4: Conflict Status */}
         <div className={`p-4 rounded-xl border shadow-sm flex items-center justify-between ${
@@ -333,7 +290,7 @@ export const ScheduleManager: React.FC = () => {
                   <th className="py-3 px-4">Matchup</th>
                   <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">Time Window</th>
-                  <th className="py-3 px-4">Court / Venue</th>
+
                   <th className="py-3 px-4 text-center">Status</th>
                   <th className="py-3 px-4 text-right">Action</th>
                 </tr>
@@ -418,17 +375,7 @@ export const ScheduleManager: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Court */}
-                      <td className="py-3 px-4">
-                        {venue ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-orange-50 text-sport-orange border border-orange-200">
-                            <MapPin className="w-3 h-3" />
-                            {venue.name}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-[11px] italic">No court</span>
-                        )}
-                      </td>
+
 
                       {/* Status */}
                       <td className="py-3 px-4 text-center">
@@ -475,124 +422,7 @@ export const ScheduleManager: React.FC = () => {
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          VIEW 2: COURT / DAY VIEW
-      ───────────────────────────────────────────────────────────── */}
-      {viewMode === 'court' && (
-        <div className="space-y-4">
-          {/* Date Selector Tabs */}
-          <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider px-2">Date:</span>
-            {uniqueDates.length === 0 ? (
-              <span className="text-xs text-slate-400 italic">No scheduled dates found. Assign dates in List View.</span>
-            ) : (
-              uniqueDates.map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setSelectedDate(d)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
-                    activeSelectedDate === d
-                      ? 'bg-sport-navy text-white shadow-sm'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  📅 {d}
-                </button>
-              ))
-            )}
-          </div>
 
-          {/* Court Columns Matrix */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {venues.map((venue) => {
-              // Find matches assigned to this venue on selectedDate
-              const courtMatches = fixtures.filter((m) => {
-                const d = m.schedule?.date || m.date || (m.scheduledAt && m.scheduledAt.includes('T') ? m.scheduledAt.split('T')[0] : null);
-                const vid = m.schedule?.venueId || m.venueId;
-                return d === activeSelectedDate && vid === venue.id;
-              });
-
-              // Sort chronologically
-              courtMatches.sort((a, b) => {
-                const tA = a.schedule?.startTime || a.startTime || '';
-                const tB = b.schedule?.startTime || b.startTime || '';
-                return tA.localeCompare(tB);
-              });
-
-              return (
-                <div key={venue.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                  {/* Column Header */}
-                  <div className="bg-slate-50 p-3.5 border-b border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 font-black text-sport-navy text-xs">
-                      <MapPin className="w-3.5 h-3.5 text-sport-orange" />
-                      <span>{venue.name}</span>
-                    </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                      {courtMatches.length} Matches
-                    </span>
-                  </div>
-
-                  {/* Matches on this court */}
-                  <div className="p-3 space-y-2.5 flex-1 min-h-[160px]">
-                    {courtMatches.length === 0 ? (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-400 text-xs py-8 text-center italic">
-                        No matches scheduled on this court for {activeSelectedDate || 'selected date'}.
-                      </div>
-                    ) : (
-                      courtMatches.map((m) => {
-                        const home = m.homeTeamId ? teamMap.get(m.homeTeamId) : null;
-                        const away = m.awayTeamId ? teamMap.get(m.awayTeamId) : null;
-                        const isLive = m.status === 'LIVE';
-                        const isLocked = isLive || m.status === 'COMPLETED';
-
-                        return (
-                          <div
-                            key={m.id}
-                            onClick={() => handleOpenEdit(m)}
-                            className={`p-3 rounded-xl border transition cursor-pointer ${
-                              isLive
-                                ? 'bg-red-50/80 border-red-200 ring-1 ring-red-400'
-                                : 'bg-slate-50/60 hover:bg-slate-100/80 border-slate-200'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between text-[11px] mb-1.5">
-                              <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-white text-slate-800 border border-slate-200">
-                                {m.matchCode || `#${m.fixtureNumber ?? m.position}`}
-                              </span>
-                              <span className="font-mono font-extrabold text-sport-navy flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-slate-400" />
-                                {m.schedule?.startTime || m.startTime || 'TBD'}
-                                {m.schedule?.endTime || m.endTime ? ` – ${m.schedule?.endTime || m.endTime}` : ''}
-                              </span>
-                            </div>
-
-                            <div className="font-bold text-xs text-slate-900 truncate">
-                              {home?.name || m.homePlaceholder || 'TBD'}
-                              <span className="text-slate-400 font-normal mx-1">vs</span>
-                              {away?.name || m.awayPlaceholder || 'TBD'}
-                            </div>
-
-                            <div className="mt-2 flex items-center justify-between text-[10px]">
-                              <span className="text-slate-500 font-semibold">{m.groupId ? `Group ${m.groupId}` : m.roundName}</span>
-                              {isLocked ? (
-                                <span className="flex items-center gap-0.5 text-slate-400">
-                                  <Lock className="w-3 h-3" /> Locked
-                                </span>
-                              ) : (
-                                <span className="text-sport-orange font-bold hover:underline">Edit →</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* ─────────────────────────────────────────────────────────────
           MATCH SCHEDULING EDITOR MODAL
@@ -712,25 +542,7 @@ export const ScheduleManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Court / Venue Selection */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Assigned Court / Venue
-                </label>
-                <select
-                  disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED'}
-                  value={formVenueId}
-                  onChange={(e) => setFormVenueId(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sport-orange disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">-- No Court Assigned --</option>
-                  {venues.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+
 
               {/* Actions Footer */}
               <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
