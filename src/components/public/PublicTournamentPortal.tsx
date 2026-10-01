@@ -230,8 +230,8 @@ export const PublicTournamentPortal: React.FC = () => {
               <div className="flex items-center gap-3">
                 {(() => {
                   const lm = liveMatches[0];
-                  const setsWonA = lm.setsWonA ?? (lm.sets || []).filter((s) => s.status === 'COMPLETED' && s.winnerId === lm.homeTeamId).length;
-                  const setsWonB = lm.setsWonB ?? (lm.sets || []).filter((s) => s.status === 'COMPLETED' && s.winnerId === lm.awayTeamId).length;
+                  const setsWonA = lm.homeScore || 0;
+                  const setsWonB = lm.awayScore || 0;
                   return (
                     <span className="bg-black/20 px-2.5 py-1 rounded-md text-[10px] text-amber-300 tracking-widest border border-white/10 shadow-sm">
                       SETS: {setsWonA} - {setsWonB}
@@ -248,6 +248,9 @@ export const PublicTournamentPortal: React.FC = () => {
               const a = teams.find((t) => t.id === lm.awayTeamId);
               const court = lm.schedule?.venueId || lm.venueId ? venueMap.get(lm.schedule?.venueId || lm.venueId!) : null;
 
+              const currentSets = lm.sets || [];
+              const activeSet = currentSets.find((s) => s.status === 'LIVE') || currentSets[currentSets.length - 1] || { setNumber: 1, scoreA: 0, scoreB: 0 };
+
               return (
                 <div
                   onClick={() => setSelectedMatch(lm)}
@@ -258,9 +261,9 @@ export const PublicTournamentPortal: React.FC = () => {
                   </div>
 
                   <div className="px-3 xs:px-5 py-1.5 rounded-xl bg-sport-midnight border border-white/20 text-center font-mono font-black text-xl xs:text-2xl sm:text-3xl text-yellow-300 shadow-inner shrink-0">
-                    {lm.homeScore} : {lm.awayScore}
+                    {activeSet.scoreA} : {activeSet.scoreB}
                     <div className="text-[9px] xs:text-[10px] font-sans font-bold text-red-200 uppercase tracking-wider">
-                      {court ? `${court.name} • ` : ''}{lm.score.period || 'In Play'}
+                      {court ? `${court.name} • ` : ''}SET {activeSet.setNumber}
                     </div>
                   </div>
 
