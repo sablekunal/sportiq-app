@@ -18,11 +18,30 @@ export const LiveDrawRoom: React.FC = () => {
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentDrawnTeam, setCurrentDrawnTeam] = useState<Team | null>(null);
+  
+  const isGroupKnockout = activeTournament?.format === 'GROUP_KNOCKOUT';
+  const teams = activeTournament?.teams || [];
+
+  const assignedTeamIds = new Set<string>();
+  if (isGroupKnockout && activeTournament?.groups) {
+    activeTournament.groups.forEach((g) => {
+      g.teamIds?.forEach((id) => {
+        if (id) assignedTeamIds.add(id);
+      });
+    });
+  }
+  const remainingPool = teams.filter((t) => !assignedTeamIds.has(t.id));
+
+  const [spinRotation, setSpinRotation] = useState(0);
+  const [wheelSlices, setWheelSlices] = useState<Team[]>([]);
+
+  React.useEffect(() => {
+    if (!isDrawing) {
+      setWheelSlices(remainingPool);
+    }
+  }, [remainingPool.length, isDrawing]);
 
   if (!activeTournament) return null;
-
-  const isGroupKnockout = activeTournament.format === 'GROUP_KNOCKOUT';
-  const teams = activeTournament.teams || [];
 
   // Helper to find team assigned to a specific group slot
   const getAssignedTeam = (groupId: string, position: number): Team | null => {
@@ -31,19 +50,6 @@ export const LiveDrawRoom: React.FC = () => {
     if (!teamId) return null;
     return teams.find((t) => t.id === teamId) || null;
   };
-
-  // Find all assigned team IDs across all groups
-  const assignedTeamIds = new Set<string>();
-  if (isGroupKnockout) {
-    activeTournament.groups?.forEach((g) => {
-      g.teamIds?.forEach((id) => {
-        if (id) assignedTeamIds.add(id);
-      });
-    });
-  }
-
-  // Undrawn teams pool
-  const remainingPool = teams.filter((t) => !assignedTeamIds.has(t.id));
 
   // Count assigned slots
   const totalSlots = isGroupKnockout ? 16 : Math.max(teams.length, 8);
@@ -72,31 +78,50 @@ export const LiveDrawRoom: React.FC = () => {
     if (!nextSlot) return;
 
     setIsDrawing(true);
-    let counter = 0;
-    const interval = setInterval(async () => {
+    setCurrentDrawnTeam(null);
+    
+    // Pick the winner randomly from the current pool
+    const randomIdx = Math.floor(Math.random() * remainingPool.length);
+    const finalTeam = remainingPool[randomIdx];
+
+    const totalSlices = remainingPool.length;
+    const sliceDegree = 360 / totalSlices;
+    
+    // The target slice center is (randomIdx + 0.5) * sliceDegree.
+    // To position this at the TOP (0 degrees), the wheel needs to rotate such that the target slice is at 360 degrees.
+    const targetAngle = 360 - ((randomIdx + 0.5) * sliceDegree);
+    
+    const currentRotMod = spinRotation % 360;
+    // Rotate an extra 5 full times (1800 deg)
+    const newRotation = spinRotation + (360 * 5) + (targetAngle - currentRotMod);
+    
+    setSpinRotation(newRotation);
+
+    let ticks = 0;
+    const tickInterval = setInterval(() => {
       soundEffects.playTick();
-      const randomIdx = Math.floor(Math.random() * remainingPool.length);
-      setCurrentDrawnTeam(remainingPool[randomIdx]);
-      counter++;
+      ticks++;
+      if (ticks > 25) clearInterval(tickInterval); // tick during spin
+    }, 200);
 
-      if (counter > 10) {
-        clearInterval(interval);
-        const finalTeam = remainingPool[randomIdx];
+    // Wait 5 seconds for the CSS transition to complete
+    setTimeout(async () => {
+      clearInterval(tickInterval);
+      setCurrentDrawnTeam(finalTeam);
+      
+      try {
+        await assignGroupPosition(activeTournament.id, nextSlot.groupId, nextSlot.position, finalTeam.id);
+        soundEffects.playCelebration();
 
-        try {
-          await assignGroupPosition(activeTournament.id, nextSlot.groupId, nextSlot.position, finalTeam.id);
-          soundEffects.playCelebration();
-
-          if (remainingPool.length <= 1) {
-            updateTournamentStatus(activeTournament.id, 'DRAW_COMPLETED');
-          }
-        } catch (err: any) {
-          alert(err.message || 'Error assigning group slot');
-        } finally {
-          setIsDrawing(false);
+        if (remainingPool.length <= 1) {
+          updateTournamentStatus(activeTournament.id, 'DRAW_COMPLETED');
         }
+      } catch (err: any) {
+        alert(err.message || 'Error assigning group slot');
+      } finally {
+        setIsDrawing(false);
       }
-    }, 90);
+    }, 5000);
   };
 
   // Instant Auto-Draw All
@@ -206,23 +231,35 @@ export const LiveDrawRoom: React.FC = () => {
               Official Draw Wheel
             </div>
 
-            <div className="relative w-48 h-48 mx-auto mb-6">
+            <div className="relative w-80 h-80 mx-auto mb-8 mt-2">
               {/* Needle */}
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-8 bg-sport-orange z-20" style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%)', filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.3))' }}></div>
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-10 bg-sport-orange z-20" style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%)', filter: 'drop-shadow(0 4px 4px rgba(0,0,0,0.4))' }}></div>
               
               {/* Wheel */}
               <div 
-                className={`w-full h-full rounded-full border-8 border-slate-900 shadow-[0_0_25px_rgba(0,0,0,0.15)] overflow-hidden ${isDrawing ? 'animate-[spin_0.3s_linear_infinite]' : 'transition-transform duration-1000'}`}
+                className={`w-full h-full rounded-full border-[10px] border-slate-900 shadow-[0_0_40px_rgba(0,0,0,0.3)] overflow-hidden transition-transform ease-in-out`}
                 style={{
-                  background: remainingPool.length > 0 
-                    ? `conic-gradient(${remainingPool.map((t, i, arr) => `${t.color || '#cbd5e1'} ${i * (100/arr.length)}% ${(i+1) * (100/arr.length)}%`).join(', ')})`
+                  transform: `rotate(${spinRotation}deg)`,
+                  transitionDuration: isDrawing ? '5s' : '0s',
+                  transitionTimingFunction: 'cubic-bezier(0.15, 0.85, 0.15, 1)',
+                  background: wheelSlices.length > 0 
+                    ? `conic-gradient(${wheelSlices.map((t, i, arr) => `${t.color || '#cbd5e1'} ${i * (100/arr.length)}% ${(i+1) * (100/arr.length)}%`).join(', ')})`
                     : currentDrawnTeam ? currentDrawnTeam.color : '#1e293b'
                 }}
-              />
+              >
+                {/* Optional lines between segments for better visibility */}
+                {wheelSlices.length > 0 && wheelSlices.map((_, i, arr) => (
+                  <div 
+                    key={i} 
+                    className="absolute top-0 left-1/2 w-0.5 h-1/2 bg-slate-900/40 origin-bottom" 
+                    style={{ transform: `rotate(${i * (360/arr.length)}deg)` }}
+                  />
+                ))}
+              </div>
 
               {/* Hub */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-slate-900 rounded-full border-4 border-slate-800 flex items-center justify-center z-10 shadow-xl">
-                <div className="w-4 h-4 bg-sport-orange rounded-full animate-pulse"></div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-slate-900 rounded-full border-[5px] border-slate-800 flex items-center justify-center z-10 shadow-2xl">
+                <div className={`w-5 h-5 bg-sport-orange rounded-full ${isDrawing ? 'animate-pulse' : ''}`}></div>
               </div>
             </div>
 
