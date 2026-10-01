@@ -157,7 +157,7 @@ export const TeamsManagement: React.FC = () => {
     if (!playerName.trim() || !currentTeam || !activeTournament) return;
 
     if (currentTeam.players.length >= 12) {
-      setPlayerError('Throwball competition limit reached: exactly 12 registered players allowed per team.');
+      setPlayerError('Throwball competition limit reached: maximum 12 registered players allowed per team.');
       return;
     }
 
@@ -200,7 +200,7 @@ export const TeamsManagement: React.FC = () => {
       updatedPlayers = [...currentTeam.players, newPlayer];
     }
 
-    const newStatus: RosterStatus = updatedPlayers.length === 12 ? 'COMPLETE' : 'INCOMPLETE';
+    const newStatus: RosterStatus = (updatedPlayers.length >= 6 && updatedPlayers.length <= 12) ? 'COMPLETE' : 'INCOMPLETE';
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       players: updatedPlayers,
       rosterStatus: newStatus,
@@ -229,7 +229,7 @@ export const TeamsManagement: React.FC = () => {
     }
 
     const updatedPlayers = currentTeam.players.filter((item) => item.id !== playerId);
-    const newStatus: RosterStatus = updatedPlayers.length === 12 ? 'COMPLETE' : 'INCOMPLETE';
+    const newStatus: RosterStatus = (updatedPlayers.length >= 6 && updatedPlayers.length <= 12) ? 'COMPLETE' : 'INCOMPLETE';
     const remainingCap = updatedPlayers.find((p) => p.isCaptain && p.id !== playerId);
 
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
@@ -760,23 +760,6 @@ export const TeamsManagement: React.FC = () => {
                       <Edit2 className="w-3.5 h-3.5" />
                       <span>Edit Profile</span>
                     </button>
-                  {/* Finalize Roster Button */}
-                  {currentTeam.players.length === 8 && !isCurrentTeamLocked && (
-                    <button
-                      onClick={async () => {
-                        if (window.confirm(`Finalize and lock the 8-player roster for ${currentTeam.name}? Once finalized, destructive edits are blocked.`)) {
-                          await lockTeamRoster(activeTournament.id, currentTeam.id);
-                          soundEffects.playCelebration();
-                        }
-                      }}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-purple-600 hover:bg-purple-700 text-white transition flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95"
-                      title="Finalize roster (Lock against destructive changes)"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Finalize Roster</span>
-                    </button>
-                  )}
-
                   <button
                     disabled={isCurrentTeamLocked}
                     onClick={() => handlePopulateSquad(currentTeam)}
@@ -785,10 +768,10 @@ export const TeamsManagement: React.FC = () => {
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer'
                     }`}
-                    title="Load standard 8-player Throwball roster"
+                    title="Load standard 12-player Throwball roster"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-sport-orange" />
-                    <span>Load 8-Player Preset</span>
+                    <span>Load 12-Player Preset</span>
                   </button>
 
                   <span
@@ -801,12 +784,12 @@ export const TeamsManagement: React.FC = () => {
                     {currentValidation.isValid ? (
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>8 / 8 Complete</span>
+                        <span>{currentTeam.players.length} / 12 (Min 6 met)</span>
                       </>
                     ) : (
                       <>
                         <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                        <span>{currentTeam.players.length} / 8 Incomplete</span>
+                        <span>{currentTeam.players.length} / 12 (Min 6 Req)</span>
                       </>
                     )}
                   </span>
@@ -838,7 +821,7 @@ export const TeamsManagement: React.FC = () => {
               )}
 
               {/* Add Individual Player Input */}
-              {currentTeam.players.length < 8 && !isCurrentTeamLocked && (
+              {currentTeam.players.length < 12 && !isCurrentTeamLocked && (
                 <form
                   onSubmit={handleAddPlayer}
                   className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap items-center gap-3"

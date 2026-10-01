@@ -34,8 +34,8 @@ export interface RosterValidationResult {
 
 /**
  * Derives the explicit lifecycle state of a team roster:
- * - INCOMPLETE: fewer than 8 players (organizer can continue editing roster)
- * - COMPLETE: exactly 8 players (ready for lock/publication)
+ * - INCOMPLETE: fewer than 6 players (organizer can continue editing roster)
+ * - COMPLETE: between 6 and 12 players (ready for lock/publication)
  * - LOCKED: roster finalized / match started (destructive edits blocked)
  */
 export function getRosterStatus(
@@ -49,7 +49,7 @@ export function getRosterStatus(
   );
 
   if (locked) return 'LOCKED';
-  if (players.length === THROWBALL_ROSTER_RULES.rosterSize) return 'COMPLETE';
+  if (players.length >= THROWBALL_ROSTER_RULES.startingPlayers && players.length <= THROWBALL_ROSTER_RULES.rosterSize) return 'COMPLETE';
   return 'INCOMPLETE';
 }
 
@@ -57,11 +57,11 @@ export function getRosterStatus(
  * Validates a team roster against Throwball rules.
  *
  * During setup (isSetup: true):
- * - Teams with 6/8 or 7/8 players remain valid entities (status: INCOMPLETE, with warnings).
- * - Teams with 8/8 players are COMPLETE and READY.
+ * - Teams with fewer than 6 players remain valid entities (status: INCOMPLETE, with warnings).
+ * - Teams with 6-12 players are COMPLETE and READY.
  *
  * For publication (default / isPublishing: true):
- * - Exactly 8 registered players required (6/8 or 7/8 produces an ERROR).
+ * - Minimum 6, maximum 12 registered players required (fewer than 6 or more than 12 produces an ERROR).
  *
  * In all cases enforces:
  * - Each player has a valid non-empty name
@@ -90,20 +90,20 @@ export function validateTeamRoster(
   const status = getRosterStatus(teamOrPlayers, options?.isLocked);
   const isSetup = Boolean(options?.isSetup);
 
-  // Roster size validation
+  // Roster size validation (Min 6, Max 12)
   if (isSetup) {
     if (players.length > rules.rosterSize) {
       errors.push(`Team roster cannot exceed ${rules.rosterSize} registered players (got ${players.length}).`);
-    } else if (players.length < rules.rosterSize) {
+    } else if (players.length < rules.startingPlayers) {
       warnings.push(
-        `${teamName} has ${players.length}/${rules.rosterSize} registered players (roster incomplete during setup).`
+        `${teamName} has ${players.length}/${rules.rosterSize} registered players (minimum ${rules.startingPlayers} required).`
       );
     }
   } else {
-    // Publication / strict mode requires exactly rosterSize (8)
-    if (players.length !== rules.rosterSize) {
+    // Publication / strict mode requires minimum startingPlayers (6) and max rosterSize (12)
+    if (players.length < rules.startingPlayers || players.length > rules.rosterSize) {
       errors.push(
-        `Team roster must have exactly ${rules.rosterSize} registered players (got ${players.length}).`
+        `Team roster must have between ${rules.startingPlayers} and ${rules.rosterSize} registered players (got ${players.length}).`
       );
     }
   }
