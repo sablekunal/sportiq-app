@@ -202,13 +202,7 @@ export const PublicTournamentPortal: React.FC = () => {
           </div>
         </div>
       </div>
-      {/* Draft Mode Notice Banner */}
-      {activeTournament.status === 'DRAFT' && (
-        <div className="bg-amber-500/20 border-b border-amber-500/40 text-amber-200 px-4 py-2.5 text-center text-xs font-semibold flex items-center justify-center gap-2">
-          <span>⚠️</span>
-          <span>Draft Mode — This tournament schedule has not been officially published yet by the organizer.</span>
-        </div>
-      )}
+
 
       {/* Hero Banner */}
       <div 

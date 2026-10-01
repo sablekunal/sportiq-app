@@ -25,14 +25,8 @@ export const OverviewPanel: React.FC = () => {
     setViewMode,
     generateTournamentFixtures,
     setActiveMatchId,
-    readiness,
-    publishTournament,
-    unpublishTournament,
     updateTournamentSettings,
   } = useTournament();
-
-  const [isPublishing, setIsPublishing] = React.useState(false);
-  const [publishFeedback, setPublishFeedback] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   const [logoUrl, setLogoUrl] = React.useState(activeTournament?.logoUrl || '');
   const [bannerUrl, setBannerUrl] = React.useState(activeTournament?.bannerUrl || '');
@@ -163,83 +157,6 @@ export const OverviewPanel: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Tournament Readiness & Publishing Section */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div>
-            <h3 className="text-lg font-black text-sport-navy mt-0.5">
-              Tournament Publishing
-            </h3>
-            <p className="text-xs text-slate-500">
-              Publish your tournament to make it visible to participants.
-            </p>
-          </div>
-
-          {/* Publishing Controls */}
-          <div className="flex items-center gap-2">
-            {activeTournament.status === 'PUBLISHED' ? (
-              <>
-                <span className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                  Published & Live
-                </span>
-                <button
-                  disabled={isPublishing}
-                  onClick={async () => {
-                    setIsPublishing(true);
-                    await unpublishTournament(activeTournament.id);
-                    setPublishFeedback({ type: 'success', msg: 'Tournament unpublished (status: DRAFT).' });
-                    setIsPublishing(false);
-                  }}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-300 transition cursor-pointer"
-                >
-                  Unpublish
-                </button>
-              </>
-            ) : (
-              <button
-                disabled={isPublishing}
-                onClick={async () => {
-                  setIsPublishing(true);
-                  setPublishFeedback(null);
-                  const res = await publishTournament(activeTournament.id);
-                  if (!res.success) {
-                    setPublishFeedback({ type: 'error', msg: `Publish failed: ${res.errors.join(', ')}` });
-                  } else if (res.warnings.length > 0) {
-                    setPublishFeedback({ type: 'success', msg: `Published with ${res.warnings.length} warning(s).` });
-                  } else {
-                    setPublishFeedback({ type: 'success', msg: 'Tournament published successfully!' });
-                  }
-                  setIsPublishing(false);
-                }}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer active:scale-95 bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange`}
-              >
-                <Globe className="w-4 h-4" />
-                {isPublishing ? 'Publishing...' : 'Publish Tournament'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Feedback Alert */}
-        {publishFeedback && (
-          <div
-            className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-              publishFeedback.type === 'success'
-                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                : 'bg-rose-50 text-rose-800 border border-rose-200'
-            }`}
-          >
-            {publishFeedback.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            )}
-            <span>{publishFeedback.msg}</span>
-          </div>
-        )}
-
 
       </div>
 

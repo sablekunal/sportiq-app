@@ -141,6 +141,13 @@ export const FixturesManager: React.FC = () => {
             const homeDisplayName = home?.name || match.homePlaceholder || 'TBD';
             const awayDisplayName = away?.name || match.awayPlaceholder || 'TBD';
 
+            const isKnockout = match.roundName.toLowerCase().includes('semi') || match.roundName.toLowerCase().includes('final');
+            const hasIncompleteGroups = activeTournament.fixtures.some(m => {
+              const isGrpMatch = !m.roundName.toLowerCase().includes('semi') && !m.roundName.toLowerCase().includes('final');
+              return isGrpMatch && m.status !== 'COMPLETED';
+            });
+            const isScoringLocked = isKnockout && hasIncompleteGroups;
+
             return (
               <div
                 key={match.id}
@@ -242,18 +249,22 @@ export const FixturesManager: React.FC = () => {
                     </button>
 
                     <button
+                      disabled={isScoringLocked}
                       onClick={() => {
                         setActiveMatchId(match.id);
                         setOrganizerTab('scoring');
                       }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                        match.status === 'LIVE'
+                        isScoringLocked
+                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          : match.status === 'LIVE'
                           ? 'bg-red-500 hover:bg-red-600 text-white shadow-sm'
                           : 'bg-sport-orange hover:bg-orange-600 text-white'
                       }`}
+                      title={isScoringLocked ? 'Complete all group stage matches before starting knockouts' : 'Open live scorer desk'}
                     >
-                      <Radio className="w-3.5 h-3.5" />
-                      {match.status === 'LIVE' ? 'Scoring Desk' : 'Open Scorer'}
+                      {isScoringLocked ? <Lock className="w-3.5 h-3.5" /> : <Radio className="w-3.5 h-3.5" />}
+                      {match.status === 'LIVE' ? 'Scoring Desk' : isScoringLocked ? 'Locked' : 'Open Scorer'}
                     </button>
                   </div>
                 </div>
