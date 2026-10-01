@@ -74,11 +74,21 @@ export const PublicTournamentPortal: React.FC = () => {
   const sportConfig = SPORT_CONFIGS[activeTournament?.sport || 'football'] || SPORT_CONFIGS.football;
   const teams = activeTournament?.teams || [];
   const fixtures = activeTournament?.fixtures || [];
-  const liveMatches = useMemo(() => fixtures.filter((m) => m.status === 'LIVE'), [fixtures]);
+  const fixturesHash = useMemo(
+    () => fixtures.map(m => `${m.id}-${m.status}-${m.homeScore}-${m.awayScore}-${m.setsWonA}-${m.setsWonB}-${m.tossWinnerId}`).join('|'),
+    [fixtures]
+  );
+  
+  const teamsHash = useMemo(
+    () => teams.map(t => t.id).join('|'),
+    [teams]
+  );
+
+  const liveMatches = useMemo(() => fixtures.filter((m) => m.status === 'LIVE'), [fixturesHash]);
   
   const fourGroupStandings = useMemo(() => {
     return calculateAllFourGroupStandings(fixtures, teams);
-  }, [fixtures, teams]);
+  }, [fixturesHash, teamsHash]);
   
   const standings = useMemo(() => {
     return calculateSportStandings(
@@ -87,7 +97,7 @@ export const PublicTournamentPortal: React.FC = () => {
       fixtures,
       standingsGroupFilter === 'ALL' ? undefined : standingsGroupFilter
     );
-  }, [activeTournament?.sport, teams, fixtures, standingsGroupFilter]);
+  }, [activeTournament?.sport, teamsHash, fixturesHash, standingsGroupFilter]);
 
   if (!activeTournament) {
     return (
