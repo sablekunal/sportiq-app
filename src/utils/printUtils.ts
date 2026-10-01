@@ -26,11 +26,14 @@ export const printKnockoutBrackets = (
           .grid { display: flex; gap: 40px; justify-content: center; margin-top: 40px; flex-wrap: wrap; }
           .round-col { display: flex; flex-direction: column; gap: 30px; }
           .round-title { text-align: center; font-weight: bold; font-size: 14px; text-transform: uppercase; color: #f97316; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;}
-          .match { border: 2px solid #e2e8f0; padding: 12px; border-radius: 12px; width: 260px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+          .match { border: 2px solid #e2e8f0; padding: 12px; border-radius: 12px; width: 340px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
           .header { font-size: 11px; font-weight: bold; color: #64748b; margin-bottom: 10px; display: flex; justify-content: space-between; }
-          .team { display: flex; justify-content: space-between; padding: 8px 10px; margin-bottom: 6px; background: #f8fafc; border-radius: 8px; font-weight: 600; font-size: 13px; border: 1px solid #f1f5f9; }
-          .team:last-child { margin-bottom: 0; }
-          .score { font-family: monospace; font-size: 14px; }
+          .sets-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+          .sets-table th { font-size: 10px; color: #64748b; text-align: center; font-weight: bold; padding-bottom: 4px; }
+          .sets-table td { padding: 4px; text-align: center; }
+          .sets-table .team-name { text-align: left; font-weight: 700; font-size: 12px; width: 40%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+          .sets-table .set-box { border: 1px solid #cbd5e1; height: 24px; min-width: 24px; display: inline-block; line-height: 24px; font-size: 12px; font-family: monospace; }
+          .sets-table .total-score { font-weight: 900; font-size: 14px; }
           @media print {
             body { padding: 0; background: #fff; }
             button { display: none; }
@@ -47,6 +50,35 @@ export const printKnockoutBrackets = (
         </div>
         <div class="grid">
   `;
+
+  const renderMatchScores = (homeName: string, awayName: string, homeScore: any, awayScore: any, isFinal: boolean, setsData?: any[]) => {
+    const numSets = isFinal ? 5 : 3;
+    let html = '<table class="sets-table">';
+    
+    // Header
+    html += '<tr><th>Team</th>';
+    for(let i = 1; i <= numSets; i++) html += `<th>Set \${i}</th>`;
+    html += '<th>Win</th></tr>';
+    
+    // Home Row
+    html += `<tr><td class="team-name"><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">\${homeName}</div></td>`;
+    for(let i = 1; i <= numSets; i++) {
+      const s = setsData && setsData[i-1] ? setsData[i-1].scoreA : '&nbsp;';
+      html += `<td><div class="set-box">\${s}</div></td>`;
+    }
+    html += `<td class="total-score">\${homeScore}</td></tr>`;
+    
+    // Away Row
+    html += `<tr><td class="team-name"><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">\${awayName}</div></td>`;
+    for(let i = 1; i <= numSets; i++) {
+      const s = setsData && setsData[i-1] ? setsData[i-1].scoreB : '&nbsp;';
+      html += `<td><div class="set-box">\${s}</div></td>`;
+    }
+    html += `<td class="total-score">\${awayScore}</td></tr>`;
+    
+    html += '</table>';
+    return html;
+  };
 
   if (targetMatches.length === 0) {
     // Render an empty template for printing
@@ -72,6 +104,7 @@ export const printKnockoutBrackets = (
     }
 
     emptyRounds.forEach(r => {
+      const isFinal = r.roundName.toLowerCase().includes('final') && !r.roundName.toLowerCase().includes('semi');
       html += `<div class="round-col">`;
       html += `<div class="round-title">\${r.roundName}</div>`;
       r.matches.forEach((m, idx) => {
@@ -81,8 +114,7 @@ export const printKnockoutBrackets = (
               <span>Match #\${m.position}</span>
               <span>Scheduled</span>
             </div>
-            <div class="team"><span>\${m.home}</span> <span class="score">-</span></div>
-            <div class="team"><span>\${m.away}</span> <span class="score">-</span></div>
+            \${renderMatchScores(m.home, m.away, '-', '-', isFinal)}
           </div>
         `;
       });
@@ -94,6 +126,7 @@ export const printKnockoutBrackets = (
     rounds.forEach(roundNum => {
       const matches = targetMatches.filter(m => m.round === roundNum).sort((a,b) => a.position - b.position);
       const roundName = matches[0]?.roundName || `Round \${roundNum}`;
+      const isFinal = roundName.toLowerCase().includes('final') && !roundName.toLowerCase().includes('semi');
       
       html += `<div class="round-col">`;
       html += `<div class="round-title">\${roundName}</div>`;
@@ -110,8 +143,7 @@ export const printKnockoutBrackets = (
               <span>Match #\${m.fixtureNumber || m.position}</span>
               <span>\${m.status === 'LIVE' ? 'LIVE' : m.status === 'COMPLETED' ? 'Done' : 'Scheduled'}</span>
             </div>
-            <div class="team"><span>\${home}</span> <span class="score">\${homeScore}</span></div>
-            <div class="team"><span>\${away}</span> <span class="score">\${awayScore}</span></div>
+            \${renderMatchScores(home, away, homeScore, awayScore, isFinal, m.sets)}
           </div>
         `;
       });
