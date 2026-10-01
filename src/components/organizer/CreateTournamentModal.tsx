@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { SportType, TournamentFormat } from '../../types';
 import { SPORT_CONFIGS } from '../../engines/sportEngine';
+import { initialTeamsData } from '../../data/initialTeams';
 import { X, Trophy, MapPin, Calendar, Users, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, Crosshair, Shield } from 'lucide-react';
 
 interface Props {
@@ -34,7 +35,7 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [headToHead, setHeadToHead] = useState<'SINGLE' | 'DOUBLE'>('SINGLE');
 
   // Step 4: Teams
-  const [useCustomNames, setUseCustomNames] = useState(false);
+  const [teamGenMode, setTeamGenMode] = useState<'AUTO' | 'CUSTOM' | 'EXCEL'>('AUTO');
   const [teamNamesInput, setTeamNamesInput] = useState('');
 
   if (!isOpen) return null;
@@ -63,7 +64,9 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
     let finalTeams: any[] = [];
     const colors = ['#f97316', '#2563eb', '#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#eab308', '#ec4899'];
 
-    if (useCustomNames && teamNamesInput.trim()) {
+    if (teamGenMode === 'EXCEL') {
+      finalTeams = initialTeamsData;
+    } else if (teamGenMode === 'CUSTOM' && teamNamesInput.trim()) {
       const parsedLines = teamNamesInput
         .split('\n')
         .map((l) => l.trim())
@@ -399,11 +402,16 @@ export const CreateTournamentModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <div className="flex items-center justify-between mb-4">
                   <label className="text-xs font-bold uppercase text-slate-700">Participating Teams ({numTeams})</label>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setUseCustomNames(false)} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${!useCustomNames ? 'bg-sport-navy text-white' : 'text-slate-500 hover:bg-slate-200'}`}>Auto-Generate</button>
-                    <button onClick={() => setUseCustomNames(true)} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${useCustomNames ? 'bg-sport-navy text-white' : 'text-slate-500 hover:bg-slate-200'}`}>Custom Names</button>
+                    <button onClick={() => setTeamGenMode('AUTO')} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${teamGenMode === 'AUTO' ? 'bg-sport-navy text-white' : 'text-slate-500 hover:bg-slate-200'}`}>Auto-Generate</button>
+                    <button onClick={() => setTeamGenMode('CUSTOM')} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${teamGenMode === 'CUSTOM' ? 'bg-sport-navy text-white' : 'text-slate-500 hover:bg-slate-200'}`}>Custom Names</button>
+                    <button onClick={() => setTeamGenMode('EXCEL')} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer ${teamGenMode === 'EXCEL' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>Load 2026 Excel Data</button>
                   </div>
                 </div>
-                {useCustomNames ? (
+                {teamGenMode === 'EXCEL' ? (
+                  <div className="text-sm text-slate-500 bg-emerald-50 p-4 rounded-xl border border-emerald-200">
+                    <strong>15 Teams</strong> will be imported directly from the official 2026 registration Excel file, complete with rosters, jerseys, institutions, and captain configurations.
+                  </div>
+                ) : teamGenMode === 'CUSTOM' ? (
                   <textarea
                     rows={6}
                     value={teamNamesInput}

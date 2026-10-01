@@ -444,31 +444,6 @@ export const TeamsManagement: React.FC = () => {
         </div>
 
         {teams.length < 16 && (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              if (window.confirm('Import 15 teams from the 2026 Excel Data?')) {
-                initialTeamsData.forEach(team => {
-                  addTeamToTournament(activeTournament.id, {
-                    name: team.name,
-                    shortName: team.shortName,
-                    color: team.color,
-                    institution: team.institution,
-                    captainName: team.captainName,
-                    isCaptainPlaying: team.isCaptainPlaying,
-                    players: team.players as any,
-                    rosterStatus: team.rosterStatus as any,
-                    isRosterLocked: false,
-                  });
-                });
-              }
-            }}
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition cursor-pointer active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Load Excel Data</span>
-          </button>
-          
           <button
             onClick={() => setIsAddingTeam(true)}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sport-orange hover:bg-orange-600 text-white font-bold text-xs shadow-glow-orange transition cursor-pointer active:scale-95"
@@ -476,7 +451,6 @@ export const TeamsManagement: React.FC = () => {
             <Plus className="w-4 h-4" />
             <span>Add New Team</span>
           </button>
-        </div>
         )}
       </div>
 
