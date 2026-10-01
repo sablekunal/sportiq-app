@@ -3,6 +3,7 @@ import { useTournament } from '../../context/TournamentContext';
 import { Match, Venue } from '../../types';
 import { MatchSchedule, ScheduleConflict } from '../../domain/tournament/operations/types';
 import { detectScheduleConflicts, validateMatchSchedule } from '../../domain/tournament/operations/conflicts';
+import { printFixtures } from '../../utils/printUtils';
 import {
   Calendar,
   Clock,
@@ -178,6 +179,25 @@ export const ScheduleManager: React.FC = () => {
     setNewVenueName('');
   };
 
+  const handlePrintSchedule = () => {
+    const getMatchTime = (m: Match) => {
+      const d = m.schedule?.date || m.date;
+      const t = m.schedule?.startTime || m.startTime;
+      if (!d && !t) return Number.MAX_SAFE_INTEGER;
+      const time = new Date(`${d || '2099-12-31'}T${t || '23:59'}`).getTime();
+      return isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+    };
+
+    const sortedFixtures = [...fixtures].sort((a, b) => {
+      const timeA = getMatchTime(a);
+      const timeB = getMatchTime(b);
+      if (timeA !== timeB) return timeA - timeB;
+      return (a.fixtureNumber ?? a.position) - (b.fixtureNumber ?? b.position);
+    });
+
+    printFixtures(sortedFixtures, teams);
+  };
+
   // Metrics calculation
   const totalFixtures = fixtures.length;
   const scheduledCount = fixtures.filter(
@@ -205,6 +225,13 @@ export const ScheduleManager: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handlePrintSchedule}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Print Schedule
+          </button>
         </div>
       </div>
 

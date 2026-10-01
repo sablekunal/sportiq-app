@@ -5,7 +5,7 @@ import { Calendar, Play, Radio, MapPin, Clock, Filter, Plus, CheckCircle2, Users
 import { soundEffects } from '../../engines/audioEngine';
 import { MatchLineupModal } from './MatchLineupModal';
 import { Match } from '../../types';
-import { printFixtures } from '../../utils/printUtils';
+
 
 export const FixturesManager: React.FC = () => {
   const {
@@ -25,10 +25,20 @@ export const FixturesManager: React.FC = () => {
   const teams = activeTournament.teams;
   const venues = activeTournament.venues;
 
-  // Strict canonical sorting by fixtureNumber (or position) to prevent Firestore out-of-order rendering
-  const sortedFixtures = [...fixtures].sort(
-    (a, b) => (a.fixtureNumber ?? a.position) - (b.fixtureNumber ?? b.position)
-  );
+  const getMatchTime = (m: Match) => {
+    const d = m.schedule?.date || m.date;
+    const t = m.schedule?.startTime || m.startTime;
+    if (!d && !t) return Number.MAX_SAFE_INTEGER;
+    const time = new Date(`${d || '2099-12-31'}T${t || '23:59'}`).getTime();
+    return isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+  };
+
+  const sortedFixtures = [...fixtures].sort((a, b) => {
+    const timeA = getMatchTime(a);
+    const timeB = getMatchTime(b);
+    if (timeA !== timeB) return timeA - timeB;
+    return (a.fixtureNumber ?? a.position) - (b.fixtureNumber ?? b.position);
+  });
 
   const filteredFixtures = sortedFixtures.filter((m) => {
     if (filter !== 'ALL' && m.status !== filter) return false;
@@ -52,13 +62,6 @@ export const FixturesManager: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => printFixtures(filteredFixtures, teams)}
-            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            Print Fixtures
-          </button>
           <button
             onClick={() => generateTournamentFixtures(activeTournament.id)}
             className="px-4 py-2.5 bg-sport-navy hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"

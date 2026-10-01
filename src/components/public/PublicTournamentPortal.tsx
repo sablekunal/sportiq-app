@@ -452,10 +452,22 @@ export const PublicTournamentPortal: React.FC = () => {
 
                 <div className="space-y-3">
                   {(() => {
+                    const getMatchTime = (m: Match) => {
+                      const d = m.schedule?.date || m.date;
+                      const t = m.schedule?.startTime || m.startTime;
+                      if (!d && !t) return Number.MAX_SAFE_INTEGER;
+                      const time = new Date(`${d || '2099-12-31'}T${t || '23:59'}`).getTime();
+                      return isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+                    };
+
                     const upcomingMatches = fixtures
                       .filter((m) => m.status !== 'COMPLETED')
-                      .sort((a, b) => (a.fixtureNumber || a.position) - (b.fixtureNumber || b.position));
-                    
+                      .sort((a, b) => {
+                        const timeA = getMatchTime(a);
+                        const timeB = getMatchTime(b);
+                        if (timeA !== timeB) return timeA - timeB;
+                        return (a.fixtureNumber ?? a.position) - (b.fixtureNumber ?? b.position);
+                      });
                     if (upcomingMatches.length === 0) {
                       return <div className="text-xs text-slate-400 text-center py-4 italic">No upcoming matches at this time.</div>;
                     }
@@ -583,10 +595,20 @@ export const PublicTournamentPortal: React.FC = () => {
 
         {/* 2. Fixtures Tab */}
         {activeTab === 'fixtures' && (() => {
-          // Strict canonical sorting by fixtureNumber so spectators see identical order
-          const sortedFixtures = [...fixtures].sort(
-            (a, b) => (a.fixtureNumber ?? a.position) - (b.fixtureNumber ?? b.position)
-          );
+          const getMatchTime = (m: Match) => {
+            const d = m.schedule?.date || m.date;
+            const t = m.schedule?.startTime || m.startTime;
+            if (!d && !t) return Number.MAX_SAFE_INTEGER;
+            const time = new Date(`${d || '2099-12-31'}T${t || '23:59'}`).getTime();
+            return isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+          };
+
+          const sortedFixtures = [...fixtures].sort((a, b) => {
+            const timeA = getMatchTime(a);
+            const timeB = getMatchTime(b);
+            if (timeA !== timeB) return timeA - timeB;
+            return (a.fixtureNumber ?? a.position) - (b.fixtureNumber ?? b.position);
+          });
 
           const displayedFixtures = sortedFixtures.filter((m) => {
             if (publicStageFilter === 'ALL') return true;
