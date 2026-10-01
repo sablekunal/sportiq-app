@@ -74,16 +74,20 @@ export const PublicTournamentPortal: React.FC = () => {
   const sportConfig = SPORT_CONFIGS[activeTournament?.sport || 'football'] || SPORT_CONFIGS.football;
   const teams = activeTournament?.teams || [];
   const fixtures = activeTournament?.fixtures || [];
-  const liveMatches = fixtures.filter((m) => m.status === 'LIVE');
+  const liveMatches = useMemo(() => fixtures.filter((m) => m.status === 'LIVE'), [fixtures]);
+  
   const fourGroupStandings = useMemo(() => {
     return calculateAllFourGroupStandings(fixtures, teams);
   }, [fixtures, teams]);
-  const standings = calculateSportStandings(
-    activeTournament?.sport || 'football',
-    teams,
-    fixtures,
-    standingsGroupFilter === 'ALL' ? undefined : standingsGroupFilter
-  );
+  
+  const standings = useMemo(() => {
+    return calculateSportStandings(
+      activeTournament?.sport || 'football',
+      teams,
+      fixtures,
+      standingsGroupFilter === 'ALL' ? undefined : standingsGroupFilter
+    );
+  }, [activeTournament?.sport, teams, fixtures, standingsGroupFilter]);
 
   if (!activeTournament) {
     return (
@@ -276,6 +280,11 @@ export const PublicTournamentPortal: React.FC = () => {
                   className="bg-black/30 backdrop-blur-md p-3 sm:p-4 rounded-xl flex items-center justify-between gap-2 sm:gap-4 cursor-pointer hover:bg-black/40 transition"
                 >
                   <div className="flex-1 text-right font-black text-sm xs:text-base sm:text-xl truncate">
+                    {lm.tossWinnerId === h?.id && (
+                      <span className="mr-2 px-1.5 py-0.5 rounded bg-amber-500/90 text-amber-950 text-[10px] uppercase tracking-wider font-extrabold align-middle">
+                        Won Toss
+                      </span>
+                    )}
                     {h?.name || 'TBD'}
                   </div>
 
@@ -288,6 +297,11 @@ export const PublicTournamentPortal: React.FC = () => {
 
                   <div className="flex-1 text-left font-black text-sm xs:text-base sm:text-xl truncate">
                     {a?.name || 'TBD'}
+                    {lm.tossWinnerId === a?.id && (
+                      <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-500/90 text-amber-950 text-[10px] uppercase tracking-wider font-extrabold align-middle">
+                        Won Toss
+                      </span>
+                    )}
                   </div>
                 </div>
               );
