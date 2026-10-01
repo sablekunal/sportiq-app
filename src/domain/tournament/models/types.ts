@@ -58,6 +58,7 @@ export interface DomainMatch {
   currentSet?: number;
   setsWonA?: number;
   setsWonB?: number;
+  tossWinnerId?: string | null;
 }
 
 export interface MatchResult {

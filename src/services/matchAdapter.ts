@@ -72,6 +72,7 @@ export function adaptDomainMatchToLegacy(domainMatch: DomainMatch): Match {
       currentSet: domainMatch.currentSet,
       setsWonA: domainMatch.setsWonA,
       setsWonB: domainMatch.setsWonB,
+      tossWinnerId: domainMatch.tossWinnerId,
       winnerId: domainMatch.winnerId,
       loserNextMatchId: null, // Unsupported currently
       nextMatchId: null, // Legacy tracking, ignored because Domain dependencies drive the logic
