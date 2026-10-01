@@ -16,7 +16,7 @@ import {
   Globe,
   CheckCircle2,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
+
 import { soundEffects } from '../../engines/audioEngine';
 
 const COUNTRY_CODES = [
@@ -140,7 +140,6 @@ export const OrganizerAuthPage: React.FC = () => {
       const success = await verifyOtp(fullCode);
       if (success) {
         soundEffects.playCelebration();
-        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
       }
     } finally {
       setIsVerifyingOtp(false);
@@ -157,7 +156,6 @@ export const OrganizerAuthPage: React.FC = () => {
     try {
       await saveProfile(displayName, organization);
       soundEffects.playCelebration();
-      confetti({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
     } finally {
       setIsSavingProfile(false);
     }

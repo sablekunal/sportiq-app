@@ -19,7 +19,7 @@ import {
 import { INITIAL_VENUES, createThrowballDemoTournament } from '../services/mockData';
 import { advanceWinnerInBracket, generateKnockoutFixtures, generateRoundRobinFixtures, generateGroupKnockoutFixtures } from '../engines/tournamentEngine';
 import { soundEffects } from '../engines/audioEngine';
-import confetti from 'canvas-confetti';
+
 
 import { MatchRepository } from '../repositories/matchRepository';
 import { DomainMatch, MatchResult, TournamentRules } from '../domain/tournament/models/types';
@@ -331,7 +331,6 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       await setDoc(doc(db, 'tournaments', demo.id), demo);
       setActiveTournamentId(demo.id);
       soundEffects.playCelebration();
-      confetti({ particleCount: 70, spread: 70 });
     } catch (error) {
       console.error("Error loading demo", error);
     }
@@ -835,7 +834,6 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           processMatchResult
         );
         soundEffects.playCelebration();
-        confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
       } catch (err) {
         console.error("Domain Error completing match:", err);
       }
@@ -880,7 +878,6 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
 
     soundEffects.playCelebration();
-    confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
   };
 
   const addBudgetItem = (tournamentId: string, itemData: Omit<BudgetItem, 'id'>) => {

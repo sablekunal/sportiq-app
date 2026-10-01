@@ -3,7 +3,7 @@ import { useTournament } from '../../context/TournamentContext';
 import { Team } from '../../types';
 import { Sparkles, Play, RotateCcw, CheckCircle2, Shuffle, Trophy, Lock } from 'lucide-react';
 import { soundEffects } from '../../engines/audioEngine';
-import confetti from 'canvas-confetti';
+
 
 const GROUPS = ['A', 'B', 'C', 'D'] as const;
 
@@ -86,7 +86,6 @@ export const LiveDrawRoom: React.FC = () => {
         try {
           await assignGroupPosition(activeTournament.id, nextSlot.groupId, nextSlot.position, finalTeam.id);
           soundEffects.playCelebration();
-          confetti({ particleCount: 35, spread: 50 });
 
           if (remainingPool.length <= 1) {
             updateTournamentStatus(activeTournament.id, 'DRAW_COMPLETED');
@@ -119,7 +118,6 @@ export const LiveDrawRoom: React.FC = () => {
     setCurrentDrawnTeam(null);
     updateTournamentStatus(activeTournament.id, 'DRAW_COMPLETED');
     soundEffects.playCelebration();
-    confetti({ particleCount: 80, spread: 70 });
   };
 
   // Reset Draw
