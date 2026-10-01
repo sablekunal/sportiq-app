@@ -200,7 +200,7 @@ export const printFixtures = (
           th { background-color: #f1f5f9; font-weight: bold; font-size: 14px; text-transform: uppercase; }
           .match-code { font-weight: bold; font-family: monospace; }
           .team { font-weight: bold; }
-          .score-box { width: 40px; height: 30px; display: inline-block; border: 1px solid #94a3b8; text-align: center; line-height: 30px; font-weight: bold;}
+          .score-box { width: 40px; height: 30px; display: inline-block; border: 1px solid #94a3b8; text-align: center; line-height: 30px; font-weight: bold; vertical-align: middle; }
           @media print {
             body { padding: 0; }
             button { display: none; }
