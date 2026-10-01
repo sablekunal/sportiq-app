@@ -1,11 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { Team } from '../../types';
 import { Sparkles, Play, RotateCcw, CheckCircle2, Shuffle, Trophy, Lock } from 'lucide-react';
 import { soundEffects } from '../../engines/audioEngine';
 
-
 const GROUPS = ['A', 'B', 'C', 'D'] as const;
+
+// 16 highly distinct, easily recognizable colors
+const WHEEL_COLORS = [
+  '#E53935', // Red
+  '#1E88E5', // Blue
+  '#43A047', // Green
+  '#FB8C00', // Orange
+  '#8E24AA', // Purple
+  '#00ACC1', // Cyan
+  '#FFB300', // Amber
+  '#D81B60', // Pink
+  '#3949AB', // Indigo
+  '#00897B', // Teal
+  '#7CB342', // Light Green
+  '#F4511E', // Deep Orange
+  '#5E35B1', // Deep Purple
+  '#039BE5', // Light Blue
+  '#C0CA33', // Lime
+  '#6D4C41', // Brown
+];
 
 export const LiveDrawRoom: React.FC = () => {
   const {
@@ -18,7 +37,12 @@ export const LiveDrawRoom: React.FC = () => {
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentDrawnTeam, setCurrentDrawnTeam] = useState<Team | null>(null);
-  
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const currentAngleRef = useRef(0);
+  const animFrameRef = useRef<number | null>(null);
+  const wheelTeamsRef = useRef<Team[]>([]);
+
   const isGroupKnockout = activeTournament?.format === 'GROUP_KNOCKOUT';
   const teams = activeTournament?.teams || [];
 
@@ -32,18 +56,16 @@ export const LiveDrawRoom: React.FC = () => {
   }
   const remainingPool = teams.filter((t) => !assignedTeamIds.has(t.id));
 
-  const [spinRotation, setSpinRotation] = useState(0);
-  const [wheelSlices, setWheelSlices] = useState<Team[]>([]);
-
-  React.useEffect(() => {
+  // Keep wheelTeamsRef in sync (only update when NOT drawing)
+  useEffect(() => {
     if (!isDrawing) {
-      setWheelSlices(remainingPool);
+      wheelTeamsRef.current = remainingPool;
+      drawWheel(currentAngleRef.current);
     }
   }, [remainingPool.length, isDrawing]);
 
   if (!activeTournament) return null;
 
-  // Helper to find team assigned to a specific group slot
   const getAssignedTeam = (groupId: string, position: number): Team | null => {
     const group = activeTournament.groups?.find((g) => g.id === groupId);
     const teamId = group?.teamIds?.[position - 1];
@@ -51,14 +73,12 @@ export const LiveDrawRoom: React.FC = () => {
     return teams.find((t) => t.id === teamId) || null;
   };
 
-  // Count assigned slots
   const totalSlots = isGroupKnockout ? 16 : Math.max(teams.length, 8);
   const filledCount = isGroupKnockout
     ? assignedTeamIds.size
     : teams.length - remainingPool.length;
   const isCompleted = isGroupKnockout ? filledCount === 16 || (filledCount === teams.length && remainingPool.length === 0) : remainingPool.length === 0;
 
-  // Find the next empty group slot (A1..A4, B1..B4, C1..C4, D1..D4)
   const getNextEmptySlot = (): { groupId: string; position: number } | null => {
     for (const g of GROUPS) {
       for (let pos = 1; pos <= 4; pos++) {
@@ -70,7 +90,99 @@ export const LiveDrawRoom: React.FC = () => {
     return null;
   };
 
-  // Draw Next Single Team with animation
+  // ─── Canvas Drawing ───────────────────────────────────────────────────
+  const drawWheel = useCallback((angle: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const size = 360;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = size / 2 - 6;
+    const slices = wheelTeamsRef.current;
+    const n = slices.length;
+
+    ctx.clearRect(0, 0, size, size);
+
+    if (n === 0) {
+      // Empty wheel
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 6;
+      ctx.stroke();
+      return;
+    }
+
+    const sliceAngle = (Math.PI * 2) / n;
+
+    for (let i = 0; i < n; i++) {
+      const startAngle = angle + i * sliceAngle - Math.PI / 2;
+      const endAngle = startAngle + sliceAngle;
+
+      // Slice
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, radius, startAngle, endAngle);
+      ctx.closePath();
+      ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length];
+      ctx.fill();
+
+      // Border between slices
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Label
+      const midAngle = startAngle + sliceAngle / 2;
+      const labelR = radius * 0.65;
+      const lx = cx + Math.cos(midAngle) * labelR;
+      const ly = cy + Math.sin(midAngle) * labelR;
+
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.rotate(midAngle + Math.PI / 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${n > 12 ? 10 : 12}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 3;
+      const label = slices[i].shortName || slices[i].name.slice(0, 4);
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    }
+
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 8;
+    ctx.stroke();
+
+    // Hub
+    ctx.beginPath();
+    ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f172a';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#f97316';
+    ctx.fill();
+  }, []);
+
+  // ─── Physics-based Spin Animation ─────────────────────────────────────
   const handleDrawNext = async () => {
     if (remainingPool.length === 0 || isDrawing || isGroupLocked) return;
 
@@ -79,45 +191,71 @@ export const LiveDrawRoom: React.FC = () => {
 
     setIsDrawing(true);
     setCurrentDrawnTeam(null);
-    
-    // Pick the winner randomly from the current pool
+
     const randomIdx = Math.floor(Math.random() * remainingPool.length);
     const finalTeam = remainingPool[randomIdx];
 
-    const totalSlices = remainingPool.length;
-    const sliceDegree = 360 / totalSlices;
-    
-    // The target slice center is (randomIdx + 0.5) * sliceDegree.
-    // To position this at the TOP (0 degrees), the wheel needs to rotate such that the target slice is at 360 degrees.
-    const targetAngle = 360 - ((randomIdx + 0.5) * sliceDegree);
-    
-    const currentRotMod = spinRotation % 360;
-    // Snap directly to the target angle for instant draw
-    const newRotation = spinRotation + (targetAngle - currentRotMod);
-    
-    setSpinRotation(newRotation);
-    soundEffects.playTick();
+    const n = remainingPool.length;
+    const sliceAngle = (Math.PI * 2) / n;
 
-    // Wait 10ms for the CSS transition to complete instantly
-    setTimeout(async () => {
-      setCurrentDrawnTeam(finalTeam);
-      
-      try {
-        await assignGroupPosition(activeTournament.id, nextSlot.groupId, nextSlot.position, finalTeam.id);
-        soundEffects.playCelebration();
+    // Target: the needle is at the top (- PI/2). We want randomIdx's slice center at the top.
+    // The center of slice i in the wheel is at angle + i * sliceAngle - PI/2.
+    // We need: currentAngle + randomIdx * sliceAngle ≡ 0 (mod 2π) so the slice ends up at - PI/2.
+    const targetSliceCenter = randomIdx * sliceAngle + sliceAngle / 2;
+    // We want the final angle such that targetSliceCenter + finalAngle = full rotations (ends at top)
+    const baseTarget = (Math.PI * 2) - targetSliceCenter;
+    // Add 5 full rotations for drama
+    const totalSpin = baseTarget + Math.PI * 2 * 5;
 
-        if (remainingPool.length <= 1) {
-          updateTournamentStatus(activeTournament.id, 'DRAW_COMPLETED');
-        }
-      } catch (err: any) {
-        alert(err.message || 'Error assigning group slot');
-      } finally {
-        setIsDrawing(false);
+    const startAngle = currentAngleRef.current;
+    const startTime = performance.now();
+    const duration = 5000; // 5 seconds
+
+    // Easing: cubic ease-out for natural physics deceleration
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeOutCubic(progress);
+
+      const currentAngle = startAngle + totalSpin * eased;
+      currentAngleRef.current = currentAngle;
+      drawWheel(currentAngle);
+
+      // Tick sounds (decreasing frequency as it slows)
+      if (progress < 0.85 && elapsed % 150 < 20) {
+        soundEffects.playTick();
       }
-    }, 5000);
+
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        // Done spinning
+        currentAngleRef.current = startAngle + totalSpin;
+        drawWheel(currentAngleRef.current);
+        setCurrentDrawnTeam(finalTeam);
+
+        (async () => {
+          try {
+            await assignGroupPosition(activeTournament.id, nextSlot.groupId, nextSlot.position, finalTeam.id);
+            soundEffects.playCelebration();
+            if (remainingPool.length <= 1) {
+              updateTournamentStatus(activeTournament.id, 'DRAW_COMPLETED');
+            }
+          } catch (err: any) {
+            alert(err.message || 'Error assigning group slot');
+          } finally {
+            setIsDrawing(false);
+          }
+        })();
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(animate);
   };
 
-  // Instant Auto-Draw All
+  // ─── Auto Draw All ────────────────────────────────────────────────────
   const handleAutoDrawAll = async () => {
     if (isGroupLocked) return;
 
@@ -138,7 +276,7 @@ export const LiveDrawRoom: React.FC = () => {
     soundEffects.playCelebration();
   };
 
-  // Reset Draw
+  // ─── Reset ────────────────────────────────────────────────────────────
   const handleResetDraw = async () => {
     if (isGroupLocked) {
       alert('Cannot reset draw: competition has already begun.');
@@ -152,7 +290,20 @@ export const LiveDrawRoom: React.FC = () => {
       }
     }
     setCurrentDrawnTeam(null);
+    currentAngleRef.current = 0;
   };
+
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, []);
+
+  // Initial draw
+  useEffect(() => {
+    drawWheel(currentAngleRef.current);
+  }, [drawWheel]);
 
   return (
     <div className="space-y-6">
@@ -196,7 +347,7 @@ export const LiveDrawRoom: React.FC = () => {
             className="px-5 py-2 rounded-xl text-xs font-bold bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange transition flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-40"
           >
             <Sparkles className="w-4 h-4" />
-            {isDrawing ? 'Shuffling Bowl...' : `Draw Next Team (${remainingPool.length} Left)`}
+            {isDrawing ? 'Spinning...' : `Draw Next Team (${remainingPool.length} Left)`}
           </button>
         </div>
       </div>
@@ -216,67 +367,58 @@ export const LiveDrawRoom: React.FC = () => {
 
       {/* Main Draw Arena */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Col: Live Drawing Chamber & Pool */}
+        {/* Left Col: Spin Wheel */}
         <div className="lg:col-span-1 space-y-4">
-          {/* Chamber */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-6">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
               Official Draw Wheel
             </div>
 
-            <div className="relative w-80 h-80 mx-auto mb-8 mt-2">
-              {/* Needle */}
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-10 bg-sport-orange z-20" style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%)', filter: 'drop-shadow(0 4px 4px rgba(0,0,0,0.4))' }}></div>
-              
-              {/* Wheel */}
+            {/* Wheel Container */}
+            <div className="relative w-[360px] h-[360px] mx-auto mb-6">
+              {/* Needle (top-center, pointing down) */}
               <div 
-                className={`w-full h-full rounded-full border-[10px] border-slate-900 shadow-[0_0_40px_rgba(0,0,0,0.3)] overflow-hidden transition-transform`}
-                style={{
-                  transform: `rotate(${spinRotation}deg)`,
-                  transitionDuration: isDrawing ? '10ms' : '0s',
-                  transitionTimingFunction: 'linear',
-                  willChange: 'transform',
-                  background: wheelSlices.length > 0 
-                    ? `conic-gradient(${wheelSlices.map((t, i, arr) => `${t.color || '#cbd5e1'} ${i * (100/arr.length)}% ${(i+1) * (100/arr.length)}%`).join(', ')})`
-                    : currentDrawnTeam ? currentDrawnTeam.color : '#1e293b'
+                className="absolute -top-3 left-1/2 -translate-x-1/2 w-8 h-10 z-20" 
+                style={{ 
+                  clipPath: 'polygon(0 0, 100% 0, 50% 100%)', 
+                  background: 'linear-gradient(180deg, #f97316, #ea580c)',
+                  filter: 'drop-shadow(0 3px 4px rgba(0,0,0,0.4))' 
                 }}
-              >
-                {/* Optional lines between segments for better visibility */}
-                {wheelSlices.length > 0 && wheelSlices.map((_, i, arr) => (
-                  <div 
-                    key={i} 
-                    className="absolute top-0 left-1/2 w-0.5 h-1/2 bg-slate-900/40 origin-bottom" 
-                    style={{ transform: `rotate(${i * (360/arr.length)}deg)` }}
-                  />
-                ))}
-              </div>
+              />
 
-              {/* Hub */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-slate-900 rounded-full border-[5px] border-slate-800 flex items-center justify-center z-10 shadow-2xl">
-                <div className={`w-5 h-5 bg-sport-orange rounded-full ${isDrawing ? 'animate-pulse' : ''}`}></div>
-              </div>
+              {/* Canvas Wheel */}
+              <canvas
+                ref={canvasRef}
+                className="w-full h-full rounded-full"
+                style={{ display: 'block' }}
+              />
             </div>
 
-            <div className="min-h-[90px] flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-slate-900 to-sport-midnight border border-slate-800 relative overflow-hidden">
+            {/* Result Display */}
+            <div className="min-h-[80px] flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-slate-900 to-sport-midnight border border-slate-800 relative overflow-hidden">
               {currentDrawnTeam ? (
-                <div className={`transition-all transform ${isDrawing ? 'scale-90 opacity-40' : 'scale-100 animate-fadeIn'}`}>
-                  <div className="text-sm font-extrabold text-white mb-1 flex items-center gap-2 justify-center">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: currentDrawnTeam.color || '#f97316' }}></span>
+                <div className="animate-fadeIn">
+                  <div className="text-base font-extrabold text-white mb-1 flex items-center gap-2 justify-center">
+                    <span className="w-4 h-4 rounded-full border-2 border-white" style={{ backgroundColor: WHEEL_COLORS[teams.indexOf(currentDrawnTeam) % WHEEL_COLORS.length] }}></span>
                     {currentDrawnTeam.name}
                   </div>
-                  <div className="text-[10px] text-sport-orange font-mono uppercase tracking-widest bg-orange-500/10 px-2 py-0.5 rounded-full inline-block">
-                    Selected Team
+                  <div className="text-[10px] text-sport-orange font-mono uppercase tracking-widest bg-orange-500/10 px-3 py-1 rounded-full inline-block font-bold">
+                    ✓ Selected Team
                   </div>
                 </div>
               ) : (
                 <div className="text-slate-400 text-xs font-semibold">
-                  Click "Draw Next Team" to spin the wheel!
+                  {isDrawing ? (
+                    <span className="animate-pulse">🎰 Spinning the wheel...</span>
+                  ) : (
+                    'Click "Draw Next Team" to spin the wheel!'
+                  )}
                 </div>
               )}
             </div>
 
             <div className="mt-4 flex items-center justify-between text-xs text-slate-600 font-semibold px-2">
-              <span>Remaining in Bowl:</span>
+              <span>Remaining in Pool:</span>
               <span className="font-mono text-sport-orange font-bold">{remainingPool.length} Teams</span>
             </div>
           </div>
@@ -287,14 +429,14 @@ export const LiveDrawRoom: React.FC = () => {
               Lottery Pool
             </div>
             <div className="flex flex-wrap gap-2">
-              {remainingPool.map((team) => (
+              {remainingPool.map((team, idx) => (
                 <span
                   key={team.id}
                   className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center gap-1.5"
                 >
                   <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: team.color || '#f97316' }}
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: WHEEL_COLORS[teams.indexOf(team) % WHEEL_COLORS.length] }}
                   />
                   {team.shortName}
                 </span>
@@ -442,4 +584,3 @@ export const LiveDrawRoom: React.FC = () => {
     </div>
   );
 };
-
