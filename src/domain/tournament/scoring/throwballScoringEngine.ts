@@ -2,8 +2,8 @@ import { DomainMatch } from '../models/types';
 import { SetScore, SubstitutionEvent, TimeoutEvent } from '../../../types';
 
 export const THROWBALL_SCORING_RULES = {
-  maxSets: 3,
-  setsToWin: 2,
+  maxSets: 5, // Up to 5 for finals
+  setsToWin: 3, // Up to 3 for finals
   pointsPerSet: 15,
   maxTimeoutsPerTeamPerSet: 2,
   timeoutDurationMinutes: 3,

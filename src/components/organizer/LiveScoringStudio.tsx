@@ -39,12 +39,14 @@ export const LiveScoringStudio: React.FC = () => {
     recordMatchTimeout,
     completeMatch,
     domainMatches,
+    setMatchTossWinner,
   } = useTournament();
 
   const [selectedAction, setSelectedAction] = useState<string>('Point');
   const [selectedPlayer, setSelectedPlayer] = useState<string>('');
   const [customCommentary, setCustomCommentary] = useState<string>('');
   const [isLineupModalOpen, setIsLineupModalOpen] = useState(false);
+  const [showWinnerPopup, setShowWinnerPopup] = useState(false);
 
   // Substitution Modal State
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
@@ -72,16 +74,12 @@ export const LiveScoringStudio: React.FC = () => {
   if (!activeTournament) return null;
 
   const isSetPointReached = (scoreA: number, scoreB: number) => {
-    // 25-25 draw
-    if (scoreA === 25 && scoreB === 25) return true;
-    // Hard cap at 25 points
-    if (scoreA === 25 || scoreB === 25) return true;
-    
     // Normal 15 points, must win by 2
     if (scoreA >= 15 || scoreB >= 15) {
       if (Math.abs(scoreA - scoreB) >= 2) return true;
     }
     
+    // No hard cap for deuce. Admin must manually decide to draw or continue.
     return false;
   };
 
@@ -110,8 +108,21 @@ export const LiveScoringStudio: React.FC = () => {
   const setsWonB = currentMatch.setsWonB ?? currentSets.filter((s) => s.status === 'COMPLETED' && s.winnerId === currentMatch.awayTeamId).length;
 
   const isMatchComplete = currentMatch.status === 'COMPLETED';
-  const hasMatchWinner = setsWonA >= 2 || setsWonB >= 2;
-  const matchWinnerTeam = setsWonA >= 2 ? homeTeam : setsWonB >= 2 ? awayTeam : null;
+
+  // React to match completion to show popup
+  React.useEffect(() => {
+    if (isMatchComplete) {
+      setShowWinnerPopup(true);
+      const timer = setTimeout(() => setShowWinnerPopup(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isMatchComplete]);
+
+  const maxSets = currentMatch.stage === 'FINAL' ? 5 : 3;
+  const setsToWin = currentMatch.stage === 'FINAL' ? 3 : 2;
+
+  const hasMatchWinner = setsWonA >= setsToWin || setsWonB >= setsToWin;
+  const matchWinnerTeam = setsWonA >= setsToWin ? homeTeam : setsWonB >= setsToWin ? awayTeam : null;
 
   // Timeouts for the active set (Rule: 2 timeouts per team per set, 3 min each)
   const timeoutsThisSet = (currentMatch.timeouts || []).filter((t) => t.setNumber === activeSet.setNumber);
@@ -208,10 +219,10 @@ export const LiveScoringStudio: React.FC = () => {
 
   // Conclude the current set
   const handleConcludeSet = async () => {
-    const isDraw = activeSet.scoreA === 25 && activeSet.scoreB === 25;
+    const isDraw = activeSet.scoreA >= 25 && activeSet.scoreA === activeSet.scoreB;
 
     if (!isDraw && activeSet.scoreA === activeSet.scoreB) {
-      alert('Set cannot conclude in a tie. One team must win the set by 2 points (or reach 25).');
+      alert('Set cannot conclude in a tie. One team must win the set by 2 points (or reach at least 25-25 to manually declare a draw).');
       return;
     }
 
@@ -237,15 +248,15 @@ export const LiveScoringStudio: React.FC = () => {
     const updatedSetsWonA = updatedSets.filter((s) => s.status === 'COMPLETED' && s.winnerId === currentMatch.homeTeamId).length;
     const updatedSetsWonB = updatedSets.filter((s) => s.status === 'COMPLETED' && s.winnerId === currentMatch.awayTeamId).length;
 
-    if (updatedSetsWonA >= 2 || updatedSetsWonB >= 2 || updatedSets.length >= 3) {
-      // Match won! (2-0 or 2-1) or all 3 sets completed
+    if (updatedSetsWonA >= setsToWin || updatedSetsWonB >= setsToWin || updatedSets.length >= maxSets) {
+      // Match won! 
       await updateMatchSets(currentMatch.id, updatedSets, activeSet.setNumber);
       soundEffects.playCelebration();
       return;
     }
 
-    // Otherwise, create/activate the next set if fewer than 3 sets
-    if (updatedSets.length < 3) {
+    // Otherwise, create/activate the next set if fewer than maxSets
+    if (updatedSets.length < maxSets) {
       const nextSetNumber = updatedSets.length + 1;
       const nextSet: SetScore = {
         setNumber: nextSetNumber,
@@ -485,7 +496,19 @@ export const LiveScoringStudio: React.FC = () => {
           <div className="md:col-span-3 text-center sm:text-right space-y-3">
             <div className="flex items-center justify-center sm:justify-end gap-3">
               <div>
-                <h3 className="text-xl sm:text-2xl font-black text-white">
+                <h3 className="text-xl sm:text-2xl font-black text-white flex items-center justify-center sm:justify-end gap-2">
+                  {currentMatch.tossWinnerId === homeTeam?.id ? (
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] uppercase tracking-wider border border-emerald-500/30">
+                      Won Toss
+                    </span>
+                  ) : !currentMatch.tossWinnerId && (
+                    <button
+                      onClick={() => setMatchTossWinner(currentMatch.id, homeTeam?.id || '')}
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 transition border border-slate-700 cursor-pointer"
+                    >
+                      Record Toss
+                    </button>
+                  )}
                   {homeTeam?.name || 'Home Team'}
                 </h3>
                 <p className="text-xs text-slate-400 font-mono">
@@ -573,8 +596,20 @@ export const LiveScoringStudio: React.FC = () => {
                 {awayTeam?.shortName || 'A'}
               </div>
               <div>
-                <h3 className="text-xl sm:text-2xl font-black text-white">
+                <h3 className="text-xl sm:text-2xl font-black text-white flex items-center justify-center sm:justify-start gap-2">
                   {awayTeam?.name || 'Away Team'}
+                  {currentMatch.tossWinnerId === awayTeam?.id ? (
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] uppercase tracking-wider border border-emerald-500/30">
+                      Won Toss
+                    </span>
+                  ) : !currentMatch.tossWinnerId && (
+                    <button
+                      onClick={() => setMatchTossWinner(currentMatch.id, awayTeam?.id || '')}
+                      className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 transition border border-slate-700 cursor-pointer"
+                    >
+                      Record Toss
+                    </button>
+                  )}
                 </h3>
                 <p className="text-xs text-slate-400 font-mono">
                   {awayTeam?.shortName} • {awayTeam?.seed ? `Seed #${awayTeam.seed}` : 'Away'}
@@ -1163,6 +1198,27 @@ export const LiveScoringStudio: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* Winner Pop-up Overlay */}
+      {showWinnerPopup && matchWinnerTeam && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-slate-900 rounded-3xl p-8 max-w-lg w-full text-center border-2 border-sport-orange shadow-2xl relative">
+            <button
+              onClick={() => setShowWinnerPopup(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <Trophy className="w-20 h-20 text-yellow-400 mx-auto mb-4 animate-bounce" />
+            <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-wide">
+              {matchWinnerTeam.name} Wins!
+            </h2>
+            <p className="text-slate-400 font-mono text-sm">
+              Match Concluded. Final Score: {setsWonA} - {setsWonB}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

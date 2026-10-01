@@ -93,6 +93,7 @@ interface TournamentContextType {
   generateTournamentFixtures: (tournamentId: string) => void;
   recordMatchEvent: (matchId: string, event: Omit<MatchEvent, 'id' | 'timestamp'>) => void;
   updateMatchScore: (matchId: string, homeScore: number, awayScore: number, period?: string) => void;
+  setMatchTossWinner: (matchId: string, teamId: string) => Promise<void>;
   updateMatchSets: (matchId: string, sets: SetScore[], currentSet?: number, servingTeamId?: string | null) => Promise<void>;
   recordMatchSubstitution: (matchId: string, sub: { setNumber: number; teamId: string; outgoingPlayerId: string; incomingPlayerId: string; reason: 'NORMAL' | 'INJURY' }) => Promise<void>;
   recordMatchTimeout: (matchId: string, timeout: { setNumber: number; teamId: string }) => Promise<void>;
@@ -661,6 +662,39 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return { ...t, fixtures: newFixtures };
     });
   };
+
+  const setMatchTossWinner = async (matchId: string, teamId: string) => {
+    if (!activeTournament) return;
+    const tournamentId = activeTournament.id;
+    if (activeTournament.ownerId && (!auth.currentUser || activeTournament.ownerId !== auth.currentUser.uid)) {
+      return;
+    }
+
+    if (domainMatches.some(m => m.id === matchId)) {
+      const matchRef = doc(db, 'tournaments', tournamentId, 'matches', matchId);
+      await updateDoc(matchRef, {
+        tossWinnerId: teamId
+      });
+      return;
+    }
+
+    // LEGACY PATH
+    updateTournamentDoc(tournamentId, (t) => {
+      const matchIndex = t.fixtures.findIndex((m) => m.id === matchId);
+      if (matchIndex === -1) return t;
+
+      const currentMatch = t.fixtures[matchIndex];
+      const updatedMatch: Match = {
+        ...currentMatch,
+        tossWinnerId: teamId
+      };
+
+      const newFixtures = [...t.fixtures];
+      newFixtures[matchIndex] = updatedMatch;
+      return { ...t, fixtures: newFixtures };
+    });
+  };
+
 
   const updateMatchSets = async (matchId: string, sets: SetScore[], currentSet?: number, servingTeamId?: string | null) => {
     if (!activeTournament) return;
@@ -1282,6 +1316,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         generateTournamentFixtures,
         recordMatchEvent,
         updateMatchScore,
+        setMatchTossWinner,
         updateMatchSets,
         recordMatchSubstitution,
         recordMatchTimeout,

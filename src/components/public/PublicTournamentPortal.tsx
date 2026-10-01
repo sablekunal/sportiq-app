@@ -627,11 +627,17 @@ export const PublicTournamentPortal: React.FC = () => {
                         </div>
 
                         <div className="flex items-center justify-between py-2 text-xs font-bold text-sport-navy gap-2">
-                          <span className="truncate flex-1">{homeName}</span>
+                          <span className="truncate flex-1 flex flex-col">
+                            {homeName}
+                            {m.tossWinnerId === h?.id && <span className="text-[9px] text-emerald-600">Won Toss</span>}
+                          </span>
                           <span className="px-3 py-1 rounded-lg bg-slate-100 font-mono font-black text-sport-orange text-sm shrink-0">
                             {m.homeScore} : {m.awayScore}
                           </span>
-                          <span className="truncate flex-1 text-right">{awayName}</span>
+                          <span className="truncate flex-1 text-right flex flex-col items-end">
+                            {awayName}
+                            {m.tossWinnerId === a?.id && <span className="text-[9px] text-emerald-600">Won Toss</span>}
+                          </span>
                         </div>
 
                         {/* Set-by-Set scores */}
@@ -1118,6 +1124,11 @@ export const PublicTournamentPortal: React.FC = () => {
                       <div className="font-black text-sm sm:text-base text-sport-navy truncate max-w-[120px] sm:max-w-[150px]">
                         {h?.name || 'TBD'}
                       </div>
+                      {selectedMatch.tossWinnerId === h?.id && (
+                        <div className="mt-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] uppercase font-black">
+                          Won Toss
+                        </div>
+                      )}
                     </div>
 
                     {/* Score Numerals */}
@@ -1141,6 +1152,11 @@ export const PublicTournamentPortal: React.FC = () => {
                       <div className="font-black text-sm sm:text-base text-sport-navy truncate max-w-[120px] sm:max-w-[150px]">
                         {a?.name || 'TBD'}
                       </div>
+                      {selectedMatch.tossWinnerId === a?.id && (
+                        <div className="mt-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] uppercase font-black">
+                          Won Toss
+                        </div>
+                      )}
                     </div>
                   </div>
 

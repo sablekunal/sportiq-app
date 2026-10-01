@@ -176,6 +176,7 @@ export interface Match {
   currentSet?: number; // 1, 2, 3
   setsWonA?: number;
   setsWonB?: number;
+  tossWinnerId?: string | null;
 }
 
 export interface TournamentGroup {
