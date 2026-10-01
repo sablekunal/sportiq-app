@@ -92,21 +92,14 @@ export const LiveDrawRoom: React.FC = () => {
     const targetAngle = 360 - ((randomIdx + 0.5) * sliceDegree);
     
     const currentRotMod = spinRotation % 360;
-    // Rotate an extra 5 full times (1800 deg)
-    const newRotation = spinRotation + (360 * 5) + (targetAngle - currentRotMod);
+    // Snap directly to the target angle for instant draw
+    const newRotation = spinRotation + (targetAngle - currentRotMod);
     
     setSpinRotation(newRotation);
+    soundEffects.playTick();
 
-    let ticks = 0;
-    const tickInterval = setInterval(() => {
-      soundEffects.playTick();
-      ticks++;
-      if (ticks > 25) clearInterval(tickInterval); // tick during spin
-    }, 200);
-
-    // Wait 5 seconds for the CSS transition to complete
+    // Wait 10ms for the CSS transition to complete instantly
     setTimeout(async () => {
-      clearInterval(tickInterval);
       setCurrentDrawnTeam(finalTeam);
       
       try {
@@ -237,11 +230,12 @@ export const LiveDrawRoom: React.FC = () => {
               
               {/* Wheel */}
               <div 
-                className={`w-full h-full rounded-full border-[10px] border-slate-900 shadow-[0_0_40px_rgba(0,0,0,0.3)] overflow-hidden transition-transform ease-in-out`}
+                className={`w-full h-full rounded-full border-[10px] border-slate-900 shadow-[0_0_40px_rgba(0,0,0,0.3)] overflow-hidden transition-transform`}
                 style={{
                   transform: `rotate(${spinRotation}deg)`,
-                  transitionDuration: isDrawing ? '5s' : '0s',
-                  transitionTimingFunction: 'cubic-bezier(0.15, 0.85, 0.15, 1)',
+                  transitionDuration: isDrawing ? '10ms' : '0s',
+                  transitionTimingFunction: 'linear',
+                  willChange: 'transform',
                   background: wheelSlices.length > 0 
                     ? `conic-gradient(${wheelSlices.map((t, i, arr) => `${t.color || '#cbd5e1'} ${i * (100/arr.length)}% ${(i+1) * (100/arr.length)}%`).join(', ')})`
                     : currentDrawnTeam ? currentDrawnTeam.color : '#1e293b'
