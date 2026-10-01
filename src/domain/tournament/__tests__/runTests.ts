@@ -17,6 +17,12 @@ import { DomainMatch, TournamentRules, MatchParticipant } from '../models/types'
 import { Team } from '../../../types';
 import { runRosterAndLineupTests } from './rosterLineupTests';
 import { runOperationsTests } from './operationsTests';
+import { runMilestone7RosterTests } from './rosterTests';
+import { runMilestone7ScoringTests } from './scoringTests';
+import { runMilestone7SubstitutionTests } from './substitutionTests';
+import { runMilestone7TimeoutTests } from './timeoutTests';
+import { runMilestone7StandingsTests } from './standingsTests';
+import { runMilestone7FullSimulationTests } from './fullSimulationTests';
 
 const rules: TournamentRules = { allowDraws: false };
 
@@ -845,6 +851,14 @@ function runTests() {
 
   // Milestone 6: Tournament Operations, Scheduling & Readiness Tests (Tests 1-20)
   runOperationsTests();
+
+  // Milestone 7: Authoritative Throwball Rules, Incomplete Rosters, Live Scoring & Deterministic Standings Tests
+  runMilestone7RosterTests();
+  runMilestone7ScoringTests();
+  runMilestone7SubstitutionTests();
+  runMilestone7TimeoutTests();
+  runMilestone7StandingsTests();
+  runMilestone7FullSimulationTests();
 }
 
 runTests();

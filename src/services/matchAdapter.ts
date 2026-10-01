@@ -61,8 +61,17 @@ export function adaptDomainMatchToLegacy(domainMatch: DomainMatch): Match {
       score: {
         homeScore: domainMatch.scoreA,
         awayScore: domainMatch.scoreB,
-        period: domainMatch.status === 'COMPLETED' ? 'Full Time' : undefined,
+        period: domainMatch.status === 'COMPLETED' ? 'Full Time' : domainMatch.currentSet ? `Set ${domainMatch.currentSet}` : undefined,
+        homeDetails: { setsWon: domainMatch.setsWonA, sets: domainMatch.sets },
+        awayDetails: { setsWon: domainMatch.setsWonB, sets: domainMatch.sets },
       },
+      sets: domainMatch.sets,
+      substitutions: domainMatch.substitutions,
+      timeouts: domainMatch.timeouts,
+      servingTeamId: domainMatch.servingTeamId,
+      currentSet: domainMatch.currentSet,
+      setsWonA: domainMatch.setsWonA,
+      setsWonB: domainMatch.setsWonB,
       winnerId: domainMatch.winnerId,
       loserNextMatchId: null, // Unsupported currently
       nextMatchId: null, // Legacy tracking, ignored because Domain dependencies drive the logic

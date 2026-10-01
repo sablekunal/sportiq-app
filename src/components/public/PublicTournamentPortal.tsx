@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { useAuth } from '../../auth/AuthContext';
 import { useDevice } from '../../hooks/useDevice';
 import { SPORT_CONFIGS, calculateSportStandings } from '../../engines/sportEngine';
+import { calculateAllFourGroupStandings } from '../../domain/tournament/results/throwballStandings';
 import { Match } from '../../types';
 import {
   Trophy,
@@ -75,6 +76,9 @@ export const PublicTournamentPortal: React.FC = () => {
   const teams = activeTournament.teams;
   const fixtures = activeTournament.fixtures;
   const liveMatches = fixtures.filter((m) => m.status === 'LIVE');
+  const fourGroupStandings = useMemo(() => {
+    return calculateAllFourGroupStandings(fixtures, teams);
+  }, [fixtures, teams]);
   const standings = calculateSportStandings(
     activeTournament.sport,
     teams,
@@ -394,12 +398,23 @@ export const PublicTournamentPortal: React.FC = () => {
                           {m.roundName}
                         </span>
 
-                        <div className="flex-1 flex items-center justify-center gap-3 font-bold text-sport-navy">
-                          <span className="truncate">{h?.name || 'TBD'}</span>
-                          <span className="px-2 py-0.5 rounded bg-slate-100 font-mono font-black text-sport-orange">
-                            {m.homeScore} : {m.awayScore}
-                          </span>
-                          <span className="truncate">{a?.name || 'TBD'}</span>
+                        <div className="flex-1 flex flex-col items-center justify-center font-bold text-sport-navy">
+                          <div className="flex items-center justify-center gap-3">
+                            <span className="truncate">{h?.name || 'TBD'}</span>
+                            <span className="px-2 py-0.5 rounded bg-slate-100 font-mono font-black text-sport-orange">
+                              {m.homeScore} : {m.awayScore}
+                            </span>
+                            <span className="truncate">{a?.name || 'TBD'}</span>
+                          </div>
+                          {m.sets && m.sets.length > 0 && (
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
+                              {m.sets.map((s) => (
+                                <span key={s.setNumber} className="bg-slate-100 px-1.5 py-0.2 rounded text-slate-700">
+                                  S{s.setNumber}: {s.scoreA}–{s.scoreB}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <span
@@ -444,33 +459,46 @@ export const PublicTournamentPortal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Standings Top 3 */}
+              {/* Group Leaders Preview (Groups A, B, C, D) */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Leaderboard Top 3
+                    Group Leaders (Qualifiers)
                   </h4>
                   <button
                     onClick={() => setActiveTab('standings')}
                     className="text-xs text-sport-orange font-bold hover:underline cursor-pointer"
                   >
-                    Full Table →
+                    Full Standings →
                   </button>
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  {standings.slice(0, 3).map((st, idx) => (
-                    <div
-                      key={st.teamId}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100"
-                    >
-                      <div className="flex items-center gap-2 font-bold text-sport-navy">
-                        <span>{idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}</span>
-                        <span>{st.teamName}</span>
+                  {(['A', 'B', 'C', 'D'] as const).map((grpKey) => {
+                    const leader = fourGroupStandings[grpKey]?.[0];
+                    if (!leader) return null;
+                    return (
+                      <div
+                        key={grpKey}
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100"
+                      >
+                        <div className="flex items-center gap-2 font-bold text-sport-navy">
+                          <span className="w-5 h-5 rounded-md bg-sport-navy text-white text-[10px] font-black flex items-center justify-center">
+                            {grpKey}
+                          </span>
+                          <span className="truncate max-w-[130px]">{leader.teamName}</span>
+                          {leader.played > 0 && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-extrabold">
+                              Q
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono font-black text-sport-orange text-xs">
+                          {leader.won}W • {leader.points} PTS
+                        </span>
                       </div>
-                      <span className="font-mono font-black text-sport-orange">{st.points} PTS</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -582,6 +610,20 @@ export const PublicTournamentPortal: React.FC = () => {
                           <span className="truncate flex-1 text-right">{awayName}</span>
                         </div>
 
+                        {/* Set-by-Set scores */}
+                        {m.sets && m.sets.length > 0 && (
+                          <div className="flex flex-wrap items-center justify-center gap-1.5 pb-2">
+                            {m.sets.map((s) => (
+                              <span
+                                key={s.setNumber}
+                                className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-200/60"
+                              >
+                                Set {s.setNumber}: {s.scoreA}–{s.scoreB}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
                         {/* Court & Schedule details */}
                         <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] flex items-center justify-between text-slate-500">
                           <div className="flex items-center gap-2">
@@ -613,40 +655,40 @@ export const PublicTournamentPortal: React.FC = () => {
 
         {/* 3. Standings Tab */}
         {activeTab === 'standings' && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-4 sm:p-6 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-4 sm:p-6 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-base font-bold text-sport-navy">League Standings</h3>
-                <p className="text-xs text-slate-500">Official tournament ranking leaderboard</p>
+                <h3 className="text-base font-bold text-sport-navy">Official Tournament Standings</h3>
+                <p className="text-xs text-slate-500">
+                  Derived from match set results • Deterministic tie-break hierarchy (W → SD → PD → PF → H2H)
+                </p>
               </div>
 
               {/* Group Selector and View Switcher */}
               <div className="flex flex-wrap items-center gap-2">
-                {(activeTournament.groups && activeTournament.groups.length > 0 || activeTournament.format === 'GROUP_KNOCKOUT') && (
-                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
-                    {(
-                      [
-                        { id: 'ALL', label: 'All' },
-                        { id: 'A', label: 'Group A' },
-                        { id: 'B', label: 'Group B' },
-                        { id: 'C', label: 'Group C' },
-                        { id: 'D', label: 'Group D' },
-                      ] as const
-                    ).map((grp) => (
-                      <button
-                        key={grp.id}
-                        onClick={() => setStandingsGroupFilter(grp.id)}
-                        className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                          standingsGroupFilter === grp.id
-                            ? 'bg-sport-navy text-white shadow-sm'
-                            : 'hover:text-slate-900'
-                        }`}
-                      >
-                        {grp.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+                  {(
+                    [
+                      { id: 'ALL', label: 'All 4 Groups' },
+                      { id: 'A', label: 'Group A' },
+                      { id: 'B', label: 'Group B' },
+                      { id: 'C', label: 'Group C' },
+                      { id: 'D', label: 'Group D' },
+                    ] as const
+                  ).map((grp) => (
+                    <button
+                      key={grp.id}
+                      onClick={() => setStandingsGroupFilter(grp.id)}
+                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                        standingsGroupFilter === grp.id
+                          ? 'bg-sport-navy text-white shadow-sm'
+                          : 'hover:text-slate-900'
+                      }`}
+                    >
+                      {grp.label}
+                    </button>
+                  ))}
+                </div>
 
                 {/* View Switcher: Card View vs Table View */}
                 <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
@@ -672,95 +714,173 @@ export const PublicTournamentPortal: React.FC = () => {
               </div>
             </div>
 
-            {/* Standings Cards Mode (Mobile/Touch-Friendly) */}
-            {standingsView === 'cards' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {standings.map((row, idx) => (
-                  <div
-                    key={row.teamId}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-sport-orange transition shadow-xs"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-xs px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">
-                          {idx === 0 ? '🥇 1st' : idx === 1 ? '🥈 2nd' : idx === 2 ? '🥉 3rd' : `#${idx + 1}`}
-                        </span>
-                        <h4 className="font-extrabold text-sm text-sport-navy truncate max-w-[170px]">
-                          {row.teamName}
-                        </h4>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-lg bg-sport-navy text-sport-orange font-mono font-black text-xs shadow-xs">
-                        {row.points} PTS
+            {/* Render Groups (All or Filtered) */}
+            {((standingsGroupFilter === 'ALL' ? ['A', 'B', 'C', 'D'] : [standingsGroupFilter]) as Array<'A' | 'B' | 'C' | 'D'>).map((grpKey) => {
+              const grpRows = fourGroupStandings[grpKey] || [];
+              const sfTarget = grpKey === 'A' || grpKey === 'B' ? 'Semifinal 1 (SF1)' : 'Semifinal 2 (SF2)';
+
+              return (
+                <div key={grpKey} className="space-y-3">
+                  <div className="flex items-center justify-between bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-md bg-sport-orange text-white text-xs font-black flex items-center justify-center">
+                        {grpKey}
+                      </span>
+                      <h4 className="font-extrabold text-sm text-sport-navy">GROUP {grpKey}</h4>
+                      <span className="text-[11px] text-slate-500">
+                        • Winner qualifies for <strong className="text-sport-orange">{sfTarget}</strong>
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-5 gap-1.5 text-center text-xs mt-3 pt-2.5 border-t border-slate-200/70 font-mono">
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-sans block">P</span>
-                        <span className="font-bold text-slate-700">{row.played}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-sans block">W</span>
-                        <span className="font-bold text-emerald-600">{row.won}</span>
-                      </div>
-                      {sportConfig.supportsDraw && (
-                        <div>
-                          <span className="text-[10px] text-slate-400 font-sans block">D</span>
-                          <span className="font-bold text-slate-600">{row.draw}</span>
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-sans block">L</span>
-                        <span className="font-bold text-rose-500">{row.lost}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 font-sans block">DIFF</span>
-                        <span className="font-bold text-slate-700">{row.difference}</span>
-                      </div>
-                    </div>
+                    <span className="text-[11px] font-mono text-slate-500">
+                      {grpRows.reduce((a, b) => a + b.played, 0) / 2} / 6 Matches Played
+                    </span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              /* Standings Table Mode */
-              <div>
-                <div className="text-[11px] text-slate-400 sm:hidden flex items-center gap-1 mb-2 font-medium">
-                  <span>👉 Swipe table horizontally to see all columns</span>
-                </div>
-                <div className="overflow-x-auto touch-scroll">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-black text-[10px]">
-                      <tr>
-                        <th className="py-3 px-4">Pos</th>
-                        <th className="py-3 px-4">Team</th>
-                        <th className="py-3 px-3 text-center">P</th>
-                        <th className="py-3 px-3 text-center">W</th>
-                        {sportConfig.supportsDraw && <th className="py-3 px-3 text-center">D</th>}
-                        <th className="py-3 px-3 text-center">L</th>
-                        <th className="py-3 px-3 text-center">Diff</th>
-                        <th className="py-3 px-4 text-center font-black text-sport-navy">PTS</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
-                      {standings.map((row, idx) => (
-                        <tr key={row.teamId} className="hover:bg-slate-50">
-                          <td className="py-3 px-4 text-slate-500 font-mono">{idx + 1}</td>
-                          <td className="py-3 px-4 font-bold text-sport-navy">{row.teamName}</td>
-                          <td className="py-3 px-3 text-center font-mono">{row.played}</td>
-                          <td className="py-3 px-3 text-center font-mono text-emerald-600">{row.won}</td>
-                          {sportConfig.supportsDraw && (
-                            <td className="py-3 px-3 text-center font-mono">{row.draw}</td>
+
+                  {standingsView === 'cards' ? (
+                    /* Cards View */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {grpRows.map((row, idx) => (
+                        <div
+                          key={row.teamId}
+                          className={`p-4 rounded-xl border transition shadow-xs ${
+                            idx === 0
+                              ? 'border-orange-300 bg-orange-50/30'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono font-black text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                                #{idx + 1}
+                              </span>
+                              <h5 className="font-extrabold text-xs text-sport-navy truncate max-w-[130px]">
+                                {row.teamName}
+                              </h5>
+                            </div>
+                            <span className="px-2 py-0.5 rounded bg-sport-navy text-sport-orange font-mono font-black text-xs">
+                              {row.points} PTS
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1 text-center text-xs mt-3 pt-2 border-t border-slate-100 font-mono">
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-sans block">P / W</span>
+                              <span className="font-bold text-slate-800">{row.played}/{row.won}</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-sans block">SETS</span>
+                              <span className="font-bold text-slate-700">{row.setsWon}-{row.setsLost}</span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-sans block">SD</span>
+                              <span className={`font-bold ${row.setDifference > 0 ? 'text-emerald-600' : row.setDifference < 0 ? 'text-rose-600' : 'text-slate-600'}`}>
+                                {row.setDifference > 0 ? `+${row.setDifference}` : row.setDifference}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-400 font-sans block">PD</span>
+                              <span className={`font-bold ${row.pointDifference > 0 ? 'text-emerald-600' : row.pointDifference < 0 ? 'text-rose-600' : 'text-slate-600'}`}>
+                                {row.pointDifference > 0 ? `+${row.pointDifference}` : row.pointDifference}
+                              </span>
+                            </div>
+                          </div>
+
+                          {row.qualified && row.played > 0 && (
+                            <div className="mt-2 text-center text-[10px] font-black text-emerald-700 bg-emerald-100 py-0.5 rounded">
+                              ✓ Rank #1 Qualifier ({sfTarget})
+                            </div>
                           )}
-                          <td className="py-3 px-3 text-center font-mono text-rose-500">{row.lost}</td>
-                          <td className="py-3 px-3 text-center font-mono">{row.difference}</td>
-                          <td className="py-3 px-4 text-center font-black text-sport-orange">{row.points}</td>
-                        </tr>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  ) : (
+                    /* Table View */
+                    <div className="overflow-x-auto touch-scroll">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-black text-[10px] tracking-wider">
+                          <tr>
+                            <th className="py-2.5 px-3 w-10 text-center">Pos</th>
+                            <th className="py-2.5 px-3">Team</th>
+                            <th className="py-2.5 px-2.5 text-center" title="Played">P</th>
+                            <th className="py-2.5 px-2.5 text-center text-emerald-700" title="Won">W</th>
+                            <th className="py-2.5 px-2.5 text-center text-rose-600" title="Lost">L</th>
+                            <th className="py-2.5 px-2.5 text-center" title="Sets Won">SW</th>
+                            <th className="py-2.5 px-2.5 text-center" title="Sets Lost">SL</th>
+                            <th className="py-2.5 px-2.5 text-center font-bold" title="Set Difference">SD</th>
+                            <th className="py-2.5 px-2.5 text-center" title="Points For">PF</th>
+                            <th className="py-2.5 px-2.5 text-center" title="Points Against">PA</th>
+                            <th className="py-2.5 px-2.5 text-center font-bold" title="Point Difference">PD</th>
+                            <th className="py-2.5 px-3 text-center font-black text-sport-navy bg-orange-50/50">PTS</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
+                          {grpRows.map((row, idx) => (
+                            <tr
+                              key={row.teamId}
+                              className={`hover:bg-slate-50/80 transition ${
+                                idx === 0 ? 'bg-orange-50/20' : ''
+                              }`}
+                            >
+                              <td className="py-2.5 px-3 text-center font-bold">
+                                {idx === 0 ? (
+                                  <span className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 font-black inline-flex items-center justify-center text-[11px]">
+                                    1
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 font-mono">{idx + 1}</span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 font-bold text-sport-navy">
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate">{row.teamName}</span>
+                                  {row.qualified && row.played > 0 && (
+                                    <span
+                                      className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[9px] uppercase font-black"
+                                      title={`Qualifies for ${sfTarget}`}
+                                    >
+                                      Q
+                                    </span>
+                                  )}
+                                  {row.isTied && (
+                                    <span
+                                      className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] uppercase font-black"
+                                      title={row.tieBreakReason || 'Tie'}
+                                    >
+                                      TIED
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-2.5 text-center font-mono">{row.played}</td>
+                              <td className="py-2.5 px-2.5 text-center font-mono text-emerald-600 font-bold">{row.won}</td>
+                              <td className="py-2.5 px-2.5 text-center font-mono text-rose-500 font-bold">{row.lost}</td>
+                              <td className="py-2.5 px-2.5 text-center font-mono text-slate-700">{row.setsWon}</td>
+                              <td className="py-2.5 px-2.5 text-center font-mono text-slate-500">{row.setsLost}</td>
+                              <td className="py-2.5 px-2.5 text-center font-mono font-black">
+                                <span className={row.setDifference > 0 ? 'text-emerald-600' : row.setDifference < 0 ? 'text-rose-600' : 'text-slate-400'}>
+                                  {row.setDifference > 0 ? `+${row.setDifference}` : row.setDifference}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-2.5 text-center font-mono text-slate-600">{row.pointsFor}</td>
+                              <td className="py-2.5 px-2.5 text-center font-mono text-slate-500">{row.pointsAgainst}</td>
+                              <td className="py-2.5 px-2.5 text-center font-mono font-bold">
+                                <span className={row.pointDifference > 0 ? 'text-emerald-600' : row.pointDifference < 0 ? 'text-rose-600' : 'text-slate-400'}>
+                                  {row.pointDifference > 0 ? `+${row.pointDifference}` : row.pointDifference}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-mono font-black text-sport-orange bg-orange-50/40">
+                                {row.points}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })}
           </div>
         )}
 
@@ -851,7 +971,6 @@ export const PublicTournamentPortal: React.FC = () => {
                   <div className="space-y-1 text-xs">
                     {team.players.map((p, i) => {
                       const isCap = p.isCaptain || team.captainId === p.id;
-                      const isVC = p.isViceCaptain || team.viceCaptainId === p.id;
 
                       return (
                         <div key={p.id || i} className="flex items-center justify-between text-slate-700 py-0.5">
@@ -860,11 +979,6 @@ export const PublicTournamentPortal: React.FC = () => {
                             {isCap && (
                               <span className="text-[9px] font-black text-amber-700 bg-amber-100 px-1 rounded">
                                 CAP
-                              </span>
-                            )}
-                            {isVC && (
-                              <span className="text-[9px] font-black text-blue-700 bg-blue-100 px-1 rounded">
-                                VC
                               </span>
                             )}
                           </span>
@@ -954,6 +1068,23 @@ export const PublicTournamentPortal: React.FC = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Set-by-Set Score Breakdown */}
+                  {selectedMatch.sets && selectedMatch.sets.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                      {selectedMatch.sets.map((s) => (
+                        <div
+                          key={s.setNumber}
+                          className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-center"
+                        >
+                          <div className="text-[9px] uppercase font-bold text-slate-400">Set {s.setNumber}</div>
+                          <div className="font-black text-sport-navy text-sm">
+                            {s.scoreA} — {s.scoreB}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -1055,7 +1186,6 @@ export const PublicTournamentPortal: React.FC = () => {
                                 <span className="font-bold text-slate-800 truncate flex items-center gap-1">
                                   <span>{p.name}</span>
                                   {p.isCaptain && <span className="text-[8px] px-1 py-0.2 bg-amber-100 text-amber-800 rounded font-black">C</span>}
-                                  {p.isViceCaptain && <span className="text-[8px] px-1 py-0.2 bg-blue-100 text-blue-800 rounded font-black">VC</span>}
                                 </span>
                                 <span className={`font-mono font-black text-xs ${isHome ? 'text-sport-orange' : 'text-blue-600'}`}>
                                   #{p.jerseyNumber}
@@ -1082,7 +1212,6 @@ export const PublicTournamentPortal: React.FC = () => {
                                 <span className="font-medium text-slate-700 truncate flex items-center gap-1">
                                   <span>{p.name}</span>
                                   {p.isCaptain && <span className="text-[8px] px-1 py-0.2 bg-amber-100 text-amber-800 rounded font-black">C</span>}
-                                  {p.isViceCaptain && <span className="text-[8px] px-1 py-0.2 bg-blue-100 text-blue-800 rounded font-black">VC</span>}
                                 </span>
                                 <span className={`font-mono font-black text-xs ${isHome ? 'text-sport-orange' : 'text-blue-600'}`}>
                                   #{p.jerseyNumber}

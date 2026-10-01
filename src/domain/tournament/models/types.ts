@@ -1,4 +1,4 @@
-import { MatchLineup, MatchSchedule } from '../../../types';
+import { MatchLineup, MatchSchedule, SetScore, SubstitutionEvent, TimeoutEvent } from '../../../types';
 
 export type MatchParticipant =
   | { type: 'TEAM'; teamId: string }
@@ -50,11 +50,20 @@ export interface DomainMatch {
 
   lineupA?: MatchLineup;
   lineupB?: MatchLineup;
+
+  sets?: SetScore[];
+  substitutions?: SubstitutionEvent[];
+  timeouts?: TimeoutEvent[];
+  servingTeamId?: string | null;
+  currentSet?: number;
+  setsWonA?: number;
+  setsWonB?: number;
 }
 
 export interface MatchResult {
   scoreA: number;
   scoreB: number;
+  sets?: SetScore[];
   // If the sport has additional details, they would go here, 
   // but for the engine, scores are enough to determine the winner based on rules.
 }

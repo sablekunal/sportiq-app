@@ -18,7 +18,13 @@ import {
   Lock,
 } from 'lucide-react';
 import { soundEffects } from '../../engines/audioEngine';
-import { THROWBALL_ROSTER_RULES, validateTeamRoster } from '../../domain/tournament/roster/rosterRules';
+import {
+  THROWBALL_ROSTER_RULES,
+  validateTeamRoster,
+  getRosterStatus,
+  canRemoveOrReplacePlayer,
+} from '../../domain/tournament/roster/rosterRules';
+import type { RosterStatus } from '../../types';
 
 export const TeamsManagement: React.FC = () => {
   const {
@@ -26,6 +32,8 @@ export const TeamsManagement: React.FC = () => {
     addTeamToTournament,
     updateTeamInTournament,
     removeTeamFromTournament,
+    lockTeamRoster,
+    domainMatches,
   } = useTournament();
 
   const [isAddingTeam, setIsAddingTeam] = useState(false);
@@ -65,14 +73,16 @@ export const TeamsManagement: React.FC = () => {
     );
   };
 
-  const isCurrentTeamLocked = currentTeam ? hasPlayedMatches(currentTeam.id) : false;
+  const isCurrentTeamLocked = currentTeam
+    ? Boolean(currentTeam.isRosterLocked) || hasPlayedMatches(currentTeam.id)
+    : false;
 
   // Helper to generate a regulation 8-player squad (6 starters + 2 substitutes spec)
   const generateRegulation8Squad = (teamShort: string): Player[] => {
     const timestamp = Date.now();
     return [
       { id: `p-${timestamp}-1`, name: `${teamShort} Captain`, jerseyNumber: 10, role: 'Captain (C)', isCaptain: true },
-      { id: `p-${timestamp}-2`, name: `${teamShort} Vice Captain`, jerseyNumber: 7, role: 'Vice-Captain (VC)', isViceCaptain: true },
+      { id: `p-${timestamp}-2`, name: `${teamShort} Player 2`, jerseyNumber: 7, role: 'Court Player' },
       { id: `p-${timestamp}-3`, name: `${teamShort} Setter`, jerseyNumber: 9, role: 'Court Player' },
       { id: `p-${timestamp}-4`, name: `${teamShort} Center`, jerseyNumber: 5, role: 'Court Player' },
       { id: `p-${timestamp}-5`, name: `${teamShort} Left Wing`, jerseyNumber: 2, role: 'Court Player' },
@@ -100,6 +110,8 @@ export const TeamsManagement: React.FC = () => {
           },
         ];
 
+    const initialStatus: RosterStatus = squadPlayers.length === 8 ? 'COMPLETE' : 'INCOMPLETE';
+
     addTeamToTournament(activeTournament.id, {
       name: teamName.trim(),
       shortName: code,
@@ -107,8 +119,9 @@ export const TeamsManagement: React.FC = () => {
       seed: Number(seed),
       groupId: selectedGroupId || undefined,
       players: squadPlayers,
+      rosterStatus: initialStatus,
+      isRosterLocked: false,
       captainId: squadPlayers.find((p) => p.isCaptain)?.id,
-      viceCaptainId: squadPlayers.find((p) => p.isViceCaptain)?.id,
     });
 
     setTeamName('');
@@ -148,8 +161,10 @@ export const TeamsManagement: React.FC = () => {
     };
 
     const updatedPlayers = [...currentTeam.players, newPlayer];
+    const newStatus: RosterStatus = updatedPlayers.length === 8 ? 'COMPLETE' : 'INCOMPLETE';
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       players: updatedPlayers,
+      rosterStatus: newStatus,
     });
 
     setPlayerName('');
@@ -160,15 +175,24 @@ export const TeamsManagement: React.FC = () => {
   const handleRemovePlayer = (playerId: string) => {
     if (!currentTeam || !activeTournament) return;
     if (isCurrentTeamLocked) {
-      alert('Cannot remove player: this team has active or completed competition matches.');
+      alert('Cannot remove player: this team roster is locked or has active/completed competition matches.');
+      return;
+    }
+
+    const allMatches = domainMatches.length > 0 ? domainMatches : activeTournament.fixtures;
+    const check = canRemoveOrReplacePlayer(currentTeam, playerId, allMatches);
+    if (!check.allowed) {
+      alert(`Cannot remove player: ${check.reason}`);
       return;
     }
 
     const updatedPlayers = currentTeam.players.filter((item) => item.id !== playerId);
+    const newStatus: RosterStatus = updatedPlayers.length === 8 ? 'COMPLETE' : 'INCOMPLETE';
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       players: updatedPlayers,
+      isRosterLocked: false,
+      rosterStatus: newStatus,
       captainId: currentTeam.captainId === playerId ? undefined : currentTeam.captainId,
-      viceCaptainId: currentTeam.viceCaptainId === playerId ? undefined : currentTeam.viceCaptainId,
     });
     soundEffects.playWhistle();
   };
@@ -214,40 +238,16 @@ export const TeamsManagement: React.FC = () => {
     if (!currentTeam || !activeTournament) return;
     const isCurrentlyCap = currentTeam.captainId === playerId || currentTeam.players.find(p => p.id === playerId)?.isCaptain;
     const newCaptainId = isCurrentlyCap ? undefined : playerId;
-    // Cannot be captain and vice-captain at same time
-    const newViceCaptainId = currentTeam.viceCaptainId === playerId ? undefined : currentTeam.viceCaptainId;
 
     const updatedPlayers = currentTeam.players.map((p) => ({
       ...p,
       isCaptain: p.id === newCaptainId,
-      isViceCaptain: p.id === newViceCaptainId,
-      role: p.id === newCaptainId ? 'Captain (C)' : (p.id === newViceCaptainId ? 'Vice-Captain (VC)' : (p.role === 'Captain (C)' || p.role === 'Vice-Captain (VC)' ? 'Court Player' : p.role)),
+      isViceCaptain: false,
+      role: p.id === newCaptainId ? 'Captain (C)' : (p.role === 'Captain (C)' || p.role === 'Vice-Captain (VC)' ? 'Court Player' : p.role),
     }));
 
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
       captainId: newCaptainId,
-      viceCaptainId: newViceCaptainId,
-      players: updatedPlayers,
-    });
-  };
-
-  const handleToggleViceCaptain = (playerId: string) => {
-    if (!currentTeam || !activeTournament) return;
-    const isCurrentlyVC = currentTeam.viceCaptainId === playerId || currentTeam.players.find(p => p.id === playerId)?.isViceCaptain;
-    const newViceCaptainId = isCurrentlyVC ? undefined : playerId;
-    // Cannot be captain and vice-captain at same time
-    const newCaptainId = currentTeam.captainId === playerId ? undefined : currentTeam.captainId;
-
-    const updatedPlayers = currentTeam.players.map((p) => ({
-      ...p,
-      isCaptain: p.id === newCaptainId,
-      isViceCaptain: p.id === newViceCaptainId,
-      role: p.id === newCaptainId ? 'Captain (C)' : (p.id === newViceCaptainId ? 'Vice-Captain (VC)' : (p.role === 'Captain (C)' || p.role === 'Vice-Captain (VC)' ? 'Court Player' : p.role)),
-    }));
-
-    updateTeamInTournament(activeTournament.id, currentTeam.id, {
-      captainId: newCaptainId,
-      viceCaptainId: newViceCaptainId,
       players: updatedPlayers,
     });
   };
@@ -267,7 +267,6 @@ export const TeamsManagement: React.FC = () => {
     updateTeamInTournament(activeTournament.id, team.id, {
       players: newPlayers,
       captainId: newPlayers.find((p) => p.isCaptain)?.id,
-      viceCaptainId: newPlayers.find((p) => p.isViceCaptain)?.id,
     });
     soundEffects.playCelebration();
   };
@@ -289,34 +288,42 @@ export const TeamsManagement: React.FC = () => {
             <h4 className="text-sm font-extrabold text-white flex items-center gap-2">
               St. Xavier's Girls Throwball — Official Competition Roster Specification
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs pt-1 text-slate-300">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-xs pt-1 text-slate-300">
               <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
                 <span className="font-bold text-sport-orange block uppercase text-[10px]">
                   1. Registered Roster
                 </span>
                 <span className="font-semibold text-white">Exactly 8 Players</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">Required before team is competition-ready</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Required before competition publication</p>
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
                 <span className="font-bold text-sport-orange block uppercase text-[10px]">
                   2. Match Day Lineup
                 </span>
-                <span className="font-semibold text-white">6 Starters + 2 Substitutes</span>
+                <span className="font-semibold text-white">6 Starters + 2 Subs</span>
                 <p className="text-[11px] text-slate-400 mt-0.5">Selected per match; not permanent roles</p>
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
                 <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  3. Captain & Vice Captain
+                  3. Catholic Quota
                 </span>
-                <span className="font-semibold text-white">Max 1 Captain + 1 VC</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">Distinct player identities required</p>
+                <span className="font-semibold text-white">Min 3 Catholics</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">Compulsory per team (Official Rule)</p>
               </div>
 
               <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
                 <span className="font-bold text-sport-orange block uppercase text-[10px]">
-                  4. Jersey Numbers
+                  4. Sets & Points
+                </span>
+                <span className="font-semibold text-white">Best of 3 Sets</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">15 rally pts per set (No 3rd set if 2-0)</p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800">
+                <span className="font-bold text-sport-orange block uppercase text-[10px]">
+                  5. Jersey Numbers
                 </span>
                 <span className="font-semibold text-white">#1 to #99 (Unique)</span>
                 <p className="text-[11px] text-slate-400 mt-0.5">No duplicate jerseys within same team</p>
@@ -334,7 +341,7 @@ export const TeamsManagement: React.FC = () => {
             Tournament Teams & Squad Rosters
           </h3>
           <p className="text-xs text-slate-500">
-            Manage 8-player squads, jersey numbers, and captaincy ({teams.length} Teams Registered)
+            Dynamic team registration: Add, edit, remove players. Teams reach 8 players to finalize ({teams.length} Teams Registered)
           </p>
         </div>
 
@@ -455,7 +462,8 @@ export const TeamsManagement: React.FC = () => {
           {teams.map((team) => {
             const isSelected = currentTeam?.id === team.id;
             const validation = validateTeamRoster(team.players, THROWBALL_ROSTER_RULES);
-            const teamLocked = hasPlayedMatches(team.id);
+            const teamLocked = hasPlayedMatches(team.id) || Boolean(team.isRosterLocked);
+            const rosterStatus = getRosterStatus(team);
 
             return (
               <div
@@ -478,23 +486,27 @@ export const TeamsManagement: React.FC = () => {
                     <h4 className="text-sm font-bold text-sport-navy flex items-center gap-1.5">
                       {team.name}
                       {teamLocked && (
-                        <span title="Roster locked (matches active/completed)">
-                          <Lock className="w-3 h-3 text-slate-400" />
+                        <span title="Roster finalized / locked">
+                          <Lock className="w-3 h-3 text-purple-600" />
                         </span>
                       )}
                     </h4>
                     <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
                       <span>Seed #{team.seed || '-'}</span>
                       <span>•</span>
-                      <span
-                        className={
-                          validation.isValid
-                            ? 'text-emerald-600 font-bold'
-                            : 'text-amber-600 font-bold'
-                        }
-                      >
-                        {team.players.length}/8 Players {validation.isValid ? '✓ Ready' : '(Need 8)'}
-                      </span>
+                      {rosterStatus === 'LOCKED' ? (
+                        <span className="text-purple-700 font-extrabold flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded bg-purple-50 border border-purple-200">
+                          <Lock className="w-2.5 h-2.5" /> LOCKED (8/8)
+                        </span>
+                      ) : rosterStatus === 'COMPLETE' ? (
+                        <span className="text-emerald-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200">
+                          COMPLETE (8/8)
+                        </span>
+                      ) : (
+                        <span className="text-amber-700 font-extrabold text-[10px] px-1.5 py-0.2 rounded bg-amber-50 border border-amber-200">
+                          INCOMPLETE ({team.players.length}/8)
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -505,7 +517,7 @@ export const TeamsManagement: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (teamLocked) {
-                        alert('Cannot delete team: matches have been played or are live.');
+                        alert('Cannot delete team: roster is locked or matches have been played.');
                         return;
                       }
                       if (window.confirm(`Delete team "${team.name}"?`)) {
@@ -517,7 +529,7 @@ export const TeamsManagement: React.FC = () => {
                         ? 'text-slate-300 cursor-not-allowed'
                         : 'text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer'
                     }`}
-                    title={teamLocked ? 'Locked (matches played)' : 'Remove Team'}
+                    title={teamLocked ? 'Locked (roster finalized)' : 'Remove Team'}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -544,18 +556,35 @@ export const TeamsManagement: React.FC = () => {
                     <h4 className="text-base font-extrabold text-sport-navy flex items-center gap-2">
                       {currentTeam.name}
                       {isCurrentTeamLocked && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
-                          <Lock className="w-3 h-3" /> Historical Lock
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+                          <Lock className="w-3 h-3 text-purple-600" /> Roster Finalized (Locked)
                         </span>
                       )}
                     </h4>
                     <p className="text-xs text-slate-500">
-                      Code: <strong className="font-mono text-sport-orange">{currentTeam.shortName}</strong> • Seed #{currentTeam.seed || 'Unseeded'}
+                      Code: <strong className="font-mono text-sport-orange">{currentTeam.shortName}</strong> • Seed #{currentTeam.seed || 'Unseeded'} • Status: <strong className="text-sport-navy">{getRosterStatus(currentTeam)}</strong>
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* Finalize Roster Button */}
+                  {currentTeam.players.length === 8 && !isCurrentTeamLocked && (
+                    <button
+                      onClick={async () => {
+                        if (window.confirm(`Finalize and lock the 8-player roster for ${currentTeam.name}? Once finalized, destructive edits are blocked.`)) {
+                          await lockTeamRoster(activeTournament.id, currentTeam.id);
+                          soundEffects.playCelebration();
+                        }
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-purple-600 hover:bg-purple-700 text-white transition flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95"
+                      title="Finalize roster (Lock against destructive changes)"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Finalize Roster</span>
+                    </button>
+                  )}
+
                   <button
                     disabled={isCurrentTeamLocked}
                     onClick={() => handlePopulateSquad(currentTeam)}
@@ -567,7 +596,7 @@ export const TeamsManagement: React.FC = () => {
                     title="Load standard 8-player Throwball roster"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-sport-orange" />
-                    <span>Load 8-Player Squad Preset</span>
+                    <span>Load 8-Player Preset</span>
                   </button>
 
                   <span
@@ -580,12 +609,12 @@ export const TeamsManagement: React.FC = () => {
                     {currentValidation.isValid ? (
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>8 / 8 Ready</span>
+                        <span>8 / 8 Complete</span>
                       </>
                     ) : (
                       <>
                         <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                        <span>{currentTeam.players.length} / 8 Players</span>
+                        <span>{currentTeam.players.length} / 8 Incomplete</span>
                       </>
                     )}
                   </span>
@@ -661,7 +690,7 @@ export const TeamsManagement: React.FC = () => {
                     <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase text-[10px]">
                       <th className="py-2.5 px-3">Jersey #</th>
                       <th className="py-2.5 px-3">Player Full Name</th>
-                      <th className="py-2.5 px-3 text-center">Leadership</th>
+                      <th className="py-2.5 px-3 text-center">Captain</th>
                       <th className="py-2.5 px-3 text-center">Match Eligibility</th>
                       <th className="py-2.5 px-3 text-right">Actions</th>
                     </tr>
@@ -670,7 +699,6 @@ export const TeamsManagement: React.FC = () => {
                     {currentTeam.players.map((p, idx) => {
                       const isEditing = editingPlayerId === p.id;
                       const isCap = p.isCaptain || currentTeam.captainId === p.id;
-                      const isVC = p.isViceCaptain || currentTeam.viceCaptainId === p.id;
 
                       return (
                         <tr key={p.id || idx} className="hover:bg-slate-50/80 transition">
@@ -705,35 +733,19 @@ export const TeamsManagement: React.FC = () => {
                           </td>
 
                           <td className="py-2.5 px-3 text-center">
-                            <div className="inline-flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                disabled={isCurrentTeamLocked}
-                                onClick={() => handleToggleCaptain(p.id)}
-                                title={isCap ? 'Remove Captain' : 'Make Captain'}
-                                className={`px-2 py-0.5 rounded text-[10px] font-extrabold transition cursor-pointer ${
-                                  isCap
-                                    ? 'bg-amber-500 text-white shadow-sm'
-                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
-                                }`}
-                              >
-                                {isCap ? '★ CAP' : 'C'}
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled={isCurrentTeamLocked}
-                                onClick={() => handleToggleViceCaptain(p.id)}
-                                title={isVC ? 'Remove Vice Captain' : 'Make Vice Captain'}
-                                className={`px-2 py-0.5 rounded text-[10px] font-extrabold transition cursor-pointer ${
-                                  isVC
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
-                                }`}
-                              >
-                                {isVC ? '🛡 VC' : 'VC'}
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              disabled={isCurrentTeamLocked}
+                              onClick={() => handleToggleCaptain(p.id)}
+                              title={isCap ? 'Remove Captain' : 'Assign as Team Captain'}
+                              className={`px-2.5 py-1 rounded text-[10px] font-extrabold transition cursor-pointer mx-auto ${
+                                isCap
+                                  ? 'bg-amber-500 text-white shadow-sm'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
+                              }`}
+                            >
+                              {isCap ? '★ CAPTAIN' : 'Make Captain'}
+                            </button>
                           </td>
 
                           <td className="py-2.5 px-3 text-center">

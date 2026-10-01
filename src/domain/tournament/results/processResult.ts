@@ -7,7 +7,7 @@ export interface ProcessResultOutput {
 
 /**
  * Validates a match result, determines the outcome, marks the match COMPLETED,
- * and recursively resolves downstream dependencies.
+ * preserves actual set scores, and recursively resolves downstream dependencies.
  */
 export function processMatchResult(
   allMatches: DomainMatch[],
@@ -22,7 +22,12 @@ export function processMatchResult(
     return { updatedMatches: allMatches, errors: ['Match not found'] };
   }
 
-  if (match.status === 'COMPLETED' && match.scoreA === result.scoreA && match.scoreB === result.scoreB) {
+  if (
+    match.status === 'COMPLETED' &&
+    match.scoreA === result.scoreA &&
+    match.scoreB === result.scoreB &&
+    (!result.sets || JSON.stringify(match.sets) === JSON.stringify(result.sets))
+  ) {
     // Idempotency: same result submitted again, do nothing.
     return { updatedMatches: allMatches, errors: [] };
   }
@@ -53,6 +58,16 @@ export function processMatchResult(
   // Update match
   match.scoreA = result.scoreA;
   match.scoreB = result.scoreB;
+  if (result.sets) {
+    match.sets = result.sets;
+    // Derive sets won if applicable
+    const teamAId = match.participantA.type === 'TEAM' ? match.participantA.teamId : null;
+    const teamBId = match.participantB.type === 'TEAM' ? match.participantB.teamId : null;
+    if (teamAId && teamBId) {
+      match.setsWonA = result.sets.filter((s) => s.status === 'COMPLETED' && (s.winnerId === teamAId || s.scoreA > s.scoreB)).length;
+      match.setsWonB = result.sets.filter((s) => s.status === 'COMPLETED' && (s.winnerId === teamBId || s.scoreB > s.scoreA)).length;
+    }
+  }
   match.status = 'COMPLETED';
   match.winnerId = winnerId;
   match.loserId = loserId;
@@ -76,11 +91,26 @@ export interface GroupStandingSummary {
   conceded: number;
   difference: number;
   points: number;
+  setsWon: number;
+  setsLost: number;
+  setDifference: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  pointDifference: number;
+  isTied?: boolean;
 }
 
 /**
- * Computes group standings from normalized domain matches.
- * Matches must be COMPLETED to count.
+ * Computes group standings from normalized domain matches using the deterministic 6-tier tie-breaking policy.
+ * Matches must be COMPLETED or BYE_ADVANCEMENT to count.
+ *
+ * Deterministic Hierarchy:
+ * 1. MATCH WINS
+ * 2. SET DIFFERENCE (SW - SL)
+ * 3. POINT DIFFERENCE (PF - PA)
+ * 4. POINTS FOR (PF)
+ * 5. HEAD-TO-HEAD (completed direct encounter between tied teams)
+ * 6. DETERMINISTIC NON-SPORTING FALLBACK (teamId stable sort, never random)
  */
 export function computeGroupStandings(
   groupMatches: DomainMatch[],
@@ -91,7 +121,24 @@ export function computeGroupStandings(
   const getOrCreate = (teamId: string) => {
     let s = map.get(teamId);
     if (!s) {
-      s = { teamId, played: 0, won: 0, draw: 0, lost: 0, scored: 0, conceded: 0, difference: 0, points: 0 };
+      s = {
+        teamId,
+        played: 0,
+        won: 0,
+        draw: 0,
+        lost: 0,
+        scored: 0,
+        conceded: 0,
+        difference: 0,
+        points: 0,
+        setsWon: 0,
+        setsLost: 0,
+        setDifference: 0,
+        pointsFor: 0,
+        pointsAgainst: 0,
+        pointDifference: 0,
+        isTied: false,
+      };
       map.set(teamId, s);
     }
     return s;
@@ -102,12 +149,16 @@ export function computeGroupStandings(
   const lossPoints = rules?.pointsForLoss ?? rules?.lossPoints ?? 0;
   const allowDraws = Boolean(rules?.allowDraws);
 
-  for (const m of groupMatches) {
-    if (m.status !== 'COMPLETED' && m.status !== 'BYE_ADVANCEMENT') continue;
-    if (m.participantA.type !== 'TEAM' || m.participantB.type !== 'TEAM') continue;
+  const completedMatches = groupMatches.filter(
+    (m) =>
+      (m.status === 'COMPLETED' || m.status === 'BYE_ADVANCEMENT') &&
+      m.participantA.type === 'TEAM' &&
+      m.participantB.type === 'TEAM'
+  );
 
-    const teamA = m.participantA.teamId;
-    const teamB = m.participantB.teamId;
+  for (const m of completedMatches) {
+    const teamA = (m.participantA as { type: 'TEAM'; teamId: string }).teamId;
+    const teamB = (m.participantB as { type: 'TEAM'; teamId: string }).teamId;
 
     const stA = getOrCreate(teamA);
     const stB = getOrCreate(teamB);
@@ -115,11 +166,7 @@ export function computeGroupStandings(
     stA.played += 1;
     stB.played += 1;
 
-    stA.scored += m.scoreA;
-    stA.conceded += m.scoreB;
-    stB.scored += m.scoreB;
-    stB.conceded += m.scoreA;
-
+    // Match outcome
     if (m.winnerId === teamA) {
       stA.won += 1;
       stA.points += winPoints;
@@ -136,17 +183,79 @@ export function computeGroupStandings(
       stA.points += drawPoints;
       stB.points += drawPoints;
     }
+
+    // Set & point breakdown
+    if (m.sets && m.sets.length > 0) {
+      for (const set of m.sets) {
+        if (set.status !== 'COMPLETED') continue;
+
+        stA.pointsFor += set.scoreA;
+        stA.pointsAgainst += set.scoreB;
+        stB.pointsFor += set.scoreB;
+        stB.pointsAgainst += set.scoreA;
+
+        if (set.winnerId === teamA || set.scoreA > set.scoreB) {
+          stA.setsWon += 1;
+          stB.setsLost += 1;
+        } else if (set.winnerId === teamB || set.scoreB > set.scoreA) {
+          stB.setsWon += 1;
+          stA.setsLost += 1;
+        }
+      }
+    } else {
+      // Direct scores (legacy or point-based matches)
+      stA.scored += m.scoreA;
+      stA.conceded += m.scoreB;
+      stB.scored += m.scoreB;
+      stB.conceded += m.scoreA;
+
+      stA.setsWon += m.scoreA;
+      stA.setsLost += m.scoreB;
+      stB.setsWon += m.scoreB;
+      stB.setsLost += m.scoreA;
+
+      stA.pointsFor += m.scoreA;
+      stA.pointsAgainst += m.scoreB;
+      stB.pointsFor += m.scoreB;
+      stB.pointsAgainst += m.scoreA;
+    }
   }
 
   const list = Array.from(map.values());
   list.forEach((s) => {
     s.difference = s.scored - s.conceded;
+    s.setDifference = s.setsWon - s.setsLost;
+    s.pointDifference = s.pointsFor - s.pointsAgainst;
   });
 
+  // Apply deterministic 6-tier tie-breaking policy
   list.sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    if (b.difference !== a.difference) return b.difference - a.difference;
-    return b.scored - a.scored;
+    // 1. MATCH WINS
+    if (b.won !== a.won) return b.won - a.won;
+
+    // 2. SET DIFFERENCE
+    if (b.setDifference !== a.setDifference) return b.setDifference - a.setDifference;
+
+    // 3. POINT DIFFERENCE
+    if (b.pointDifference !== a.pointDifference) return b.pointDifference - a.pointDifference;
+
+    // 4. POINTS FOR
+    if (b.pointsFor !== a.pointsFor) return b.pointsFor - a.pointsFor;
+
+    // 5. HEAD-TO-HEAD
+    const directMatch = completedMatches.find((m) => {
+      const pA = (m.participantA as any).teamId;
+      const pB = (m.participantB as any).teamId;
+      return (pA === a.teamId && pB === b.teamId) || (pA === b.teamId && pB === a.teamId);
+    });
+
+    if (directMatch && directMatch.winnerId) {
+      if (directMatch.winnerId === a.teamId) return -1;
+      if (directMatch.winnerId === b.teamId) return 1;
+    }
+
+    // 6. DETERMINISTIC FALLBACK (never random)
+    return a.teamId.localeCompare(b.teamId);
   });
 
   return list;
@@ -204,7 +313,7 @@ export function propagateOutcomes(
       (m) => m.groupId === sourceMatch.groupId
     );
 
-    // Group must be completely finished (e.g. 6 matches for 4-team group) before resolving qualifiers
+    // Group must be completely finished (6 matches for 4-team group) before resolving qualifiers
     const isGroupComplete =
       groupMatches.length >= 6 &&
       groupMatches.every((m) => m.status === 'COMPLETED' || m.status === 'BYE_ADVANCEMENT');

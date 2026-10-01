@@ -334,7 +334,6 @@ export const MatchLineupModal: React.FC<MatchLineupModalProps> = ({
                     const isStarter = currentStarters.includes(p.id);
                     const isSub = currentSubs.includes(p.id);
                     const isCap = p.isCaptain || currentTeam.captainId === p.id;
-                    const isVC = p.isViceCaptain || currentTeam.viceCaptainId === p.id;
 
                     return (
                       <tr
@@ -355,11 +354,6 @@ export const MatchLineupModal: React.FC<MatchLineupModalProps> = ({
                           {isCap && (
                             <span className="text-[9px] px-1.5 py-0.2 rounded font-black bg-amber-100 text-amber-800 border border-amber-300">
                               CAP
-                            </span>
-                          )}
-                          {isVC && (
-                            <span className="text-[9px] px-1.5 py-0.2 rounded font-black bg-blue-100 text-blue-800 border border-blue-300">
-                              VC
                             </span>
                           )}
                         </td>

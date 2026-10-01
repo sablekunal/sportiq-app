@@ -18,6 +18,38 @@ export type TournamentStatus =
 
 export type MatchStatus = 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'CANCELLED' | 'POSTPONED';
 
+export type PlayerStatus = 'ACTIVE' | 'REPLACED' | 'WITHDRAWN';
+
+export type RosterStatus = 'INCOMPLETE' | 'COMPLETE' | 'LOCKED';
+
+export interface SetScore {
+  setNumber: number;
+  scoreA: number;
+  scoreB: number;
+  winnerId?: string | null;
+  status: 'NOT_STARTED' | 'LIVE' | 'COMPLETED';
+}
+
+export interface SubstitutionEvent {
+  id: string;
+  matchId: string;
+  setNumber: number;
+  teamId: string;
+  outgoingPlayerId: string;
+  incomingPlayerId: string;
+  reason: 'NORMAL' | 'INJURY';
+  timestamp: string;
+}
+
+export interface TimeoutEvent {
+  id: string;
+  matchId: string;
+  setNumber: number;
+  teamId: string;
+  durationMinutes: number; // 3 minutes per Throwball rule
+  timestamp: string;
+}
+
 export interface PlayerLineupSnapshot {
   id: string;
   name: string;
@@ -48,6 +80,7 @@ export interface Player {
   phone?: string;
   isCaptain?: boolean;
   isViceCaptain?: boolean;
+  status?: PlayerStatus;
 }
 
 export interface Team {
@@ -61,6 +94,8 @@ export interface Team {
   seed?: number;
   groupId?: string;
   players: Player[];
+  rosterStatus?: RosterStatus;
+  isRosterLocked?: boolean;
 }
 
 export interface MatchSchedule {
@@ -134,6 +169,13 @@ export interface Match {
   events: MatchEvent[];
   lineupHome?: MatchLineup;
   lineupAway?: MatchLineup;
+  sets?: SetScore[];
+  substitutions?: SubstitutionEvent[];
+  timeouts?: TimeoutEvent[];
+  servingTeamId?: string | null;
+  currentSet?: number; // 1, 2, 3
+  setsWonA?: number;
+  setsWonB?: number;
 }
 
 export interface TournamentGroup {
@@ -156,6 +198,17 @@ export interface Standing {
   conceded: number; // Goals against, runs conceded, sets lost
   difference: number; // Goal difference, NRR, set difference
   groupId?: string;
+  // Extended throwball stats
+  setsWon?: number;
+  setsLost?: number;
+  setDifference?: number;
+  pointsFor?: number;
+  pointsAgainst?: number;
+  pointDifference?: number;
+  rank?: number;
+  qualified?: boolean;
+  isTied?: boolean;
+  tieBreakReason?: string;
 }
 
 export interface TournamentRules {

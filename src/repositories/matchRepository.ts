@@ -66,13 +66,36 @@ export class MatchRepository {
   }
 
   /**
+   * Updates live match sets, score, timeouts, or substitutions.
+   */
+  static async updateLiveMatchSets(
+    tournamentId: string,
+    matchId: string,
+    data: {
+      sets?: any[];
+      currentSet?: number;
+      scoreA?: number;
+      scoreB?: number;
+      setsWonA?: number;
+      setsWonB?: number;
+      status?: any;
+      servingTeamId?: string | null;
+      substitutions?: any[];
+      timeouts?: any[];
+    }
+  ): Promise<void> {
+    const matchRef = doc(db, 'tournaments', tournamentId, 'matches', matchId);
+    await updateDoc(matchRef, data);
+  }
+
+  /**
    * Completes a match using a Firestore transaction to prevent concurrent 
    * completion of the same match.
    */
   static async completeMatchTransaction(
     tournamentId: string,
     matchId: string,
-    result: { scoreA: number, scoreB: number },
+    result: { scoreA: number; scoreB: number; sets?: any[] },
     rules: any,
     processResultFn: (allMatches: DomainMatch[], targetMatchId: string, result: any, rules: any) => { updatedMatches: DomainMatch[], errors: string[] }
   ): Promise<void> {

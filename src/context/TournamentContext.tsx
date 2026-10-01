@@ -12,6 +12,9 @@ import {
   MatchLineup,
   PlayerLineupSnapshot,
   Venue,
+  SetScore,
+  SubstitutionEvent,
+  TimeoutEvent,
 } from '../types';
 import { INITIAL_VENUES, createThrowballDemoTournament } from '../services/mockData';
 import { advanceWinnerInBracket, generateKnockoutFixtures, generateRoundRobinFixtures, generateGroupKnockoutFixtures } from '../engines/tournamentEngine';
@@ -37,6 +40,7 @@ import {
   createDefaultLineup,
   isLineupLocked,
 } from '../domain/tournament/roster/lineupValidation';
+import { recordSubstitution, recordTimeout } from '../domain/tournament/scoring/throwballScoringEngine';
 
 import { MatchSchedule, ScheduleConflict, TournamentReadinessResult } from '../domain/tournament/operations/types';
 import { detectScheduleConflicts, validateMatchSchedule } from '../domain/tournament/operations/conflicts';
@@ -89,7 +93,11 @@ interface TournamentContextType {
   generateTournamentFixtures: (tournamentId: string) => void;
   recordMatchEvent: (matchId: string, event: Omit<MatchEvent, 'id' | 'timestamp'>) => void;
   updateMatchScore: (matchId: string, homeScore: number, awayScore: number, period?: string) => void;
-  completeMatch: (matchId: string, result: { scoreA: number, scoreB: number }) => void;
+  updateMatchSets: (matchId: string, sets: SetScore[], currentSet?: number, servingTeamId?: string | null) => Promise<void>;
+  recordMatchSubstitution: (matchId: string, sub: { setNumber: number; teamId: string; outgoingPlayerId: string; incomingPlayerId: string; reason: 'NORMAL' | 'INJURY' }) => Promise<void>;
+  recordMatchTimeout: (matchId: string, timeout: { setNumber: number; teamId: string }) => Promise<void>;
+  completeMatch: (matchId: string, result: { scoreA: number; scoreB: number; sets?: SetScore[] }) => void;
+  lockTeamRoster: (tournamentId: string, teamId: string) => Promise<void>;
   addBudgetItem: (tournamentId: string, item: Omit<BudgetItem, 'id'>) => void;
   deleteBudgetItem: (tournamentId: string, itemId: string) => void;
   assignGroupPosition: (tournamentId: string, groupId: string, position: number, teamId: string | null) => Promise<void>;
@@ -104,6 +112,7 @@ interface TournamentContextType {
   unpublishTournament: (tournamentId: string) => Promise<void>;
   readiness: TournamentReadinessResult;
   scheduleConflicts: ScheduleConflict[];
+  domainMatches: DomainMatch[];
 }
 
 const TournamentContext = createContext<TournamentContextType | undefined>(undefined);
@@ -643,7 +652,160 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const completeMatch = async (matchId: string, result: { scoreA: number, scoreB: number }) => {
+  const updateMatchSets = async (matchId: string, sets: SetScore[], currentSet?: number, servingTeamId?: string | null) => {
+    if (!activeTournament) return;
+    const tournamentId = activeTournament.id;
+
+    const targetMatch = domainMatches.find((m) => m.id === matchId);
+    const teamAId = targetMatch?.participantA.type === 'TEAM'
+      ? (targetMatch.participantA as any).teamId
+      : activeTournament.fixtures.find((m) => m.id === matchId)?.homeTeamId;
+
+    const setsWonA = sets.filter((s) => s.status === 'COMPLETED' && s.winnerId === teamAId).length;
+    const setsWonB = sets.filter((s) => s.status === 'COMPLETED' && s.winnerId && s.winnerId !== teamAId).length;
+
+    if (domainMatches.some((m) => m.id === matchId)) {
+      await MatchRepository.updateLiveMatchSets(tournamentId, matchId, {
+        sets,
+        currentSet: currentSet || 1,
+        servingTeamId: servingTeamId ?? null,
+        scoreA: setsWonA,
+        scoreB: setsWonB,
+        setsWonA,
+        setsWonB,
+        status: 'LIVE',
+      });
+      return;
+    }
+
+    // Legacy fallback
+    updateTournamentDoc(tournamentId, (t) => {
+      const idx = t.fixtures.findIndex((m) => m.id === matchId);
+      if (idx === -1) return t;
+      const cur = t.fixtures[idx];
+      const updated: Match = {
+        ...cur,
+        sets,
+        currentSet: currentSet || 1,
+        servingTeamId: servingTeamId ?? null,
+        setsWonA,
+        setsWonB,
+        homeScore: setsWonA,
+        awayScore: setsWonB,
+        status: 'LIVE',
+      };
+      const fixtures = [...t.fixtures];
+      fixtures[idx] = updated;
+      return { ...t, fixtures };
+    });
+  };
+
+  const recordMatchSubstitution = async (
+    matchId: string,
+    sub: {
+      setNumber: number;
+      teamId: string;
+      outgoingPlayerId: string;
+      incomingPlayerId: string;
+      reason: 'NORMAL' | 'INJURY';
+    }
+  ) => {
+    if (!activeTournament) return;
+    const tournamentId = activeTournament.id;
+
+    const domainMatch = domainMatches.find((m) => m.id === matchId);
+    if (domainMatch) {
+      const res = recordSubstitution(domainMatch, sub);
+      if (res.errors.length > 0) {
+        throw new Error(res.errors.join(', '));
+      }
+      await MatchRepository.updateLiveMatchSets(tournamentId, matchId, {
+        substitutions: res.match.substitutions,
+      });
+      return;
+    }
+
+    // Legacy fallback
+    updateTournamentDoc(tournamentId, (t) => {
+      const idx = t.fixtures.findIndex((m) => m.id === matchId);
+      if (idx === -1) return t;
+      const cur = t.fixtures[idx];
+      const newSub: SubstitutionEvent = {
+        id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        matchId,
+        setNumber: sub.setNumber,
+        teamId: sub.teamId,
+        outgoingPlayerId: sub.outgoingPlayerId,
+        incomingPlayerId: sub.incomingPlayerId,
+        reason: sub.reason,
+        timestamp: new Date().toISOString(),
+      };
+      const substitutions = [...(cur.substitutions || []), newSub];
+      const fixtures = [...t.fixtures];
+      fixtures[idx] = { ...cur, substitutions };
+      return { ...t, fixtures };
+    });
+  };
+
+  const recordMatchTimeout = async (
+    matchId: string,
+    timeout: {
+      setNumber: number;
+      teamId: string;
+    }
+  ) => {
+    if (!activeTournament) return;
+    const tournamentId = activeTournament.id;
+
+    const domainMatch = domainMatches.find((m) => m.id === matchId);
+    if (domainMatch) {
+      const res = recordTimeout(domainMatch, timeout);
+      if (res.errors.length > 0) {
+        throw new Error(res.errors.join(', '));
+      }
+      await MatchRepository.updateLiveMatchSets(tournamentId, matchId, {
+        timeouts: res.match.timeouts,
+      });
+      return;
+    }
+
+    // Legacy fallback
+    updateTournamentDoc(tournamentId, (t) => {
+      const idx = t.fixtures.findIndex((m) => m.id === matchId);
+      if (idx === -1) return t;
+      const cur = t.fixtures[idx];
+      const newTo: TimeoutEvent = {
+        id: `to-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        matchId,
+        setNumber: timeout.setNumber,
+        teamId: timeout.teamId,
+        durationMinutes: 3,
+        timestamp: new Date().toISOString(),
+      };
+      const timeouts = [...(cur.timeouts || []), newTo];
+      const fixtures = [...t.fixtures];
+      fixtures[idx] = { ...cur, timeouts };
+      return { ...t, fixtures };
+    });
+  };
+
+  const lockTeamRoster = async (tournamentId: string, teamId: string) => {
+    await updateTournamentDoc(tournamentId, (t) => {
+      const teams = t.teams.map((team) => {
+        if (team.id === teamId) {
+          return {
+            ...team,
+            isRosterLocked: true,
+            rosterStatus: 'LOCKED' as const,
+          };
+        }
+        return team;
+      });
+      return { ...t, teams };
+    });
+  };
+
+  const completeMatch = async (matchId: string, result: { scoreA: number; scoreB: number; sets?: SetScore[] }) => {
     if (!activeTournament) return;
     const tournamentId = activeTournament.id;
 
@@ -701,6 +863,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           awayScore: result.scoreB,
           period: 'Full Time',
         },
+        sets: result.sets || currentMatch.sets,
       };
 
       let newFixtures = [...t.fixtures];
@@ -969,7 +1132,9 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
     }
     const matchesToUse = domainMatches.length > 0 ? domainMatches : activeTournament.fixtures;
-    return calculateTournamentReadiness(activeTournament, matchesToUse);
+    return calculateTournamentReadiness(activeTournament, matchesToUse, {
+      context: activeTournament.status === 'PUBLISHED' ? 'publish' : 'setup',
+    });
   }, [activeTournament, domainMatches]);
 
   const updateMatchSchedule = async (matchId: string, schedule: MatchSchedule) => {
@@ -1051,7 +1216,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!t) return { success: false, errors: ['Tournament not found'], warnings: [] };
 
     const matchesToUse = domainMatches.length > 0 ? domainMatches : t.fixtures;
-    const readinessResult = calculateTournamentReadiness(t, matchesToUse);
+    const readinessResult = calculateTournamentReadiness(t, matchesToUse, { context: 'publish' });
 
     if (!readinessResult.canPublish) {
       return {
@@ -1109,7 +1274,11 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         generateTournamentFixtures,
         recordMatchEvent,
         updateMatchScore,
+        updateMatchSets,
+        recordMatchSubstitution,
+        recordMatchTimeout,
         completeMatch,
+        lockTeamRoster,
         addBudgetItem,
         deleteBudgetItem,
         assignGroupPosition,
@@ -1124,6 +1293,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         unpublishTournament,
         readiness,
         scheduleConflicts,
+        domainMatches,
       }}
     >
       {children}
