@@ -178,7 +178,6 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           groups: d.groups || [],
           budget: d.budget || [],
           auditLogs: d.auditLogs || [],
-          liveSpin: d.liveSpin,
           venues: d.venues?.length && d.venues[0].name === 'Center Court Arena' ? INITIAL_VENUES : (d.venues || INITIAL_VENUES),
         } as Tournament;
       });
@@ -244,8 +243,11 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
 
     const updated = updater(t);
+    // Remove top-level undefined fields to prevent Firebase setDoc errors
+    const cleanUpdated = Object.fromEntries(Object.entries(updated).filter(([_, v]) => v !== undefined)) as any;
+    
     try {
-      await setDoc(doc(db, 'tournaments', tournamentId), updated);
+      await setDoc(doc(db, 'tournaments', tournamentId), cleanUpdated);
     } catch (error) {
       console.error("Error updating document: ", error);
     }
@@ -306,7 +308,9 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
 
     try {
-      await setDoc(doc(db, 'tournaments', id), newTournament);
+      // Remove top-level undefined fields to prevent Firebase setDoc errors
+      const cleanTournament = Object.fromEntries(Object.entries(newTournament).filter(([_, v]) => v !== undefined)) as any;
+      await setDoc(doc(db, 'tournaments', id), cleanTournament);
       setActiveTournamentId(id);
       setOrganizerTab('teams');
       soundEffects.playCelebration();
