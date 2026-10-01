@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTournament } from '../../context/TournamentContext';
 import { SPORT_CONFIGS } from '../../engines/sportEngine';
 import { calculateAllFourGroupStandings, ThrowballTeamStats } from '../../domain/tournament/results/throwballStandings';
-import { BarChart3, Trophy, Medal, Info, AlertTriangle, CheckCircle2, Shield } from 'lucide-react';
+import { BarChart3, Trophy, Medal, Info, AlertTriangle, CheckCircle2, Shield, Printer } from 'lucide-react';
 
 export const StandingsTable: React.FC = () => {
   const { activeTournament, domainMatches } = useTournament();
@@ -20,6 +20,97 @@ export const StandingsTable: React.FC = () => {
     selectedGroupTab === 'ALL'
       ? ['A', 'B', 'C', 'D']
       : [selectedGroupTab];
+
+  const handlePrintStandings = (groups: Array<'A' | 'B' | 'C' | 'D'>) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    let html = `
+      <html>
+        <head>
+          <title>Print Standings</title>
+          <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #0f172a; }
+            h2 { text-align: center; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 30px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+            th { background: #f8fafc; text-transform: uppercase; font-size: 11px; padding: 10px; border-bottom: 2px solid #cbd5e1; color: #64748b; }
+            td { padding: 10px; font-size: 13px; border-bottom: 1px solid #e2e8f0; text-align: center; }
+            .team-name { text-align: left; font-weight: bold; }
+            .pos { font-weight: bold; }
+            h3 { font-size: 16px; margin-bottom: 10px; background: #0f172a; color: white; padding: 10px; border-radius: 6px; }
+            @media print {
+              body { padding: 0; background: #fff; }
+              button { display: none; }
+              table { page-break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <h2>Tournament Standings</h2>
+          <div style="text-align: center; margin-bottom: 30px;">
+            <button onclick="window.print()" style="padding: 10px 20px; background: #0f172a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+              Print Now
+            </button>
+          </div>
+    `;
+
+    groups.forEach(grpKey => {
+      const rows = fourGroupStandings[grpKey] || [];
+      html += `<h3>Group ${grpKey} Standings</h3>`;
+      html += `
+        <table>
+          <thead>
+            <tr>
+              <th>Pos</th>
+              <th style="text-align: left;">Team</th>
+              <th>P</th>
+              <th>W</th>
+              <th>L</th>
+              <th>SW</th>
+              <th>SL</th>
+              <th>SD</th>
+              <th>PF</th>
+              <th>PA</th>
+              <th>PD</th>
+              <th>PTS</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      rows.forEach((row, idx) => {
+        const sd = row.setsWon - row.setsLost;
+        const pd = row.pointsFor - row.pointsAgainst;
+        html += `
+            <tr>
+              <td class="pos">${idx + 1}</td>
+              <td class="team-name">${row.teamName} ${row.qualified ? '(Q)' : ''}</td>
+              <td>${row.played}</td>
+              <td>${row.won}</td>
+              <td>${row.lost}</td>
+              <td>${row.setsWon}</td>
+              <td>${row.setsLost}</td>
+              <td><strong>${sd > 0 ? '+' : ''}${sd}</strong></td>
+              <td>${row.pointsFor}</td>
+              <td>${row.pointsAgainst}</td>
+              <td><strong>${pd > 0 ? '+' : ''}${pd}</strong></td>
+              <td><strong>${row.points}</strong></td>
+            </tr>
+        `;
+      });
+      html += `
+          </tbody>
+        </table>
+      `;
+    });
+
+    html += `
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
 
   return (
     <div className="space-y-6">
@@ -73,10 +164,20 @@ export const StandingsTable: React.FC = () => {
           ))}
         </div>
 
-        <div className="text-xs text-slate-500 flex items-center gap-2">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-extrabold text-[10px]">
-            Q - Qualifies for Semifinal (#1 in group)
-          </span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => handlePrintStandings(groupsToDisplay)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg transition font-bold text-xs shadow-sm cursor-pointer"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Print {selectedGroupTab === 'ALL' ? 'All Groups' : `Group ${selectedGroupTab}`}
+          </button>
+          
+          <div className="text-xs text-slate-500 flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-extrabold text-[10px]">
+              Q - Qualifies for Semifinal (#1 in group)
+            </span>
+          </div>
         </div>
       </div>
 
@@ -105,8 +206,18 @@ export const StandingsTable: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="text-[11px] text-slate-300 font-mono">
-                  {rows.reduce((acc, r) => acc + r.played, 0) / 2} / 6 Matches Played
+                <div className="flex items-center gap-4">
+                  <div className="text-[11px] text-slate-300 font-mono">
+                    {rows.reduce((acc, r) => acc + r.played, 0) / 2} / 6 Matches Played
+                  </div>
+                  <button
+                    onClick={() => handlePrintStandings([grpKey])}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded text-xs font-bold transition cursor-pointer"
+                    title={`Print Group ${grpKey}`}
+                  >
+                    <Printer className="w-3 h-3" />
+                    Print
+                  </button>
                 </div>
               </div>
 
