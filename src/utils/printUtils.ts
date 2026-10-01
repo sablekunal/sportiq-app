@@ -250,31 +250,31 @@ export const printFixtures = (
     let scoreDisplay = '';
     
     if (isPlayed && (m.homeScore > 0 || m.awayScore > 0)) {
-       scoreDisplay = \`<span class="score-box">\${m.homeScore}</span> : <span class="score-box">\${m.awayScore}</span>\`;
+       scoreDisplay = `<span class="score-box">${m.homeScore}</span> : <span class="score-box">${m.awayScore}</span>`;
     } else {
-       scoreDisplay = \`<span class="score-box"></span> : <span class="score-box"></span>\`;
+       scoreDisplay = `<span class="score-box"></span> : <span class="score-box"></span>`;
     }
 
     const winner = m.winnerId ? (teams.find(t => t.id === m.winnerId)?.name || '_________________') : '_________________';
 
-    html += \`
+    html += `
       <tr>
-        <td class="match-code">#\${m.fixtureNumber || m.position} <br> <span style="font-size:10px; color:#64748b;">\${m.matchCode || ''}</span></td>
-        <td>\${m.roundName}</td>
-        <td class="team">\${homeName}</td>
-        <td class="team">\${awayName}</td>
-        <td style="text-align: center;">\${scoreDisplay}</td>
-        <td>\${winner}</td>
+        <td class="match-code">#${m.fixtureNumber || m.position} <br> <span style="font-size:10px; color:#64748b;">${m.matchCode || ''}</span></td>
+        <td>${m.roundName}</td>
+        <td class="team">${homeName}</td>
+        <td class="team">${awayName}</td>
+        <td style="text-align: center;">${scoreDisplay}</td>
+        <td>${winner}</td>
       </tr>
-    \`;
+    `;
   });
 
-  html += \`
+  html += `
           </tbody>
         </table>
       </body>
     </html>
-  \`;
+  `;
   
   printWindow.document.write(html);
   printWindow.document.close();
