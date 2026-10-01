@@ -227,7 +227,19 @@ export const PublicTournamentPortal: React.FC = () => {
                 <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping"></span>
                 <span>MATCHDAY LIVE NOW</span>
               </div>
-              <span>{liveMatches[0].roundName}</span>
+              <div className="flex items-center gap-3">
+                {(() => {
+                  const lm = liveMatches[0];
+                  const setsWonA = lm.setsWonA ?? (lm.sets || []).filter((s) => s.status === 'COMPLETED' && s.winnerId === lm.homeTeamId).length;
+                  const setsWonB = lm.setsWonB ?? (lm.sets || []).filter((s) => s.status === 'COMPLETED' && s.winnerId === lm.awayTeamId).length;
+                  return (
+                    <span className="bg-black/20 px-2.5 py-1 rounded-md text-[10px] text-amber-300 tracking-widest border border-white/10 shadow-sm">
+                      SETS: {setsWonA} - {setsWonB}
+                    </span>
+                  );
+                })()}
+                <span>{liveMatches[0].roundName}</span>
+              </div>
             </div>
 
             {(() => {
