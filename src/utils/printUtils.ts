@@ -139,15 +139,15 @@ export const printKnockoutBrackets = (
         if (home.includes('Winner Group B')) home = 'B._________________';
         if (home.includes('Winner Group C')) home = 'C._________________';
         if (home.includes('Winner Group D')) home = 'D._________________';
-        if (home.includes('Winner SF1')) home = 'SF1.________________';
-        if (home.includes('Winner SF2')) home = 'SF2.________________';
+        if (home.includes('Winner Semi-final 1') || home.includes('Winner SF1')) home = 'SF-1._______________';
+        if (home.includes('Winner Semi-final 2') || home.includes('Winner SF2')) home = 'SF-2._______________';
 
         if (away.includes('Winner Group A')) away = 'A._________________';
         if (away.includes('Winner Group B')) away = 'B._________________';
         if (away.includes('Winner Group C')) away = 'C._________________';
         if (away.includes('Winner Group D')) away = 'D._________________';
-        if (away.includes('Winner SF1')) away = 'SF1.________________';
-        if (away.includes('Winner SF2')) away = 'SF2.________________';
+        if (away.includes('Winner Semi-final 1') || away.includes('Winner SF1')) away = 'SF-1._______________';
+        if (away.includes('Winner Semi-final 2') || away.includes('Winner SF2')) away = 'SF-2._______________';
 
         let homeScore: any = m.homeScore ?? '';
         let awayScore: any = m.awayScore ?? '';
@@ -236,15 +236,15 @@ export const printFixtures = (
     if (homeName.includes('Winner Group B')) homeName = 'B._________________';
     if (homeName.includes('Winner Group C')) homeName = 'C._________________';
     if (homeName.includes('Winner Group D')) homeName = 'D._________________';
-    if (homeName.includes('Winner SF1')) homeName = 'SF1.________________';
-    if (homeName.includes('Winner SF2')) homeName = 'SF2.________________';
+    if (homeName.includes('Winner Semi-final 1') || homeName.includes('Winner SF1')) homeName = 'SF-1._______________';
+    if (homeName.includes('Winner Semi-final 2') || homeName.includes('Winner SF2')) homeName = 'SF-2._______________';
 
     if (awayName.includes('Winner Group A')) awayName = 'A._________________';
     if (awayName.includes('Winner Group B')) awayName = 'B._________________';
     if (awayName.includes('Winner Group C')) awayName = 'C._________________';
     if (awayName.includes('Winner Group D')) awayName = 'D._________________';
-    if (awayName.includes('Winner SF1')) awayName = 'SF1.________________';
-    if (awayName.includes('Winner SF2')) awayName = 'SF2.________________';
+    if (awayName.includes('Winner Semi-final 1') || awayName.includes('Winner SF1')) awayName = 'SF-1._______________';
+    if (awayName.includes('Winner Semi-final 2') || awayName.includes('Winner SF2')) awayName = 'SF-2._______________';
 
     const isPlayed = m.status === 'COMPLETED' || m.status === 'LIVE';
     let scoreDisplay = '';
