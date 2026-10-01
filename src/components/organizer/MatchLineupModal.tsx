@@ -145,7 +145,7 @@ export const MatchLineupModal: React.FC<MatchLineupModalProps> = ({
     setStarters(starters);
     setSubs(subs);
     setErrorMsg(null);
-    soundEffects.playWhistle();
+
   };
 
   const handleSaveLineup = async () => {

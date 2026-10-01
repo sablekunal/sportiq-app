@@ -15,7 +15,7 @@ export const ShareAndQRStudio: React.FC = () => {
   const handleCopy = () => {
     navigator.clipboard.writeText(publicUrl);
     setCopied(true);
-    soundEffects.playWhistle();
+
     setTimeout(() => setCopied(false), 2000);
   };
 

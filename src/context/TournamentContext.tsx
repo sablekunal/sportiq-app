@@ -319,7 +319,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setActiveTournamentIdState('');
         setActiveMatchId(null);
       }
-      soundEffects.playWhistle();
+
     } catch (error) {
       console.error("Error deleting tournament", error);
     }
@@ -347,7 +347,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       setActiveTournamentIdState('');
       setActiveMatchId(null);
-      soundEffects.playWhistle();
+
     } catch (error) {
       console.error("Error clearing data", error);
     }

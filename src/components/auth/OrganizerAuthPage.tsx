@@ -75,7 +75,7 @@ export const OrganizerAuthPage: React.FC = () => {
     try {
       const success = await sendOtp(phoneNumber, selectedCountry);
       if (success) {
-        soundEffects.playWhistle();
+
       }
     } finally {
       setIsSendingOtp(false);

@@ -44,6 +44,9 @@ export const TeamsManagement: React.FC = () => {
   const [seed, setSeed] = useState(activeTournament ? activeTournament.teams.length + 1 : 1);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
   const [withRegulationSquad, setWithRegulationSquad] = useState(true);
+  const [newTeamInstitution, setNewTeamInstitution] = useState('');
+  const [newTeamIsCaptainPlaying, setNewTeamIsCaptainPlaying] = useState(true);
+  const [newTeamCaptainName, setNewTeamCaptainName] = useState('');
 
   // Selected team for player roster editing
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
@@ -130,12 +133,17 @@ export const TeamsManagement: React.FC = () => {
       players: squadPlayers,
       rosterStatus: initialStatus,
       isRosterLocked: false,
-      captainId: capPlayer?.id,
-      captainName: capPlayer?.name,
+      captainId: newTeamIsCaptainPlaying ? capPlayer?.id : undefined,
+      captainName: newTeamIsCaptainPlaying ? capPlayer?.name : newTeamCaptainName.trim(),
+      isCaptainPlaying: newTeamIsCaptainPlaying,
+      institution: newTeamInstitution.trim(),
     });
 
     setTeamName('');
     setShortName('');
+    setNewTeamInstitution('');
+    setNewTeamCaptainName('');
+    setNewTeamIsCaptainPlaying(true);
     setIsAddingTeam(false);
     soundEffects.playCelebration();
   };
@@ -200,7 +208,7 @@ export const TeamsManagement: React.FC = () => {
     setPlayerName('');
     setIsNewCaptain(false);
     setJerseyNumber((prev) => (prev < 99 ? prev + 1 : 1));
-    soundEffects.playWhistle();
+
   };
 
   const handleRemovePlayer = (playerId: string) => {
@@ -228,7 +236,7 @@ export const TeamsManagement: React.FC = () => {
       captainId: currentTeam.captainId === playerId ? remainingCap?.id : currentTeam.captainId,
       captainName: currentTeam.captainId === playerId ? remainingCap?.name : currentTeam.captainName,
     });
-    soundEffects.playWhistle();
+
   };
 
   const handleStartEditPlayer = (p: Player) => {
@@ -500,6 +508,44 @@ export const TeamsManagement: React.FC = () => {
                     className="w-9 h-9 rounded-lg border border-slate-300 p-0.5 cursor-pointer bg-white"
                   />
                   <span className="text-xs font-mono font-bold text-slate-600">{color}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    Institution / Parish
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. St. Peter's Church"
+                    value={newTeamInstitution}
+                    onChange={(e) => setNewTeamInstitution(e.target.value)}
+                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-sport-orange bg-white"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    Captain Configuration
+                  </label>
+                  <select
+                    value={newTeamIsCaptainPlaying ? 'yes' : 'no'}
+                    onChange={(e) => setNewTeamIsCaptainPlaying(e.target.value === 'yes')}
+                    className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-sport-orange bg-white mb-2 cursor-pointer"
+                  >
+                    <option value="yes">Captain plays in team (Select from Roster)</option>
+                    <option value="no">External Captain / Manager</option>
+                  </select>
+                  {!newTeamIsCaptainPlaying && (
+                    <input
+                      type="text"
+                      placeholder="Enter Captain Name"
+                      value={newTeamCaptainName}
+                      onChange={(e) => setNewTeamCaptainName(e.target.value)}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-sport-orange bg-white"
+                    />
+                  )}
                 </div>
               </div>
             </div>

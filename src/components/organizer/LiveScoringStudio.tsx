@@ -157,7 +157,7 @@ export const LiveScoringStudio: React.FC = () => {
     });
 
     await updateMatchSets(currentMatch.id, updatedSets, activeSet.setNumber, teamId);
-    soundEffects.playWhistle();
+
 
     // Log commentary event
     const playerText = selectedPlayer ? `by ${selectedPlayer}` : '';
@@ -245,7 +245,7 @@ export const LiveScoringStudio: React.FC = () => {
       const finalSets = [...updatedSets, nextSet];
       await updateMatchSets(currentMatch.id, finalSets, nextSetNumber);
       setActiveSetNum(nextSetNumber);
-      soundEffects.playWhistle();
+  
     } else {
       await updateMatchSets(currentMatch.id, updatedSets, activeSet.setNumber);
     }
@@ -268,7 +268,7 @@ export const LiveScoringStudio: React.FC = () => {
         description: `Official 3-Minute Timeout called by ${teamName} in Set ${activeSet.setNumber}`,
       });
 
-      soundEffects.playWhistle();
+  
     } catch (err: any) {
       alert(err.message || 'Could not record timeout.');
     }
@@ -319,7 +319,7 @@ export const LiveScoringStudio: React.FC = () => {
         description: `Substitution (${subReason}) for ${team?.name || 'Team'}: ${inP.name} (#${inP.jerseyNumber}) in for ${outP.name} (#${outP.jerseyNumber}) in Set ${activeSet.setNumber}`,
       });
 
-      soundEffects.playWhistle();
+  
       setIsSubModalOpen(false);
     } catch (err: any) {
       setSubError(err.message || 'Substitution rejected.');
@@ -465,14 +465,6 @@ export const LiveScoringStudio: React.FC = () => {
               </span>
             </div>
 
-            <button
-              onClick={() => soundEffects.playWhistle()}
-              className="p-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-sport-orange border border-slate-700 transition cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-              title="Referee Whistle (Audio)"
-            >
-              <Volume2 className="w-4 h-4" />
-              <span>Whistle</span>
-            </button>
           </div>
         </div>
 
