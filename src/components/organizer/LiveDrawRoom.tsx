@@ -576,31 +576,13 @@ export const LiveDrawRoom: React.FC<{ isPublicView?: boolean; onDrawComplete?: (
                             </div>
 
                             {/* Dropdown to assign or re-assign */}
-                            {!isGroupLocked ? (
-                              <select
-                                value={team?.id || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value || null;
-                                  assignGroupPosition(activeTournament.id, groupId, pos, val);
-                                }}
-                                className="text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg px-2 py-1 outline-none max-w-[110px] truncate cursor-pointer"
+                            {team && (
+                              <div
+                                className="w-6 h-6 rounded-md text-white font-black text-[10px] flex items-center justify-center shrink-0"
+                                style={{ backgroundColor: team.color || '#f97316' }}
                               >
-                                <option value="">Empty</option>
-                                {teams.map((t) => (
-                                  <option key={t.id} value={t.id}>
-                                    {t.name}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              team && (
-                                <div
-                                  className="w-6 h-6 rounded-md text-white font-black text-[10px] flex items-center justify-center shrink-0"
-                                  style={{ backgroundColor: team.color || '#f97316' }}
-                                >
-                                  {team.shortName}
-                                </div>
-                              )
+                                {team.shortName}
+                              </div>
                             )}
                           </div>
                         );
