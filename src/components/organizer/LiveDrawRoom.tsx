@@ -198,16 +198,22 @@ export const LiveDrawRoom: React.FC = () => {
     const n = remainingPool.length;
     const sliceAngle = (Math.PI * 2) / n;
 
-    // Target: the needle is at the top (- PI/2). We want randomIdx's slice center at the top.
-    // The center of slice i in the wheel is at angle + i * sliceAngle - PI/2.
-    // We need: currentAngle + randomIdx * sliceAngle ≡ 0 (mod 2π) so the slice ends up at - PI/2.
-    const targetSliceCenter = randomIdx * sliceAngle + sliceAngle / 2;
-    // We want the final angle such that targetSliceCenter + finalAngle = full rotations (ends at top)
-    const baseTarget = (Math.PI * 2) - targetSliceCenter;
-    // Add 5 full rotations for drama
-    const totalSpin = baseTarget + Math.PI * 2 * 5;
-
     const startAngle = currentAngleRef.current;
+    
+    // Target: the needle is at the top (- PI/2). We want randomIdx's slice center at the top.
+    const targetSliceCenter = randomIdx * sliceAngle + sliceAngle / 2;
+    // The exact angle (modulo 2π) we need to land on:
+    const targetAngleMod = (Math.PI * 2) - targetSliceCenter;
+    
+    // How far we need to rotate from our current angle to hit the target modulo
+    const startAngleMod = startAngle % (Math.PI * 2);
+    let rotationNeeded = targetAngleMod - startAngleMod;
+    if (rotationNeeded < 0) {
+      rotationNeeded += Math.PI * 2;
+    }
+    
+    // Add 5 full rotations for drama
+    const totalSpin = rotationNeeded + Math.PI * 2 * 5;
     const startTime = performance.now();
     const duration = 5000; // 5 seconds
 
