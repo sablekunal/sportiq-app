@@ -63,7 +63,7 @@ export const printKnockoutBrackets = (
     // Home Row
     html += `<tr><td class="team-name"><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">${homeName}</div></td>`;
     for(let i = 1; i <= numSets; i++) {
-      const s = setsData && setsData[i-1] ? setsData[i-1].scoreA : '&nbsp;';
+      const s = setsData && setsData[i-1] && (setsData[i-1].scoreA > 0 || setsData[i-1].scoreB > 0) ? setsData[i-1].scoreA : '&nbsp;';
       html += `<td><div class="set-box">${s}</div></td>`;
     }
     html += `<td class="total-score">${homeScore}</td></tr>`;
@@ -71,7 +71,7 @@ export const printKnockoutBrackets = (
     // Away Row
     html += `<tr><td class="team-name"><div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis;">${awayName}</div></td>`;
     for(let i = 1; i <= numSets; i++) {
-      const s = setsData && setsData[i-1] ? setsData[i-1].scoreB : '&nbsp;';
+      const s = setsData && setsData[i-1] && (setsData[i-1].scoreA > 0 || setsData[i-1].scoreB > 0) ? setsData[i-1].scoreB : '&nbsp;';
       html += `<td><div class="set-box">${s}</div></td>`;
     }
     html += `<td class="total-score">${awayScore}</td></tr>`;
@@ -88,8 +88,8 @@ export const printKnockoutBrackets = (
         roundNum: 1,
         roundName: 'Semi-Finals',
         matches: [
-          { position: 1, home: 'Winner Group A', away: 'Winner Group C' },
-          { position: 2, home: 'Winner Group B', away: 'Winner Group D' }
+          { position: 1, home: 'A._________________', away: 'C._________________' },
+          { position: 2, home: 'B._________________', away: 'D._________________' }
         ]
       });
     }
@@ -98,7 +98,7 @@ export const printKnockoutBrackets = (
         roundNum: 2,
         roundName: 'Final',
         matches: [
-          { position: 1, home: 'Winner SF1', away: 'Winner SF2' }
+          { position: 1, home: 'SF1.________________', away: 'SF2.________________' }
         ]
       });
     }
@@ -132,10 +132,30 @@ export const printKnockoutBrackets = (
       html += `<div class="round-title">${roundName}</div>`;
       
       matches.forEach(m => {
-        const home = teams.find(t => t.id === m.homeTeamId)?.name || m.homePlaceholder || 'TBD (Awaiting)';
-        const away = teams.find(t => t.id === m.awayTeamId)?.name || m.awayPlaceholder || 'TBD (Awaiting)';
-        const homeScore = m.homeScore ?? '-';
-        const awayScore = m.awayScore ?? '-';
+        let home = teams.find(t => t.id === m.homeTeamId)?.name || m.homePlaceholder || '_________________';
+        let away = teams.find(t => t.id === m.awayTeamId)?.name || m.awayPlaceholder || '_________________';
+        
+        if (home.includes('Winner Group A')) home = 'A._________________';
+        if (home.includes('Winner Group B')) home = 'B._________________';
+        if (home.includes('Winner Group C')) home = 'C._________________';
+        if (home.includes('Winner Group D')) home = 'D._________________';
+        if (home.includes('Winner SF1')) home = 'SF1.________________';
+        if (home.includes('Winner SF2')) home = 'SF2.________________';
+
+        if (away.includes('Winner Group A')) away = 'A._________________';
+        if (away.includes('Winner Group B')) away = 'B._________________';
+        if (away.includes('Winner Group C')) away = 'C._________________';
+        if (away.includes('Winner Group D')) away = 'D._________________';
+        if (away.includes('Winner SF1')) away = 'SF1.________________';
+        if (away.includes('Winner SF2')) away = 'SF2.________________';
+
+        let homeScore: any = m.homeScore ?? '';
+        let awayScore: any = m.awayScore ?? '';
+        
+        if (homeScore === 0 && awayScore === 0) {
+          homeScore = '';
+          awayScore = '';
+        }
         
         html += `
           <div class="match">
@@ -156,6 +176,105 @@ export const printKnockoutBrackets = (
       </body>
     </html>
   `;
+  
+  printWindow.document.write(html);
+  printWindow.document.close();
+};
+
+export const printFixtures = (
+  fixtures: Match[],
+  teams: Team[]
+) => {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+
+  let html = `
+    <html>
+      <head>
+        <title>Print Fixtures</title>
+        <style>
+          body { font-family: 'Inter', sans-serif; padding: 40px; color: #0f172a; }
+          h2 { text-align: center; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;}
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #cbd5e1; padding: 12px; text-align: left; }
+          th { background-color: #f1f5f9; font-weight: bold; font-size: 14px; text-transform: uppercase; }
+          .match-code { font-weight: bold; font-family: monospace; }
+          .team { font-weight: bold; }
+          .score-box { width: 40px; height: 30px; display: inline-block; border: 1px solid #94a3b8; text-align: center; line-height: 30px; font-weight: bold;}
+          @media print {
+            body { padding: 0; }
+            button { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <h2>Tournament Fixtures</h2>
+        <div style="text-align: center; margin-bottom: 30px;">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #0f172a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+            Print Now
+          </button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Match</th>
+              <th>Stage</th>
+              <th>Home Team</th>
+              <th>Away Team</th>
+              <th>Sets (H : A)</th>
+              <th>Winner</th>
+            </tr>
+          </thead>
+          <tbody>
+  `;
+
+  fixtures.forEach(m => {
+    let homeName = teams.find(t => t.id === m.homeTeamId)?.name || m.homePlaceholder || '_________________';
+    let awayName = teams.find(t => t.id === m.awayTeamId)?.name || m.awayPlaceholder || '_________________';
+
+    if (homeName.includes('Winner Group A')) homeName = 'A._________________';
+    if (homeName.includes('Winner Group B')) homeName = 'B._________________';
+    if (homeName.includes('Winner Group C')) homeName = 'C._________________';
+    if (homeName.includes('Winner Group D')) homeName = 'D._________________';
+    if (homeName.includes('Winner SF1')) homeName = 'SF1.________________';
+    if (homeName.includes('Winner SF2')) homeName = 'SF2.________________';
+
+    if (awayName.includes('Winner Group A')) awayName = 'A._________________';
+    if (awayName.includes('Winner Group B')) awayName = 'B._________________';
+    if (awayName.includes('Winner Group C')) awayName = 'C._________________';
+    if (awayName.includes('Winner Group D')) awayName = 'D._________________';
+    if (awayName.includes('Winner SF1')) awayName = 'SF1.________________';
+    if (awayName.includes('Winner SF2')) awayName = 'SF2.________________';
+
+    const isPlayed = m.status === 'COMPLETED' || m.status === 'LIVE';
+    let scoreDisplay = '';
+    
+    if (isPlayed && (m.homeScore > 0 || m.awayScore > 0)) {
+       scoreDisplay = \`<span class="score-box">\${m.homeScore}</span> : <span class="score-box">\${m.awayScore}</span>\`;
+    } else {
+       scoreDisplay = \`<span class="score-box"></span> : <span class="score-box"></span>\`;
+    }
+
+    const winner = m.winnerId ? (teams.find(t => t.id === m.winnerId)?.name || '_________________') : '_________________';
+
+    html += \`
+      <tr>
+        <td class="match-code">#\${m.fixtureNumber || m.position} <br> <span style="font-size:10px; color:#64748b;">\${m.matchCode || ''}</span></td>
+        <td>\${m.roundName}</td>
+        <td class="team">\${homeName}</td>
+        <td class="team">\${awayName}</td>
+        <td style="text-align: center;">\${scoreDisplay}</td>
+        <td>\${winner}</td>
+      </tr>
+    \`;
+  });
+
+  html += \`
+          </tbody>
+        </table>
+      </body>
+    </html>
+  \`;
   
   printWindow.document.write(html);
   printWindow.document.close();

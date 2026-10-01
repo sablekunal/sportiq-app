@@ -5,6 +5,7 @@ import { Calendar, Play, Radio, MapPin, Clock, Filter, Plus, CheckCircle2, Users
 import { soundEffects } from '../../engines/audioEngine';
 import { MatchLineupModal } from './MatchLineupModal';
 import { Match } from '../../types';
+import { printFixtures } from '../../utils/printUtils';
 
 export const FixturesManager: React.FC = () => {
   const {
@@ -51,6 +52,13 @@ export const FixturesManager: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => printFixtures(filteredFixtures, teams)}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Print Fixtures
+          </button>
           <button
             onClick={() => generateTournamentFixtures(activeTournament.id)}
             className="px-4 py-2.5 bg-sport-navy hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"
