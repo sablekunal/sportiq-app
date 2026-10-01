@@ -54,9 +54,22 @@ export const LiveScoringStudio: React.FC = () => {
   const [subReason, setSubReason] = useState<'NORMAL' | 'INJURY'>('NORMAL');
   const [subError, setSubError] = useState<string | null>(null);
 
-  if (!activeTournament) return null;
+  const currentMatch = activeMatch || activeTournament?.fixtures[0] || null;
 
-  const currentMatch = activeMatch || activeTournament.fixtures[0] || null;
+  // Normalized Sets Array (Ensures at least Set 1 is present)
+  const currentSets: SetScore[] = useMemo(() => {
+    if (!currentMatch) return [{ setNumber: 1, scoreA: 0, scoreB: 0, status: 'LIVE' }];
+    if (currentMatch.sets && currentMatch.sets.length > 0) {
+      return currentMatch.sets;
+    }
+    return [{ setNumber: 1, scoreA: currentMatch.homeScore || 0, scoreB: currentMatch.awayScore || 0, status: 'LIVE' }];
+  }, [currentMatch?.sets, currentMatch?.homeScore, currentMatch?.awayScore, currentMatch]);
+
+  // Determine Active Set (Live set, or highest completed set, or set 1)
+  const activeLiveSet = currentSets.find((s) => s.status === 'LIVE') || currentSets[currentSets.length - 1] || currentSets[0];
+  const [activeSetNum, setActiveSetNum] = useState<number>(activeLiveSet?.setNumber || 1);
+
+  if (!activeTournament) return null;
 
   if (!currentMatch) {
     return (
@@ -74,18 +87,6 @@ export const LiveScoringStudio: React.FC = () => {
   const awayTeam = activeTournament.teams.find((t) => t.id === currentMatch.awayTeamId);
 
   const locked = isLineupLocked(currentMatch.status);
-
-  // Normalized Sets Array (Ensures at least Set 1 is present)
-  const currentSets: SetScore[] = useMemo(() => {
-    if (currentMatch.sets && currentMatch.sets.length > 0) {
-      return currentMatch.sets;
-    }
-    return [{ setNumber: 1, scoreA: currentMatch.homeScore || 0, scoreB: currentMatch.awayScore || 0, status: 'LIVE' }];
-  }, [currentMatch.sets, currentMatch.homeScore, currentMatch.awayScore]);
-
-  // Determine Active Set (Live set, or highest completed set, or set 1)
-  const activeLiveSet = currentSets.find((s) => s.status === 'LIVE') || currentSets[currentSets.length - 1] || currentSets[0];
-  const [activeSetNum, setActiveSetNum] = useState<number>(activeLiveSet.setNumber);
 
   // Keep activeSetNum in sync if sets list changes
   const activeSet = currentSets.find((s) => s.setNumber === activeSetNum) || activeLiveSet;

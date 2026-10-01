@@ -52,6 +52,20 @@ export const PublicTournamentPortal: React.FC = () => {
     return getNextScheduledMatch(activeTournament.fixtures) as Match | null;
   }, [activeTournament?.fixtures]);
 
+  const sportConfig = SPORT_CONFIGS[activeTournament?.sport || 'football'] || SPORT_CONFIGS.football;
+  const teams = activeTournament?.teams || [];
+  const fixtures = activeTournament?.fixtures || [];
+  const liveMatches = fixtures.filter((m) => m.status === 'LIVE');
+  const fourGroupStandings = useMemo(() => {
+    return calculateAllFourGroupStandings(fixtures, teams);
+  }, [fixtures, teams]);
+  const standings = calculateSportStandings(
+    activeTournament?.sport || 'football',
+    teams,
+    fixtures,
+    standingsGroupFilter === 'ALL' ? undefined : standingsGroupFilter
+  );
+
   if (!activeTournament) {
     return (
       <div className="min-h-screen bg-sport-surface flex flex-col items-center justify-center p-6 text-center">
@@ -71,20 +85,6 @@ export const PublicTournamentPortal: React.FC = () => {
       </div>
     );
   }
-
-  const sportConfig = SPORT_CONFIGS[activeTournament.sport] || SPORT_CONFIGS.football;
-  const teams = activeTournament.teams;
-  const fixtures = activeTournament.fixtures;
-  const liveMatches = fixtures.filter((m) => m.status === 'LIVE');
-  const fourGroupStandings = useMemo(() => {
-    return calculateAllFourGroupStandings(fixtures, teams);
-  }, [fixtures, teams]);
-  const standings = calculateSportStandings(
-    activeTournament.sport,
-    teams,
-    fixtures,
-    standingsGroupFilter === 'ALL' ? undefined : standingsGroupFilter
-  );
 
   const publicUrl = window.location.href;
 

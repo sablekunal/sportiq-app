@@ -48,11 +48,9 @@ export const ScheduleManager: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  if (!activeTournament) return null;
-
-  const fixtures = activeTournament.fixtures;
-  const venues = activeTournament.venues || [];
-  const teams = activeTournament.teams || [];
+  const fixtures = activeTournament?.fixtures || [];
+  const venues = activeTournament?.venues || [];
+  const teams = activeTournament?.teams || [];
 
   // Team lookup map
   const teamMap = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
@@ -116,6 +114,8 @@ export const ScheduleManager: React.FC = () => {
       (c) => c.matchIdA === editingMatch.id || c.matchIdB === editingMatch.id
     );
   }, [editingMatch, formDate, formStartTime, formEndTime, formVenueId, fixtures, venues, teams]);
+
+  if (!activeTournament) return null;
 
   const handleSaveSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
