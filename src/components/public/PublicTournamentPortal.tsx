@@ -206,10 +206,8 @@ export const PublicTournamentPortal: React.FC = () => {
 
       {/* Hero Banner */}
       <div 
-        className={`pt-6 sm:pt-8 pb-10 sm:pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden text-white ${
-          activeTournament.bannerUrl ? 'bg-cover bg-center' : 'bg-gradient-to-b from-sport-navy via-slate-900 to-sport-midnight'
-        }`}
-        style={activeTournament.bannerUrl ? { backgroundImage: `linear-gradient(to bottom, rgba(15,23,42,0.7), rgba(15,23,42,0.95)), url(${activeTournament.bannerUrl})` } : {}}
+        className="pt-6 sm:pt-8 pb-10 sm:pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden text-white bg-cover bg-center"
+        style={{ backgroundImage: `linear-gradient(to bottom, rgba(15,23,42,0.7), rgba(15,23,42,0.95)), url(/banner.jpeg)` }}
       >
         <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto relative z-10 text-center sm:text-left flex flex-wrap items-center justify-between gap-6">
           <div className="space-y-2">
@@ -243,13 +241,7 @@ export const PublicTournamentPortal: React.FC = () => {
 
           {/* Tournament Trophy Badge */}
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 p-0.5 shadow-glow-orange mx-auto sm:mx-0 flex items-center justify-center shrink-0">
-            {activeTournament.logoUrl ? (
-              <img src={activeTournament.logoUrl} alt="Logo" className="w-full h-full rounded-[22px] object-cover bg-white" />
-            ) : (
-              <div className="w-full h-full bg-sport-midnight rounded-[22px] flex items-center justify-center text-3xl sm:text-4xl">
-                🏆
-              </div>
-            )}
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full rounded-[22px] object-cover bg-white" />
           </div>
         </div>
       </div>
