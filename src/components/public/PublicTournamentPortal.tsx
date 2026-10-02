@@ -205,43 +205,47 @@ export const PublicTournamentPortal: React.FC = () => {
 
 
       {/* Hero Banner */}
-      <div 
-        className="pt-24 sm:pt-32 lg:pt-48 pb-10 sm:pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden text-white bg-[length:100%_100%] bg-no-repeat"
-        style={{ backgroundImage: `linear-gradient(to bottom, rgba(15,23,42,0.1) 0%, rgba(15,23,42,0.9) 100%), url(/banner.jpeg)` }}
-      >
-        <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto relative z-10 text-center sm:text-left flex flex-wrap items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <span className="px-3 py-0.5 rounded-full text-xs font-extrabold bg-sport-orange text-white uppercase tracking-wider">
-                {activeTournament.sport} Championship
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-300">
-                {activeTournament.format === 'GROUP_KNOCKOUT' ? 'League + Knockout' : activeTournament.format.replace('_', ' ')}
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-500/30">
-                ● Live Broadcast
-              </span>
+      <div className="relative overflow-hidden">
+        {/* Full banner image - no cropping, no distortion */}
+        <img src="/banner.jpeg" alt="Tournament Banner" className="w-full h-auto block" />
+        {/* Gradient overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[rgba(15,23,42,0.95)] via-[rgba(15,23,42,0.4)] to-transparent" />
+        {/* Content overlaid at bottom */}
+        <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
+          <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto text-white text-center sm:text-left flex flex-wrap items-end justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <span className="px-3 py-0.5 rounded-full text-xs font-extrabold bg-sport-orange text-white uppercase tracking-wider">
+                  {activeTournament.sport} Championship
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800/80 text-slate-300 backdrop-blur-sm">
+                  {activeTournament.format === 'GROUP_KNOCKOUT' ? 'League + Knockout' : activeTournament.format.replace('_', ' ')}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-950/70 text-emerald-400 border border-emerald-500/30">
+                  ● Live Broadcast
+                </span>
+              </div>
+
+              <h1 className="text-2xl xs:text-3xl sm:text-4xl 2xl:text-5xl 3xl:text-6xl font-black tracking-tight drop-shadow-lg">
+                {activeTournament.name}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-300 flex flex-wrap items-center justify-center sm:justify-start gap-3">
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-sport-orange" />
+                  {activeTournament.location}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-sport-orange" />
+                  {activeTournament.startDate} to {activeTournament.endDate}
+                </span>
+              </p>
             </div>
 
-            <h1 className="text-2xl xs:text-3xl sm:text-4xl 2xl:text-5xl 3xl:text-6xl font-black tracking-tight">
-              {activeTournament.name}
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 flex flex-wrap items-center justify-center sm:justify-start gap-3">
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-sport-orange" />
-                {activeTournament.location}
-              </span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-sport-orange" />
-                {activeTournament.startDate} to {activeTournament.endDate}
-              </span>
-            </p>
-          </div>
-
-          {/* Tournament Trophy Badge */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 p-0.5 shadow-glow-orange mx-auto sm:mx-0 flex items-center justify-center shrink-0">
-            <img src="/logo.jpeg" alt="Logo" className="w-full h-full rounded-[22px] object-cover bg-white" />
+            {/* Tournament Trophy Badge */}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 p-0.5 shadow-glow-orange mx-auto sm:mx-0 flex items-center justify-center shrink-0">
+              <img src="/logo.jpeg" alt="Logo" className="w-full h-full rounded-[22px] object-cover bg-white" />
+            </div>
           </div>
         </div>
       </div>
