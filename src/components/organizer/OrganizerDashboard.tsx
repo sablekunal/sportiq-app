@@ -118,8 +118,8 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
     <div className="space-y-6">
       {/* Tournament Identity Bar */}
       <div 
-        className="text-white p-4 sm:p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden bg-cover bg-top"
-        style={{ backgroundImage: `linear-gradient(to right, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 50%, rgba(15,23,42,0.85) 100%), url(/banner.jpeg)` }}
+        className="text-white pt-20 sm:pt-28 lg:pt-40 pb-4 sm:pb-6 px-4 sm:px-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden bg-cover bg-top"
+        style={{ backgroundImage: `linear-gradient(to bottom, rgba(15,23,42,0.1) 0%, rgba(15,23,42,0.9) 100%), url(/banner.jpeg)` }}
       >
         <div className="absolute top-0 right-0 w-80 h-80 bg-sport-orange/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
 
