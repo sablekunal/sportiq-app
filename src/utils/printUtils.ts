@@ -258,7 +258,9 @@ export const printFixtures = (
 
     const winner = m.winnerId ? (teams.find(t => t.id === m.winnerId)?.name || '_________________') : '_________________';
 
-    const timeDisplay = m.startTime || m.schedule?.startTime || '-';
+    const startTimeStr = m.startTime || m.schedule?.startTime;
+    const endTimeStr = m.endTime || m.schedule?.endTime;
+    const timeDisplay = startTimeStr ? (endTimeStr ? `${startTimeStr} - ${endTimeStr}` : startTimeStr) : '-';
 
     html += `
       <tr>
