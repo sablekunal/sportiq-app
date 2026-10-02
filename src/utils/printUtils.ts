@@ -221,6 +221,7 @@ export const printFixtures = (
               <th>Stage</th>
               <th>Home Team</th>
               <th>Away Team</th>
+              <th>Time</th>
               <th>Sets</th>
               <th>Winner</th>
             </tr>
@@ -257,12 +258,15 @@ export const printFixtures = (
 
     const winner = m.winnerId ? (teams.find(t => t.id === m.winnerId)?.name || '_________________') : '_________________';
 
+    const timeDisplay = m.startTime || m.schedule?.startTime || '-';
+
     html += `
       <tr>
         <td class="match-code">#${m.fixtureNumber || m.position} <br> <span style="font-size:10px; color:#64748b;">${m.matchCode || ''}</span></td>
         <td>${m.roundName}</td>
         <td class="team">${homeName}</td>
         <td class="team">${awayName}</td>
+        <td>${timeDisplay}</td>
         <td style="text-align: center;">${scoreDisplay}</td>
         <td>${winner}</td>
       </tr>
