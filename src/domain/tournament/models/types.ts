@@ -36,7 +36,7 @@ export interface DomainMatch {
   scoreA: number;
   scoreB: number;
 
-  status: 'SCHEDULED' | 'LIVE' | 'HALFTIME' | 'COMPLETED' | 'CANCELLED' | 'BYE_ADVANCEMENT';
+  status: 'SCHEDULED' | 'LIVE' | 'HALFTIME' | 'COMPLETED' | 'CANCELLED' | 'BYE_ADVANCEMENT' | 'WALKOVER';
 
   winnerId: string | null;
   loserId: string | null;
@@ -65,6 +65,8 @@ export interface MatchResult {
   scoreA: number;
   scoreB: number;
   sets?: SetScore[];
+  isWalkover?: boolean;
+  winnerId?: string;
   // If the sport has additional details, they would go here, 
   // but for the engine, scores are enough to determine the winner based on rules.
 }

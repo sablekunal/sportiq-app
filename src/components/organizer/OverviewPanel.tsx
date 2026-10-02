@@ -297,7 +297,7 @@ export const OverviewPanel: React.FC = () => {
                       {/* Score Badge */}
                       <div className="px-6 py-2 rounded-2xl bg-sport-midnight border border-slate-700 text-center shadow-inner">
                         <div className="text-3xl sm:text-4xl font-black text-sport-orange tracking-tight">
-                          {liveMatch.homeScore} : {liveMatch.awayScore}
+                          {liveMatch.status === 'WALKOVER' ? 'W/O' : `${liveMatch.homeScore} : ${liveMatch.awayScore}`}
                         </div>
                         <div className="text-[11px] font-bold text-red-400 mt-0.5">
                           {liveMatch.score.period || 'In Progress'} • {liveMatch.score.timeElapsed || 'Live'}
@@ -393,7 +393,7 @@ export const OverviewPanel: React.FC = () => {
                       <div className="flex items-center gap-3 text-xs font-bold text-sport-navy">
                         <span>{home?.name || 'TBD'}</span>
                         <span className="px-2 py-0.5 rounded bg-slate-100 font-mono text-sport-orange">
-                          {match.homeScore} - {match.awayScore}
+                          {match.status === 'WALKOVER' ? 'W/O' : `${match.homeScore} - ${match.awayScore}`}
                         </span>
                         <span>{away?.name || 'TBD'}</span>
                       </div>

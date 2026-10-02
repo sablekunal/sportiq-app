@@ -483,7 +483,7 @@ export const PublicTournamentPortal: React.FC = () => {
                           <div className="flex items-center justify-center gap-3">
                             <span className="truncate">{h?.name || 'TBD'}</span>
                             <span className="px-2 py-0.5 rounded bg-slate-100 font-mono font-black text-sport-orange">
-                              {m.homeScore} : {m.awayScore}
+                              {m.status === 'WALKOVER' ? 'W/O' : `${m.homeScore} : ${m.awayScore}`}
                             </span>
                             <span className="truncate">{a?.name || 'TBD'}</span>
                           </div>
@@ -699,7 +699,7 @@ export const PublicTournamentPortal: React.FC = () => {
                             {m.tossWinnerId === h?.id && <span className="text-[9px] text-emerald-600">Won Toss</span>}
                           </span>
                           <span className="px-3 py-1 rounded-lg bg-slate-100 font-mono font-black text-sport-orange text-sm shrink-0">
-                            {m.homeScore} : {m.awayScore}
+                            {m.status === 'WALKOVER' ? 'W/O' : `${m.homeScore} : ${m.awayScore}`}
                           </span>
                           <span className="truncate flex-1 text-right flex flex-col items-end">
                             {awayName}
@@ -1057,11 +1057,11 @@ export const PublicTournamentPortal: React.FC = () => {
                               </div>
                               <div className="flex items-center justify-between font-semibold text-slate-300">
                                 <span className="truncate">{h?.name || m.homePlaceholder || 'TBD'}</span>
-                                <span className="font-mono text-white">{m.homeScore}</span>
+                                <span className="font-mono text-white">{m.status === 'WALKOVER' ? 'W/O' : m.homeScore}</span>
                               </div>
                               <div className="flex items-center justify-between font-semibold text-slate-300">
                                 <span className="truncate">{a?.name || m.awayPlaceholder || 'TBD'}</span>
-                                <span className="font-mono text-white">{m.awayScore}</span>
+                                <span className="font-mono text-white">{m.status === 'WALKOVER' ? 'W/O' : m.awayScore}</span>
                               </div>
                             </div>
                           );
@@ -1189,7 +1189,7 @@ export const PublicTournamentPortal: React.FC = () => {
                     {/* Score Numerals */}
                     <div className="px-4 py-2 rounded-2xl bg-sport-midnight border border-slate-800 text-center shrink-0 shadow-inner">
                       <div className="text-3xl sm:text-4xl font-mono font-black text-amber-300">
-                        {selectedMatch.homeScore} : {selectedMatch.awayScore}
+                        {selectedMatch.status === 'WALKOVER' ? 'W/O' : `${selectedMatch.homeScore} : ${selectedMatch.awayScore}`}
                       </div>
                       <div className="text-[10px] font-bold text-sport-orange uppercase tracking-wider mt-0.5">
                         {selectedMatch.score.period || 'In Progress'}

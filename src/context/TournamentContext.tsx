@@ -97,7 +97,7 @@ interface TournamentContextType {
   updateMatchSets: (matchId: string, sets: SetScore[], currentSet?: number, servingTeamId?: string | null) => Promise<void>;
   recordMatchSubstitution: (matchId: string, sub: { setNumber: number; teamId: string; outgoingPlayerId: string; incomingPlayerId: string; reason: 'NORMAL' | 'INJURY' }) => Promise<void>;
   recordMatchTimeout: (matchId: string, timeout: { setNumber: number; teamId: string }) => Promise<void>;
-  completeMatch: (matchId: string, result: { scoreA: number; scoreB: number; sets?: SetScore[] }) => void;
+  completeMatch: (matchId: string, result: { scoreA: number; scoreB: number; sets?: SetScore[]; isWalkover?: boolean; winnerId?: string; }) => void;
   lockTeamRoster: (tournamentId: string, teamId: string) => Promise<void>;
   addBudgetItem: (tournamentId: string, item: Omit<BudgetItem, 'id'>) => void;
   deleteBudgetItem: (tournamentId: string, itemId: string) => void;
@@ -866,7 +866,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     });
   };
 
-  const completeMatch = async (matchId: string, result: { scoreA: number; scoreB: number; sets?: SetScore[] }) => {
+  const completeMatch = async (matchId: string, result: { scoreA: number; scoreB: number; sets?: SetScore[]; isWalkover?: boolean; winnerId?: string; }) => {
     if (!activeTournament) return;
     const tournamentId = activeTournament.id;
 

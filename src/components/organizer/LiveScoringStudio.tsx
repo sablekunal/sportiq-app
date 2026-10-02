@@ -369,6 +369,20 @@ export const LiveScoringStudio: React.FC = () => {
     }
   };
 
+  const handleWalkover = (teamId: string) => {
+    const winnerName = teamId === homeTeam?.id ? homeTeam?.name : awayTeam?.name;
+    if (window.confirm(`Confirm WALKOVER for ${winnerName}? They will receive 2 points, and the opponent gets 0. (Result marked W/O)`)) {
+      completeMatch(currentMatch.id, {
+        scoreA: teamId === homeTeam?.id ? 2 : 0,
+        scoreB: teamId === awayTeam?.id ? 2 : 0,
+        sets: currentSets,
+        isWalkover: true,
+        winnerId: teamId
+      });
+      soundEffects.playCelebration();
+    }
+  };
+
   const actionTags = [
     { label: 'Smash / Kill', icon: '💥' },
     { label: 'Service Ace', icon: '🎯' },
@@ -803,18 +817,37 @@ export const LiveScoringStudio: React.FC = () => {
               )}
             </div>
 
-            <button
-              onClick={handleEndMatch}
-              disabled={!hasMatchWinner}
-              className={`px-6 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition cursor-pointer flex items-center gap-2 active:scale-95 ${
-                hasMatchWinner
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white'
-                  : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-              }`}
-            >
-              <Trophy className="w-4 h-4" />
-              <span>Conclude Match & Advance Winner</span>
-            </button>
+            <div className="flex gap-2">
+              <div className="flex flex-col gap-1 pr-4 border-r border-slate-700">
+                <span className="text-[10px] uppercase font-bold text-slate-500 mb-1">Declare Walkover</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleWalkover(homeTeam?.id || '')}
+                    className="px-3 py-1.5 rounded-lg font-bold text-[10px] transition cursor-pointer bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700 flex items-center gap-1"
+                  >
+                    <span>{homeTeam?.shortName} Walkover</span>
+                  </button>
+                  <button
+                    onClick={() => handleWalkover(awayTeam?.id || '')}
+                    className="px-3 py-1.5 rounded-lg font-bold text-[10px] transition cursor-pointer bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700 flex items-center gap-1"
+                  >
+                    <span>{awayTeam?.shortName} Walkover</span>
+                  </button>
+                </div>
+              </div>
+              <button
+                onClick={handleEndMatch}
+                disabled={!hasMatchWinner}
+                className={`px-6 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition cursor-pointer flex items-center gap-2 active:scale-95 ${
+                  hasMatchWinner
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white'
+                    : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                }`}
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Conclude Match</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

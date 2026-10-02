@@ -35,7 +35,7 @@ export function calculateStandings(
 
   // Process completed matches
   for (const match of matches) {
-    if (match.status !== 'COMPLETED' && match.status !== 'BYE_ADVANCEMENT') continue;
+    if (match.status !== 'COMPLETED' && match.status !== 'BYE_ADVANCEMENT' && match.status !== 'WALKOVER') continue;
 
     // Determine teams
     const teamA = match.participantA.type === 'TEAM' ? match.participantA.teamId : null;
@@ -57,6 +57,15 @@ export function calculateStandings(
           st.draw += 1;
           st.points += drawPoints;
         }
+      } else if (match.status === 'WALKOVER') {
+        st.played += 1;
+        if (match.winnerId === teamA) {
+          st.won += 1;
+          st.points += 2; // Walkover gives exactly 2 points to winner
+        } else if (match.loserId === teamA) {
+          st.lost += 1;
+          st.points += 0; // Walkover gives 0 points to loser
+        }
       }
     }
 
@@ -75,6 +84,15 @@ export function calculateStandings(
         } else if (rules.allowDraws && match.winnerId === null && match.loserId === null) {
           st.draw += 1;
           st.points += drawPoints;
+        }
+      } else if (match.status === 'WALKOVER') {
+        st.played += 1;
+        if (match.winnerId === teamB) {
+          st.won += 1;
+          st.points += 2; // Walkover gives exactly 2 points to winner
+        } else if (match.loserId === teamB) {
+          st.lost += 1;
+          st.points += 0; // Walkover gives 0 points to loser
         }
       }
     }

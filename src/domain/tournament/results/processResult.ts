@@ -43,7 +43,12 @@ export function processMatchResult(
   let winnerId: string | null = null;
   let loserId: string | null = null;
 
-  if (result.scoreA > result.scoreB) {
+  if (result.isWalkover && result.winnerId) {
+    winnerId = result.winnerId;
+    loserId = match.participantA.type === 'TEAM' && match.participantA.teamId === winnerId
+      ? (match.participantB.type === 'TEAM' ? match.participantB.teamId : null)
+      : (match.participantA.type === 'TEAM' ? match.participantA.teamId : null);
+  } else if (result.scoreA > result.scoreB) {
     winnerId = match.participantA.type === 'TEAM' ? match.participantA.teamId : null;
     loserId = match.participantB.type === 'TEAM' ? match.participantB.teamId : null;
   } else if (result.scoreB > result.scoreA) {
@@ -68,7 +73,7 @@ export function processMatchResult(
       match.setsWonB = result.sets.filter((s) => s.status === 'COMPLETED' && (s.winnerId === teamBId || s.scoreB > s.scoreA)).length;
     }
   }
-  match.status = 'COMPLETED';
+  match.status = result.isWalkover ? 'WALKOVER' : 'COMPLETED';
   match.winnerId = winnerId;
   match.loserId = loserId;
 
@@ -151,7 +156,7 @@ export function computeGroupStandings(
 
   const completedMatches = groupMatches.filter(
     (m) =>
-      (m.status === 'COMPLETED' || m.status === 'BYE_ADVANCEMENT') &&
+      (m.status === 'COMPLETED' || m.status === 'BYE_ADVANCEMENT' || m.status === 'WALKOVER') &&
       m.participantA.type === 'TEAM' &&
       m.participantB.type === 'TEAM'
   );
@@ -167,21 +172,35 @@ export function computeGroupStandings(
     stB.played += 1;
 
     // Match outcome
-    if (m.winnerId === teamA) {
-      stA.won += 1;
-      stA.points += winPoints;
-      stB.lost += 1;
-      stB.points += lossPoints;
-    } else if (m.winnerId === teamB) {
-      stB.won += 1;
-      stB.points += winPoints;
-      stA.lost += 1;
-      stA.points += lossPoints;
-    } else if (allowDraws) {
-      stA.draw += 1;
-      stB.draw += 1;
-      stA.points += drawPoints;
-      stB.points += drawPoints;
+    if (m.status === 'WALKOVER') {
+      if (m.winnerId === teamA) {
+        stA.won += 1;
+        stA.points += 2;
+        stB.lost += 1;
+        stB.points += 0;
+      } else if (m.winnerId === teamB) {
+        stB.won += 1;
+        stB.points += 2;
+        stA.lost += 1;
+        stA.points += 0;
+      }
+    } else {
+      if (m.winnerId === teamA) {
+        stA.won += 1;
+        stA.points += winPoints;
+        stB.lost += 1;
+        stB.points += lossPoints;
+      } else if (m.winnerId === teamB) {
+        stB.won += 1;
+        stB.points += winPoints;
+        stA.lost += 1;
+        stA.points += lossPoints;
+      } else if (allowDraws) {
+        stA.draw += 1;
+        stB.draw += 1;
+        stA.points += drawPoints;
+        stB.points += drawPoints;
+      }
     }
 
     // Set & point breakdown
@@ -271,7 +290,7 @@ export function propagateOutcomes(
   rules?: TournamentRules
 ) {
   const sourceMatch = matchesMap.get(sourceMatchId);
-  if (!sourceMatch || (sourceMatch.status !== 'COMPLETED' && sourceMatch.status !== 'BYE_ADVANCEMENT')) return;
+  if (!sourceMatch || (sourceMatch.status !== 'COMPLETED' && sourceMatch.status !== 'BYE_ADVANCEMENT' && sourceMatch.status !== 'WALKOVER')) return;
 
   // 1. Direct match dependency propagation (e.g. Semifinal -> Final)
   for (const match of matchesMap.values()) {
@@ -316,7 +335,7 @@ export function propagateOutcomes(
     // Group must be completely finished (6 matches for 4-team group) before resolving qualifiers
     const isGroupComplete =
       groupMatches.length >= 6 &&
-      groupMatches.every((m) => m.status === 'COMPLETED' || m.status === 'BYE_ADVANCEMENT');
+      groupMatches.every((m) => m.status === 'COMPLETED' || m.status === 'BYE_ADVANCEMENT' || m.status === 'WALKOVER');
 
     if (isGroupComplete) {
       const standings = computeGroupStandings(groupMatches, rules);

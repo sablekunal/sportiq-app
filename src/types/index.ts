@@ -16,7 +16,7 @@ export type TournamentStatus =
   | 'COMPLETED'
   | 'ARCHIVED';
 
-export type MatchStatus = 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'CANCELLED' | 'POSTPONED';
+export type MatchStatus = 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'CANCELLED' | 'POSTPONED' | 'WALKOVER';
 
 export type PlayerStatus = 'ACTIVE' | 'REPLACED' | 'WITHDRAWN';
 

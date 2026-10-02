@@ -219,7 +219,7 @@ export const FixturesManager: React.FC = () => {
                   {/* Score */}
                   <div className="text-center px-3 py-1 bg-slate-100 rounded-xl">
                     <span className="text-lg font-black text-sport-navy">
-                      {match.homeScore} : {match.awayScore}
+                      {match.status === 'WALKOVER' ? 'W/O' : `${match.homeScore} : ${match.awayScore}`}
                     </span>
                   </div>
 

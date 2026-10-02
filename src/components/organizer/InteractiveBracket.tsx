@@ -114,8 +114,8 @@ export const InteractiveBracket: React.FC = () => {
                   {matchesInRound.map((match) => {
                     const home = teams.find((t) => t.id === match.homeTeamId);
                     const away = teams.find((t) => t.id === match.awayTeamId);
-                    const isWinnerHome = match.winnerId === home?.id && match.status === 'COMPLETED';
-                    const isWinnerAway = match.winnerId === away?.id && match.status === 'COMPLETED';
+                    const isWinnerHome = match.winnerId === home?.id && (match.status === 'COMPLETED' || match.status === 'WALKOVER');
+                    const isWinnerAway = match.winnerId === away?.id && (match.status === 'COMPLETED' || match.status === 'WALKOVER');
 
                     return (
                       <div
@@ -127,7 +127,7 @@ export const InteractiveBracket: React.FC = () => {
                         className={`w-64 bg-slate-950/90 rounded-2xl border transition-all p-3.5 shadow-lg relative cursor-pointer group ${
                           match.status === 'LIVE'
                             ? 'border-red-500 ring-2 ring-red-500/30'
-                            : match.status === 'COMPLETED'
+                            : match.status === 'COMPLETED' || match.status === 'WALKOVER'
                             ? 'border-slate-800 hover:border-slate-700'
                             : 'border-slate-800 hover:border-sport-orange/50'
                         }`}
@@ -147,7 +147,7 @@ export const InteractiveBracket: React.FC = () => {
                               <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                               LIVE
                             </span>
-                          ) : match.status === 'COMPLETED' ? (
+                          ) : match.status === 'COMPLETED' || match.status === 'WALKOVER' ? (
                             <span className="text-emerald-400 font-bold flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3" /> Done
                             </span>
@@ -174,7 +174,7 @@ export const InteractiveBracket: React.FC = () => {
                             <span className="truncate">{home?.name || match.homePlaceholder || 'TBD (Awaiting)'}</span>
                           </div>
                           <span className="font-mono font-bold text-white px-1.5 py-0.5 rounded bg-slate-800">
-                            {match.homeScore}
+                            {match.status === 'WALKOVER' ? 'W/O' : match.homeScore}
                           </span>
                         </div>
 
@@ -196,7 +196,7 @@ export const InteractiveBracket: React.FC = () => {
                             <span className="truncate">{away?.name || match.awayPlaceholder || 'TBD (Awaiting)'}</span>
                           </div>
                           <span className="font-mono font-bold text-white px-1.5 py-0.5 rounded bg-slate-800">
-                            {match.awayScore}
+                            {match.status === 'WALKOVER' ? 'W/O' : match.awayScore}
                           </span>
                         </div>
 

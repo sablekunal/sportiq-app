@@ -333,7 +333,7 @@ export const ScheduleManager: React.FC = () => {
                   const endTimeStr = m.schedule?.endTime || m.endTime || '';
 
                   const isLive = m.status === 'LIVE';
-                  const isCompleted = m.status === 'COMPLETED';
+                  const isCompleted = m.status === 'COMPLETED' || m.status === 'WALKOVER';
                   const isLocked = isLive || isCompleted;
 
                   // Check if this fixture is involved in a conflict
@@ -488,8 +488,8 @@ export const ScheduleManager: React.FC = () => {
 
             {/* Form */}
             <form onSubmit={handleSaveSchedule} className="p-5 space-y-4">
-              {/* Lock Warning if LIVE or COMPLETED */}
-              {(editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED') && (
+              {/* Lock Warning if LIVE or COMPLETED or WALKOVER */}
+              {(editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || editingMatch.status === 'WALKOVER') && (
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
                   <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
@@ -532,7 +532,7 @@ export const ScheduleManager: React.FC = () => {
                 <div className="relative">
                   <input
                     type="date"
-                    disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED'}
+                    disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || editingMatch.status === 'WALKOVER'}
                     value={formDate}
                     onChange={(e) => setFormDate(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sport-orange disabled:opacity-50 disabled:cursor-not-allowed"
@@ -548,7 +548,7 @@ export const ScheduleManager: React.FC = () => {
                   </label>
                   <input
                     type="time"
-                    disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED'}
+                    disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || editingMatch.status === 'WALKOVER'}
                     value={formStartTime}
                     onChange={(e) => setFormStartTime(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sport-orange disabled:opacity-50 disabled:cursor-not-allowed"
@@ -561,7 +561,7 @@ export const ScheduleManager: React.FC = () => {
                   </label>
                   <input
                     type="time"
-                    disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED'}
+                    disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || editingMatch.status === 'WALKOVER'}
                     value={formEndTime}
                     onChange={(e) => setFormEndTime(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sport-orange disabled:opacity-50 disabled:cursor-not-allowed"
@@ -575,7 +575,7 @@ export const ScheduleManager: React.FC = () => {
               <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || isSaving}
+                  disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || editingMatch.status === 'WALKOVER' || isSaving}
                   onClick={handleClearSchedule}
                   className="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
@@ -593,7 +593,7 @@ export const ScheduleManager: React.FC = () => {
 
                   <button
                     type="submit"
-                    disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || isSaving}
+                    disabled={editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || editingMatch.status === 'WALKOVER' || isSaving}
                     className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Save className="w-3.5 h-3.5" />
