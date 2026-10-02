@@ -136,23 +136,18 @@ export const MatchLineupModal: React.FC<MatchLineupModalProps> = ({
 
   const handleAutoFill = () => {
     if (locked || !currentTeam) return;
-    if (currentTeam.players.length !== 8) {
-      setErrorMsg(`Cannot auto-fill: ${currentTeam.name} has ${currentTeam.players.length} players, but 8 are required.`);
-      return;
-    }
     const starters = currentTeam.players.slice(0, 6).map((p) => p.id);
-    const subs = currentTeam.players.slice(6, 8).map((p) => p.id);
+    const subs = currentTeam.players.slice(6).map((p) => p.id);
     setStarters(starters);
     setSubs(subs);
     setErrorMsg(null);
-
   };
 
   const handleSaveLineup = async () => {
     if (locked || !currentTeam) return;
 
-    if (currentStarters.length !== 6 || currentSubs.length !== 2) {
-      setErrorMsg('Lineup must have exactly 6 starters and 2 substitutes.');
+    if (currentStarters.length === 0) {
+      setErrorMsg('Lineup must have at least 1 starter.');
       return;
     }
 
@@ -168,7 +163,7 @@ export const MatchLineupModal: React.FC<MatchLineupModalProps> = ({
     }
   };
 
-  const isCurrentLineupValid = currentStarters.length === 6 && currentSubs.length === 2;
+  const isCurrentLineupValid = currentStarters.length > 0;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -189,7 +184,7 @@ export const MatchLineupModal: React.FC<MatchLineupModalProps> = ({
                 )}
               </h3>
               <p className="text-xs text-slate-400">
-                {match.roundName || 'Match'} • 6 Starters + 2 Substitutes Requirement
+                {match.roundName || 'Match'} • Up to 6 Starters
               </p>
             </div>
           </div>
@@ -264,7 +259,7 @@ export const MatchLineupModal: React.FC<MatchLineupModalProps> = ({
               <div className="flex items-center gap-2 text-sport-navy">
                 <Sparkles className="w-4 h-4 text-sport-orange shrink-0" />
                 <span>
-                  Select <strong>6 Starters</strong> on court and <strong>2 Substitutes</strong> on the bench.
+                  Select <strong>up to 6 Starters</strong> on court and any <strong>Substitutes</strong> on the bench.
                 </span>
               </div>
               <button
@@ -273,7 +268,7 @@ export const MatchLineupModal: React.FC<MatchLineupModalProps> = ({
                 className="px-3 py-1.5 rounded-xl bg-white hover:bg-orange-100 border border-orange-300 text-sport-orange font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
               >
                 <Sparkles className="w-3 h-3" />
-                <span>Auto-Fill 6+2</span>
+                <span>Auto-Fill</span>
               </button>
             </div>
           )}
@@ -403,11 +398,11 @@ export const MatchLineupModal: React.FC<MatchLineupModalProps> = ({
           <div className="text-xs text-slate-500">
             {isCurrentLineupValid ? (
               <span className="text-emerald-600 font-bold flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4" /> Ready to Save (6 + 2 valid)
+                <CheckCircle2 className="w-4 h-4" /> Ready to Save
               </span>
             ) : (
               <span className="text-amber-600 font-semibold">
-                Selection requirement: 6 starters + 2 substitutes
+                Selection requirement: At least 1 starter
               </span>
             )}
           </div>

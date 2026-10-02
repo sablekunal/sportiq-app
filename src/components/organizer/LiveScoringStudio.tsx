@@ -441,7 +441,7 @@ export const LiveScoringStudio: React.FC = () => {
             className="px-3 py-1.5 bg-sport-navy hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
             <Users className="w-3.5 h-3.5 text-sport-orange" />
-            <span>Lineups (6+2)</span>
+            <span>Match Lineups</span>
           </button>
         </div>
       </div>
@@ -858,7 +858,7 @@ export const LiveScoringStudio: React.FC = () => {
           <div>
             <h4 className="text-sm font-bold text-sport-navy flex items-center gap-2">
               <Users className="w-4 h-4 text-sport-orange" />
-              Official Match Lineups (6 on Court + 2 Substitutes)
+              Official Match Lineups (Starters + Subs)
               {locked && (
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
                   <Lock className="w-3 h-3 text-amber-500" /> Locked ({currentMatch.status})
@@ -866,7 +866,7 @@ export const LiveScoringStudio: React.FC = () => {
               )}
             </h4>
             <p className="text-xs text-slate-500">
-              Match-specific lineup configuration: Starting 6 and 2 available substitutes
+              Match-specific lineup configuration: Select starters and available substitutes
             </p>
           </div>
 
@@ -892,7 +892,7 @@ export const LiveScoringStudio: React.FC = () => {
                 {homeTeam?.name || 'Home Team'} Lineup
               </span>
               <span className="text-[10px] font-bold text-slate-500">
-                {currentMatch.lineupHome ? '✓ 6+2 Registered' : 'Pending Lineup'}
+                {currentMatch.lineupHome ? '✓ Lineup Set' : 'Pending Lineup'}
               </span>
             </div>
 
@@ -938,7 +938,7 @@ export const LiveScoringStudio: React.FC = () => {
               </div>
             ) : (
               <div className="text-[11px] text-slate-400 italic">
-                Lineup not yet selected. Click 'Configure Match Lineup' to select the starting 6 and 2 substitutes.
+                Lineup not yet selected. Click 'Configure Match Lineup' to select the starters and substitutes.
               </div>
             )}
           </div>
@@ -954,7 +954,7 @@ export const LiveScoringStudio: React.FC = () => {
                 {awayTeam?.name || 'Away Team'} Lineup
               </span>
               <span className="text-[10px] font-bold text-slate-500">
-                {currentMatch.lineupAway ? '✓ 6+2 Registered' : 'Pending Lineup'}
+                {currentMatch.lineupAway ? '✓ Lineup Set' : 'Pending Lineup'}
               </span>
             </div>
 
@@ -1000,7 +1000,7 @@ export const LiveScoringStudio: React.FC = () => {
               </div>
             ) : (
               <div className="text-[11px] text-slate-400 italic">
-                Lineup not yet selected. Click 'Configure Match Lineup' to select the starting 6 and 2 substitutes.
+                Lineup not yet selected. Click 'Configure Match Lineup' to select the starters and substitutes.
               </div>
             )}
           </div>
