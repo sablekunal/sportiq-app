@@ -207,7 +207,7 @@ export const PublicTournamentPortal: React.FC = () => {
       {/* Hero Banner */}
       <div 
         className="pt-6 sm:pt-8 pb-10 sm:pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden text-white bg-cover bg-center"
-        style={{ backgroundImage: `linear-gradient(to bottom, rgba(15,23,42,0.7), rgba(15,23,42,0.95)), url(/banner.jpeg)` }}
+        style={{ backgroundImage: `linear-gradient(to right, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 50%, rgba(15,23,42,0.85) 100%), url(/banner.jpeg)` }}
       >
         <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto relative z-10 text-center sm:text-left flex flex-wrap items-center justify-between gap-6">
           <div className="space-y-2">
