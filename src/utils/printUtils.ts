@@ -52,7 +52,7 @@ export const printKnockoutBrackets = (
   `;
 
   const renderMatchScores = (homeName: string, awayName: string, homeScore: any, awayScore: any, isFinal: boolean, setsData?: any[]) => {
-    const numSets = isFinal ? 5 : 3;
+    const numSets = 3;
     let html = '<table class="sets-table">';
     
     // Header

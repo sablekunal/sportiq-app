@@ -118,8 +118,8 @@ export const LiveScoringStudio: React.FC = () => {
     }
   }, [isMatchComplete]);
 
-  const maxSets = currentMatch.stage === 'FINAL' ? 5 : 3;
-  const setsToWin = currentMatch.stage === 'FINAL' ? 3 : 2;
+  const maxSets = 3;
+  const setsToWin = 2;
 
   const hasMatchWinner = setsWonA >= setsToWin || setsWonB >= setsToWin;
   const matchWinnerTeam = setsWonA >= setsToWin ? homeTeam : setsWonB >= setsToWin ? awayTeam : null;
