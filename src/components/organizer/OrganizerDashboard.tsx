@@ -116,76 +116,75 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
 
   return (
     <div className="space-y-6">
-      {/* Tournament Identity Bar */}
-      <div 
-        className="text-white p-4 sm:p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden bg-cover bg-center"
-        style={{ backgroundImage: `linear-gradient(to right, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 50%, rgba(15,23,42,0.85) 100%), url(/banner.jpeg)` }}
-      >
-        <div className="absolute top-0 right-0 w-80 h-80 bg-sport-orange/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+      {/* Tournament Banner - Full image */}
+      <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-xl">
+        <img src="/banner.jpeg" alt="Tournament Banner" className="w-full h-auto block" />
+        {/* Info & Actions Bar */}
+        <div className="bg-gradient-to-r from-sport-navy via-slate-900 to-sport-midnight p-4 sm:p-5 text-white">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <img src="/logo.jpeg" alt="Logo" className="w-10 h-10 rounded-xl object-cover bg-white shadow-sm" />
+                <span className="text-xs uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full bg-sport-orange/20 text-sport-orange border border-sport-orange/30">
+                  {sportConfig.displayName} • {activeTournament.format === 'GROUP_KNOCKOUT' ? 'LEAGUE + KNOCKOUT' : activeTournament.format.replace('_', ' ')}
+                </span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                  {activeTournament.status}
+                </span>
+              </div>
 
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <img src="/logo.jpeg" alt="Logo" className="w-10 h-10 rounded-xl object-cover bg-white shadow-sm" />
-              <span className="text-xs uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full bg-sport-orange/20 text-sport-orange border border-sport-orange/30">
-                {sportConfig.displayName} • {activeTournament.format === 'GROUP_KNOCKOUT' ? 'LEAGUE + KNOCKOUT' : activeTournament.format.replace('_', ' ')}
-              </span>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
-                {activeTournament.status}
-              </span>
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight">{activeTournament.name}</h2>
+              <p className="text-xs text-slate-300 mt-1 flex flex-wrap items-center gap-3">
+                <span>📍 {activeTournament.location}</span>
+                <span>•</span>
+                <span>📅 {activeTournament.startDate} to {activeTournament.endDate}</span>
+                <span>•</span>
+                <span>Organized by {activeTournament.organizerName}</span>
+              </p>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">{activeTournament.name}</h2>
-            <p className="text-xs text-slate-300 mt-1 flex flex-wrap items-center gap-3">
-              <span>📍 {activeTournament.location}</span>
-              <span>•</span>
-              <span>📅 {activeTournament.startDate} to {activeTournament.endDate}</span>
-              <span>•</span>
-              <span>Organized by {activeTournament.organizerName}</span>
-            </p>
-          </div>
-
-          {/* Quick Actions Header */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setViewMode('public')}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition cursor-pointer"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-              Public URL & QR
-            </button>
-
-            {matchesCount === 0 && (
+            {/* Quick Actions Header */}
+            <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => generateTournamentFixtures(activeTournament.id)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange transition cursor-pointer active:scale-95"
+                onClick={() => setViewMode('public')}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm transition cursor-pointer"
               >
-                <Play className="w-3.5 h-3.5" />
-                Generate Fixtures
+                <Share2 className="w-3.5 h-3.5" />
+                Public URL & QR
               </button>
-            )}
 
-            {liveCount > 0 && (
+              {matchesCount === 0 && (
+                <button
+                  onClick={() => generateTournamentFixtures(activeTournament.id)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-sport-orange hover:bg-orange-600 text-white shadow-glow-orange transition cursor-pointer active:scale-95"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Generate Fixtures
+                </button>
+              )}
+
+              {liveCount > 0 && (
+                <button
+                  onClick={() => setOrganizerTab('scoring')}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg animate-pulse transition cursor-pointer"
+                >
+                  <Radio className="w-3.5 h-3.5" />
+                  Scoring Studio ({liveCount} Live)
+                </button>
+              )}
+
               <button
-                onClick={() => setOrganizerTab('scoring')}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg animate-pulse transition cursor-pointer"
+                onClick={() => {
+                  if (window.confirm(`Delete tournament "${activeTournament.name}"?`)) {
+                    deleteTournament(activeTournament.id);
+                  }
+                }}
+                className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-950 text-slate-400 hover:text-red-400 border border-slate-700 transition cursor-pointer"
+                title="Delete Tournament"
               >
-                <Radio className="w-3.5 h-3.5" />
-                Scoring Studio ({liveCount} Live)
+                <Trash2 className="w-4 h-4" />
               </button>
-            )}
-
-            <button
-              onClick={() => {
-                if (window.confirm(`Delete tournament "${activeTournament.name}"?`)) {
-                  deleteTournament(activeTournament.id);
-                }
-              }}
-              className="p-2 rounded-xl bg-slate-800/80 hover:bg-red-950 text-slate-400 hover:text-red-400 border border-slate-700 transition cursor-pointer"
-              title="Delete Tournament"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            </div>
           </div>
         </div>
       </div>

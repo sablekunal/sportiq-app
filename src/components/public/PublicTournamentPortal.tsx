@@ -204,13 +204,14 @@ export const PublicTournamentPortal: React.FC = () => {
       </div>
 
 
-      {/* Hero Banner */}
-      <div 
-        className="pt-6 sm:pt-8 pb-10 sm:pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden text-white bg-cover bg-center"
-        style={{ backgroundImage: `linear-gradient(to right, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 50%, rgba(15,23,42,0.85) 100%), url(/banner.jpeg)` }}
-      >
-        <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto relative z-10 text-center sm:text-left flex flex-wrap items-center justify-between gap-6">
-          <div className="space-y-2">
+      {/* Hero Banner - Full image, no cropping */}
+      <div className="relative">
+        <img src="/banner.jpeg" alt="Tournament Banner" className="w-full h-auto block" />
+      </div>
+      {/* Tournament Info Bar */}
+      <div className="bg-gradient-to-r from-sport-navy via-slate-900 to-sport-midnight px-4 sm:px-6 lg:px-8 py-4 sm:py-5 text-white">
+        <div className="max-w-7xl 2xl:max-w-[1600px] 3xl:max-w-[2200px] mx-auto flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1.5">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
               <span className="px-3 py-0.5 rounded-full text-xs font-extrabold bg-sport-orange text-white uppercase tracking-wider">
                 {activeTournament.sport} Championship
@@ -223,7 +224,7 @@ export const PublicTournamentPortal: React.FC = () => {
               </span>
             </div>
 
-            <h1 className="text-2xl xs:text-3xl sm:text-4xl 2xl:text-5xl 3xl:text-6xl font-black tracking-tight">
+            <h1 className="text-xl xs:text-2xl sm:text-3xl 2xl:text-4xl font-black tracking-tight">
               {activeTournament.name}
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 flex flex-wrap items-center justify-center sm:justify-start gap-3">
@@ -239,9 +240,9 @@ export const PublicTournamentPortal: React.FC = () => {
             </p>
           </div>
 
-          {/* Tournament Trophy Badge */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-amber-500 to-orange-500 p-0.5 shadow-glow-orange mx-auto sm:mx-0 flex items-center justify-center shrink-0">
-            <img src="/logo.jpeg" alt="Logo" className="w-full h-full rounded-[22px] object-cover bg-white" />
+          {/* Tournament Logo Badge */}
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 p-0.5 shadow-glow-orange mx-auto sm:mx-0 flex items-center justify-center shrink-0">
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full rounded-[14px] object-cover bg-white" />
           </div>
         </div>
       </div>
