@@ -179,7 +179,7 @@ export const ScheduleManager: React.FC = () => {
     setNewVenueName('');
   };
 
-  const handlePrintSchedule = () => {
+  const sortedFixtures = useMemo(() => {
     const getMatchTime = (m: Match) => {
       const d = m.schedule?.date || m.date;
       const t = m.schedule?.startTime || m.startTime;
@@ -188,13 +188,15 @@ export const ScheduleManager: React.FC = () => {
       return isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
     };
 
-    const sortedFixtures = [...fixtures].sort((a, b) => {
+    return [...fixtures].sort((a, b) => {
       const timeA = getMatchTime(a);
       const timeB = getMatchTime(b);
       if (timeA !== timeB) return timeA - timeB;
       return (a.fixtureNumber ?? a.position) - (b.fixtureNumber ?? b.position);
     });
+  }, [fixtures]);
 
+  const handlePrintSchedule = () => {
     printFixtures(sortedFixtures, teams);
   };
 
@@ -323,7 +325,7 @@ export const ScheduleManager: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {fixtures.map((m) => {
+                {sortedFixtures.map((m) => {
                   const home = m.homeTeamId ? teamMap.get(m.homeTeamId) : null;
                   const away = m.awayTeamId ? teamMap.get(m.awayTeamId) : null;
                   const venue = m.schedule?.venueId || m.venueId ? venueMap.get(m.schedule?.venueId || m.venueId!) : null;
