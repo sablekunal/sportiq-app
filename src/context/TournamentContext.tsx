@@ -98,7 +98,7 @@ interface TournamentContextType {
   recordMatchSubstitution: (matchId: string, sub: { setNumber: number; teamId: string; outgoingPlayerId: string; incomingPlayerId: string; reason: 'NORMAL' | 'INJURY' }) => Promise<void>;
   recordMatchTimeout: (matchId: string, timeout: { setNumber: number; teamId: string }) => Promise<void>;
   completeMatch: (matchId: string, result: { scoreA: number; scoreB: number; sets?: SetScore[]; isWalkover?: boolean; winnerId?: string; }) => void;
-  resetAllScores: (tournamentId: string) => Promise<void>;
+  resetTournamentProgress: (tournamentId: string) => Promise<void>;
   lockTeamRoster: (tournamentId: string, teamId: string) => Promise<void>;
   addBudgetItem: (tournamentId: string, item: Omit<BudgetItem, 'id'>) => void;
   deleteBudgetItem: (tournamentId: string, itemId: string) => void;
@@ -943,38 +943,39 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     soundEffects.playCelebration();
   };
 
-  const resetAllScores = async (tournamentId: string) => {
+  const resetTournamentProgress = async (tournamentId: string) => {
     if (!activeTournament) return;
     
     try {
+      // 1. Delete all matches in Firestore
       const matches = await MatchRepository.getMatches(tournamentId);
       const batch = writeBatch(db);
       
       matches.forEach(m => {
         const matchRef = doc(db, 'tournaments', tournamentId, 'matches', m.id);
-        batch.update(matchRef, {
-          status: 'UPCOMING',
-          homeScore: 0,
-          awayScore: 0,
-          setsWonA: 0,
-          setsWonB: 0,
-          sets: [],
-          winnerId: null,
-          isWalkover: false,
-          tossWinnerId: null,
-          events: [],
-          score: { period: '', timeElapsed: '' },
-          substitutions: [],
-          timeouts: [],
-          lineupHome: null,
-          lineupAway: null
-        });
+        batch.delete(matchRef);
       });
       
       await batch.commit();
-      console.log('Successfully reset all matches in tournament.');
+
+      // 2. Clear fixtures, groups, and team group assignments from the tournament document
+      await updateTournamentDoc(tournamentId, (t) => {
+        const resetTeams = t.teams.map(team => {
+          const { groupId, ...rest } = team;
+          return rest;
+        });
+
+        return {
+          ...t,
+          fixtures: [],
+          groups: [],
+          teams: resetTeams
+        };
+      });
+
+      console.log('Successfully reset entire tournament progress (fixtures and groups cleared).');
     } catch (err) {
-      console.error('Failed to reset all match scores:', err);
+      console.error('Failed to reset tournament progress:', err);
       throw err;
     }
   };
@@ -1375,7 +1376,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         recordMatchSubstitution,
         recordMatchTimeout,
         completeMatch,
-        resetAllScores,
+        resetTournamentProgress,
         lockTeamRoster,
         addBudgetItem,
         deleteBudgetItem,
