@@ -733,7 +733,7 @@ export const PublicTournamentPortal: React.FC = () => {
                               <span className={`text-sm truncate ${m.winnerId === h?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-600'}`}>
                                 {homeName}
                               </span>
-                              {m.tossWinnerId === h?.id && <span className="text-[9px] px-1 bg-emerald-100 text-emerald-700 rounded-sm font-bold flex-shrink-0">Toss</span>}
+                              {m.tossWinnerId && m.tossWinnerId === h?.id && <span className="text-[9px] px-1 bg-emerald-100 text-emerald-700 rounded-sm font-bold flex-shrink-0">Toss</span>}
                             </div>
                             <span className={`font-mono text-lg ml-3 flex-shrink-0 ${m.winnerId === h?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-500'}`}>
                               {m.status === 'WALKOVER' ? (m.winnerId === h?.id ? 'W/O' : '-') : (m.status === 'UPCOMING' ? '-' : m.homeScore)}
@@ -754,7 +754,7 @@ export const PublicTournamentPortal: React.FC = () => {
                               <span className={`text-sm truncate ${m.winnerId === a?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-600'}`}>
                                 {awayName}
                               </span>
-                              {m.tossWinnerId === a?.id && <span className="text-[9px] px-1 bg-emerald-100 text-emerald-700 rounded-sm font-bold flex-shrink-0">Toss</span>}
+                              {m.tossWinnerId && m.tossWinnerId === a?.id && <span className="text-[9px] px-1 bg-emerald-100 text-emerald-700 rounded-sm font-bold flex-shrink-0">Toss</span>}
                             </div>
                             <span className={`font-mono text-lg ml-3 flex-shrink-0 ${m.winnerId === a?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-500'}`}>
                               {m.status === 'WALKOVER' ? (m.winnerId === a?.id ? 'W/O' : '-') : (m.status === 'UPCOMING' ? '-' : m.awayScore)}
@@ -1221,7 +1221,7 @@ export const PublicTournamentPortal: React.FC = () => {
                       <div className="font-black text-sm sm:text-base text-sport-navy truncate max-w-[120px] sm:max-w-[150px]">
                         {h?.name || 'TBD'}
                       </div>
-                      {selectedMatch.tossWinnerId === h?.id && (
+                      {selectedMatch.tossWinnerId && selectedMatch.tossWinnerId === h?.id && (
                         <div className="mt-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] uppercase font-black">
                           Won Toss
                         </div>
@@ -1249,7 +1249,7 @@ export const PublicTournamentPortal: React.FC = () => {
                       <div className="font-black text-sm sm:text-base text-sport-navy truncate max-w-[120px] sm:max-w-[150px]">
                         {a?.name || 'TBD'}
                       </div>
-                      {selectedMatch.tossWinnerId === a?.id && (
+                      {selectedMatch.tossWinnerId && selectedMatch.tossWinnerId === a?.id && (
                         <div className="mt-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] uppercase font-black">
                           Won Toss
                         </div>
