@@ -473,42 +473,62 @@ export const PublicTournamentPortal: React.FC = () => {
                       <div
                         key={m.id}
                         onClick={() => setSelectedMatch(m)}
-                        className="p-3 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition flex items-center justify-between gap-3 cursor-pointer text-xs"
+                        className="p-3 rounded-xl border border-slate-100 hover:border-slate-300 hover:bg-slate-50 transition cursor-pointer bg-white"
                       >
-                        <span className="text-slate-400 font-medium text-[11px] w-24 truncate">
-                          {m.roundName}
-                        </span>
-
-                        <div className="flex-1 flex flex-col items-center justify-center font-bold text-sport-navy">
-                          <div className="flex items-center justify-center gap-3">
-                            <span className="truncate">{h?.name || 'TBD'}</span>
-                            <span className="px-2 py-0.5 rounded bg-slate-100 font-mono font-black text-sport-orange">
-                              {m.status === 'WALKOVER' ? 'W/O' : `${m.homeScore} : ${m.awayScore}`}
-                            </span>
-                            <span className="truncate">{a?.name || 'TBD'}</span>
-                          </div>
-                          {m.sets && m.sets.length > 0 && (
-                            <div className="text-[10px] text-slate-500 font-mono mt-0.5 flex flex-wrap items-center justify-center gap-1.5">
-                              {m.sets.map((s) => (
-                                <span key={s.setNumber} className="bg-slate-100 px-1.5 py-0.2 rounded text-slate-700">
-                                  S{s.setNumber}: {s.scoreA}–{s.scoreB}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2 border-b border-slate-50 pb-1.5">
+                          <span className="font-semibold truncate">{m.roundName}</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded font-bold ${
+                              m.status === 'LIVE'
+                                ? 'bg-red-500 text-white animate-pulse'
+                                : m.status === 'COMPLETED' || m.status === 'WALKOVER'
+                                ? 'bg-slate-100 text-slate-600'
+                                : 'bg-blue-50 text-blue-600'
+                            }`}
+                          >
+                            {m.status}
+                          </span>
                         </div>
 
-                        <span
-                          className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                            m.status === 'LIVE'
-                              ? 'bg-red-500 text-white animate-pulse'
-                              : m.status === 'COMPLETED'
-                              ? 'bg-slate-100 text-slate-700'
-                              : 'bg-blue-50 text-blue-700'
-                          }`}
-                        >
-                          {m.status}
-                        </span>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 truncate">
+                              {h && (
+                                <div
+                                  className="w-4 h-4 rounded-sm flex items-center justify-center text-white font-bold text-[7px] flex-shrink-0"
+                                  style={{ backgroundColor: h.color || '#f97316' }}
+                                >
+                                  {h.shortName || 'H'}
+                                </div>
+                              )}
+                              <span className={`text-xs truncate ${m.winnerId === h?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-600'}`}>
+                                {h?.name || 'TBD'}
+                              </span>
+                            </div>
+                            <span className={`font-mono text-sm flex-shrink-0 ${m.winnerId === h?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-500'}`}>
+                              {m.status === 'WALKOVER' ? (m.winnerId === h?.id ? 'W/O' : '-') : (m.status === 'UPCOMING' ? '-' : m.homeScore)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 truncate">
+                              {a && (
+                                <div
+                                  className="w-4 h-4 rounded-sm flex items-center justify-center text-white font-bold text-[7px] flex-shrink-0"
+                                  style={{ backgroundColor: a.color || '#2563eb' }}
+                                >
+                                  {a.shortName || 'A'}
+                                </div>
+                              )}
+                              <span className={`text-xs truncate ${m.winnerId === a?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-600'}`}>
+                                {a?.name || 'TBD'}
+                              </span>
+                            </div>
+                            <span className={`font-mono text-sm flex-shrink-0 ${m.winnerId === a?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-500'}`}>
+                              {m.status === 'WALKOVER' ? (m.winnerId === a?.id ? 'W/O' : '-') : (m.status === 'UPCOMING' ? '-' : m.awayScore)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     );
                   })})()}
@@ -664,83 +684,105 @@ export const PublicTournamentPortal: React.FC = () => {
                       <div
                         key={m.id}
                         onClick={() => setSelectedMatch(m)}
-                        className="p-4 rounded-xl border border-slate-200 hover:border-sport-orange transition cursor-pointer shadow-sm hover:shadow"
+                        className="p-4 rounded-xl border border-slate-200 hover:border-sport-orange hover:shadow-md transition cursor-pointer shadow-sm bg-white"
                       >
-                        <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                          <div className="flex items-center gap-1.5">
+                        {/* Header: Status and Metadata */}
+                        <div className="flex items-center justify-between text-[11px] mb-3">
+                          <div className="flex items-center gap-1.5 text-slate-500 font-semibold truncate">
                             {m.matchCode && (
-                              <span className="font-mono font-black px-1.5 py-0.5 rounded bg-orange-100 text-sport-orange text-[10px]">
+                              <span className="font-mono font-black text-sport-orange">
                                 {m.matchCode}
                               </span>
                             )}
-                            {m.fixtureNumber && (
-                              <span className="font-mono text-slate-400 font-bold text-[10px]">
-                                #{m.fixtureNumber}
-                              </span>
+                            <span className="truncate">{m.roundName}</span>
+                            {(date || time) && (
+                              <>
+                                <span className="text-slate-300">•</span>
+                                <span className="font-mono text-slate-500 truncate">
+                                  {date ? `${date} ` : ''}{time ? `${time}` : ''}
+                                </span>
+                              </>
                             )}
-                            <span className="font-semibold text-slate-700 truncate">{m.roundName}</span>
                           </div>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-full font-bold tracking-wide flex-shrink-0 ${
                               m.status === 'LIVE'
                                 ? 'bg-red-500 text-white animate-pulse'
-                                : m.status === 'COMPLETED'
-                                ? 'bg-slate-200 text-slate-700'
-                                : 'bg-blue-50 text-blue-700'
+                                : m.status === 'COMPLETED' || m.status === 'WALKOVER'
+                                ? 'bg-slate-100 text-slate-600'
+                                : 'bg-blue-50 text-blue-600'
                             }`}
                           >
                             {m.status}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between py-2 text-xs font-bold text-sport-navy gap-2">
-                          <span className="truncate flex-1 flex flex-col">
-                            {homeName}
-                            {m.tossWinnerId === h?.id && <span className="text-[9px] text-emerald-600">Won Toss</span>}
-                          </span>
-                          <span className="px-3 py-1 rounded-lg bg-slate-100 font-mono font-black text-sport-orange text-sm shrink-0">
-                            {m.status === 'WALKOVER' ? 'W/O' : `${m.homeScore} : ${m.awayScore}`}
-                          </span>
-                          <span className="truncate flex-1 text-right flex flex-col items-end">
-                            {awayName}
-                            {m.tossWinnerId === a?.id && <span className="text-[9px] text-emerald-600">Won Toss</span>}
-                          </span>
+                        {/* Main Teams & Scores Grid */}
+                        <div className="space-y-2">
+                          {/* Home Team */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              {h && (
+                                <div
+                                  className="w-5 h-5 rounded flex items-center justify-center text-white font-bold text-[8px] flex-shrink-0"
+                                  style={{ backgroundColor: h.color || '#f97316' }}
+                                >
+                                  {h.shortName || 'H'}
+                                </div>
+                              )}
+                              <span className={`text-sm truncate ${m.winnerId === h?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-600'}`}>
+                                {homeName}
+                              </span>
+                              {m.tossWinnerId === h?.id && <span className="text-[9px] px-1 bg-emerald-100 text-emerald-700 rounded-sm font-bold flex-shrink-0">Toss</span>}
+                            </div>
+                            <span className={`font-mono text-lg ml-3 flex-shrink-0 ${m.winnerId === h?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-500'}`}>
+                              {m.status === 'WALKOVER' ? (m.winnerId === h?.id ? 'W/O' : '-') : (m.status === 'UPCOMING' ? '-' : m.homeScore)}
+                            </span>
+                          </div>
+
+                          {/* Away Team */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                              {a && (
+                                <div
+                                  className="w-5 h-5 rounded flex items-center justify-center text-white font-bold text-[8px] flex-shrink-0"
+                                  style={{ backgroundColor: a.color || '#2563eb' }}
+                                >
+                                  {a.shortName || 'A'}
+                                </div>
+                              )}
+                              <span className={`text-sm truncate ${m.winnerId === a?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-600'}`}>
+                                {awayName}
+                              </span>
+                              {m.tossWinnerId === a?.id && <span className="text-[9px] px-1 bg-emerald-100 text-emerald-700 rounded-sm font-bold flex-shrink-0">Toss</span>}
+                            </div>
+                            <span className={`font-mono text-lg ml-3 flex-shrink-0 ${m.winnerId === a?.id ? 'font-black text-sport-navy' : 'font-semibold text-slate-500'}`}>
+                              {m.status === 'WALKOVER' ? (m.winnerId === a?.id ? 'W/O' : '-') : (m.status === 'UPCOMING' ? '-' : m.awayScore)}
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Set-by-Set scores */}
-                        {m.sets && m.sets.length > 0 && (
-                          <div className="flex flex-wrap items-center justify-center gap-1.5 pb-2">
-                            {m.sets.map((s) => (
-                              <span
-                                key={s.setNumber}
-                                className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold border border-slate-200/60"
-                              >
-                                Set {s.setNumber}: {s.scoreA}–{s.scoreB}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Court & Schedule details */}
-                        <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] flex items-center justify-between text-slate-500">
-                          <div className="flex items-center gap-2">
+                        {/* Sets and Court Info */}
+                        {(m.sets?.length || court) ? (
+                          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                            {/* Sets */}
+                            <div className="flex flex-wrap gap-1">
+                              {m.sets?.map((s) => (
+                                <span key={s.setNumber} className="font-mono bg-slate-50 px-1.5 py-0.5 rounded text-slate-600">
+                                  {s.scoreA}-{s.scoreB}
+                                </span>
+                              ))}
+                            </div>
+                            
+                            {/* Court */}
                             {court && (
-                              <span className="inline-flex items-center gap-1 font-bold text-sport-orange">
+                              <span className="inline-flex items-center gap-1 font-semibold text-sport-orange shrink-0">
                                 <MapPin className="w-3 h-3" />
                                 {court.name}
                               </span>
                             )}
-                            {(date || time) && (
-                              <span className="font-mono text-slate-600">
-                                {date ? `${date} ` : ''}{time ? `${time}${endTime ? `–${endTime}` : ''}` : ''}
-                              </span>
-                            )}
-                            {!court && !date && !time && (
-                              <span className="text-slate-400 italic">Schedule TBD</span>
-                            )}
                           </div>
-                          <ChevronRight className="w-3.5 h-3.5 text-sport-orange" />
-                        </div>
+                        ) : null}
                       </div>
                     );
                   })}
