@@ -117,15 +117,16 @@ export const OrganizerDashboard: React.FC<Props> = ({ onOpenCreateModal }) => {
   return (
     <div className="space-y-6">
       {/* Tournament Identity Bar */}
-      <div className="bg-gradient-to-r from-sport-navy via-slate-900 to-sport-midnight text-white p-4 sm:p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden">
+      <div 
+        className="text-white p-4 sm:p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden bg-cover bg-top"
+        style={{ backgroundImage: `linear-gradient(to right, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 50%, rgba(15,23,42,0.85) 100%), url(/banner.jpeg)` }}
+      >
         <div className="absolute top-0 right-0 w-80 h-80 bg-sport-orange/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
 
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl p-2 rounded-xl bg-white/10 backdrop-blur-md">
-                {sportConfig.icon}
-              </span>
+              <img src="/logo.jpeg" alt="Logo" className="w-10 h-10 rounded-xl object-cover bg-white shadow-sm" />
               <span className="text-xs uppercase font-extrabold tracking-wider px-2.5 py-0.5 rounded-full bg-sport-orange/20 text-sport-orange border border-sport-orange/30">
                 {sportConfig.displayName} • {activeTournament.format === 'GROUP_KNOCKOUT' ? 'LEAGUE + KNOCKOUT' : activeTournament.format.replace('_', ' ')}
               </span>
