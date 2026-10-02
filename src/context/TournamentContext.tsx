@@ -98,6 +98,7 @@ interface TournamentContextType {
   recordMatchSubstitution: (matchId: string, sub: { setNumber: number; teamId: string; outgoingPlayerId: string; incomingPlayerId: string; reason: 'NORMAL' | 'INJURY' }) => Promise<void>;
   recordMatchTimeout: (matchId: string, timeout: { setNumber: number; teamId: string }) => Promise<void>;
   completeMatch: (matchId: string, result: { scoreA: number; scoreB: number; sets?: SetScore[]; isWalkover?: boolean; winnerId?: string; }) => void;
+  resetAllScores: (tournamentId: string) => Promise<void>;
   lockTeamRoster: (tournamentId: string, teamId: string) => Promise<void>;
   addBudgetItem: (tournamentId: string, item: Omit<BudgetItem, 'id'>) => void;
   deleteBudgetItem: (tournamentId: string, itemId: string) => void;
@@ -942,6 +943,42 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     soundEffects.playCelebration();
   };
 
+  const resetAllScores = async (tournamentId: string) => {
+    if (!activeTournament) return;
+    
+    try {
+      const matches = await MatchRepository.getMatches(tournamentId);
+      const batch = writeBatch(db);
+      
+      matches.forEach(m => {
+        const matchRef = doc(db, 'tournaments', tournamentId, 'matches', m.id);
+        batch.update(matchRef, {
+          status: 'UPCOMING',
+          homeScore: 0,
+          awayScore: 0,
+          setsWonA: 0,
+          setsWonB: 0,
+          sets: [],
+          winnerId: null,
+          isWalkover: false,
+          tossWinnerId: null,
+          events: [],
+          score: { period: '', timeElapsed: '' },
+          substitutions: [],
+          timeouts: [],
+          lineupHome: null,
+          lineupAway: null
+        });
+      });
+      
+      await batch.commit();
+      console.log('Successfully reset all matches in tournament.');
+    } catch (err) {
+      console.error('Failed to reset all match scores:', err);
+      throw err;
+    }
+  };
+
   const addBudgetItem = (tournamentId: string, itemData: Omit<BudgetItem, 'id'>) => {
     const newItem: BudgetItem = {
       ...itemData,
@@ -1338,6 +1375,7 @@ export const TournamentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         recordMatchSubstitution,
         recordMatchTimeout,
         completeMatch,
+        resetAllScores,
         lockTeamRoster,
         addBudgetItem,
         deleteBudgetItem,

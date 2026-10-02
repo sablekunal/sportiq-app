@@ -30,6 +30,7 @@ export const OverviewPanel: React.FC = () => {
     generateTournamentFixtures,
     setActiveMatchId,
     updateTournamentSettings,
+    resetAllScores,
   } = useTournament();
 
   const [logoUrl, setLogoUrl] = React.useState(activeTournament?.logoUrl || '');
@@ -456,6 +457,32 @@ export const OverviewPanel: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="bg-red-50 p-5 rounded-2xl border border-red-200 shadow-sm">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-red-600 mb-2 flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" />
+              Danger Zone
+            </h4>
+            <p className="text-[11px] text-red-800 mb-4">
+              Resetting match scores will clear all live and completed scores, setting every match back to "UPCOMING". The schedule and matchups will be preserved.
+            </p>
+            <button
+              onClick={async () => {
+                if (window.confirm("Are you absolutely sure you want to reset ALL match scores? This cannot be undone.")) {
+                  try {
+                    await resetAllScores(activeTournament.id);
+                    alert("All match scores have been reset.");
+                  } catch (e) {
+                    alert("Error resetting match scores.");
+                  }
+                }
+              }}
+              className="w-full py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white shadow-sm transition cursor-pointer"
+            >
+              Reset All Match Scores
+            </button>
           </div>
         </div>
       </div>
