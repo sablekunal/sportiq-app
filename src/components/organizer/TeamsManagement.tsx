@@ -70,6 +70,8 @@ export const TeamsManagement: React.FC = () => {
 
   // Team Profile Edit State
   const [isEditingTeamProfile, setIsEditingTeamProfile] = useState(false);
+  const [editTeamName, setEditTeamName] = useState('');
+  const [editShortName, setEditShortName] = useState('');
   const [editInstitution, setEditInstitution] = useState('');
   const [editIsCaptainPlaying, setEditIsCaptainPlaying] = useState(true);
   const [editExternalCaptain, setEditExternalCaptain] = useState('');
@@ -332,6 +334,8 @@ export const TeamsManagement: React.FC = () => {
 
   const openTeamEdit = () => {
     if (!currentTeam) return;
+    setEditTeamName(currentTeam.name);
+    setEditShortName(currentTeam.shortName || '');
     setEditInstitution(currentTeam.institution || '');
     setEditIsCaptainPlaying(currentTeam.isCaptainPlaying !== false);
     setEditExternalCaptain(currentTeam.isCaptainPlaying === false ? currentTeam.captainName || '' : '');
@@ -343,6 +347,8 @@ export const TeamsManagement: React.FC = () => {
     if (!currentTeam) return;
     
     updateTeamInTournament(activeTournament.id, currentTeam.id, {
+      name: editTeamName.trim() || currentTeam.name,
+      shortName: editShortName.toUpperCase().trim() || currentTeam.shortName,
       institution: editInstitution.trim(),
       isCaptainPlaying: editIsCaptainPlaying,
       captainName: editIsCaptainPlaying ? (currentTeam.players.find(p => p.id === currentTeam.captainId)?.name || null) : editExternalCaptain.trim(),
@@ -648,7 +654,30 @@ export const TeamsManagement: React.FC = () => {
                 <form onSubmit={saveTeamEdit} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
                   <h4 className="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Edit Team Details</h4>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Team Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={editTeamName}
+                        onChange={(e) => setEditTeamName(e.target.value)}
+                        placeholder="e.g. Bangalore Thunderbolts"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-sport-orange focus:ring-1 focus:ring-sport-orange outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Short Code *</label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={4}
+                        value={editShortName}
+                        onChange={(e) => setEditShortName(e.target.value)}
+                        placeholder="BLR"
+                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-sport-orange focus:ring-1 focus:ring-sport-orange outline-none uppercase font-mono"
+                      />
+                    </div>
                     <div>
                       <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Institution / Parish</label>
                       <input
