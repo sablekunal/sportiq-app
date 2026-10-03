@@ -327,45 +327,45 @@ export const printTeamsAndRosters = (teams: Team[]) => {
 
   teams.forEach(team => {
     const isComplete = team.players.length >= 6;
-    html += \`
+    html += `
       <div class="card">
         <div class="header">
-          <div class="avatar" style="background-color: \${team.color || '#f97316'}">\${team.shortName}</div>
+          <div class="avatar" style="background-color: ${team.color || '#f97316'}">${team.shortName}</div>
           <div>
-            <div class="title">\${team.name}</div>
-            <div class="subtitle">Seed #\${team.seed || '-'}</div>
+            <div class="title">${team.name}</div>
+            <div class="subtitle">Seed #${team.seed || '-'}</div>
           </div>
         </div>
         <div class="roster-header">
-          <span>ROSTER (\${team.players.length} REGISTERED)</span>
-          <span class="roster-status">\${isComplete ? '? Full Roster' : ''}</span>
+          <span>ROSTER (${team.players.length} REGISTERED)</span>
+          <span class="roster-status">${isComplete ? '✔ Full Roster' : ''}</span>
         </div>
         <div>
-    \`;
+    `;
 
     team.players.forEach(p => {
-      html += \`
+      html += `
         <div class="player">
           <div class="player-name">
-            \${p.name}
-            \${p.isCaptain || p.id === team.captainId ? '<span class="cap">CAP</span>' : ''}
+            ${p.name}
+            ${p.isCaptain || p.id === team.captainId ? '<span class="cap">CAP</span>' : ''}
           </div>
-          <div class="jersey">#\${p.jerseyNumber}</div>
+          <div class="jersey">#${p.jerseyNumber}</div>
         </div>
-      \`;
+      `;
     });
 
-    html += \`
+    html += `
         </div>
       </div>
-    \`;
+    `;
   });
 
-  html += \`
+  html += `
         </div>
       </body>
     </html>
-  \`;
+  `;
   
   printWindow.document.write(html);
   printWindow.document.close();
