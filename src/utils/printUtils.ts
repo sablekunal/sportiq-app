@@ -285,3 +285,88 @@ export const printFixtures = (
   printWindow.document.write(html);
   printWindow.document.close();
 };
+export const printTeamsAndRosters = (teams: Team[]) => {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;
+
+  let html = `
+    <html>
+      <head>
+        <title>Print Teams & Rosters</title>
+        <style>
+          body { font-family: 'Inter', sans-serif; padding: 40px; background-color: #f1f5f9; color: #0f172a; margin: 0; }
+          h2 { text-align: center; font-size: 24px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 30px; }
+          .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+          .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+          .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+          .avatar { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 14px; }
+          .title { font-weight: 900; font-size: 16px; margin-bottom: 4px; text-transform: uppercase; }
+          .subtitle { font-size: 12px; color: #64748b; }
+          .roster-header { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 800; color: #94a3b8; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+          .roster-status { color: #10b981; }
+          .player { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; font-weight: 600; color: #334155; }
+          .player-name { display: flex; align-items: center; gap: 8px; }
+          .cap { background: #fef08a; color: #854d0e; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 4px; }
+          .jersey { color: #ef4444; font-weight: 800; font-size: 11px; }
+          @media print {
+            body { padding: 0; background: #fff; }
+            .card { break-inside: avoid; box-shadow: none; border: 1px solid #e2e8f0; }
+            button { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <h2>Tournament Teams & Rosters</h2>
+        <div style="text-align: center; margin-bottom: 30px;">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #0f172a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+            Print Now
+          </button>
+        </div>
+        <div class="grid">
+  `;
+
+  teams.forEach(team => {
+    const isComplete = team.players.length >= 6;
+    html += \`
+      <div class="card">
+        <div class="header">
+          <div class="avatar" style="background-color: \${team.color || '#f97316'}">\${team.shortName}</div>
+          <div>
+            <div class="title">\${team.name}</div>
+            <div class="subtitle">Seed #\${team.seed || '-'}</div>
+          </div>
+        </div>
+        <div class="roster-header">
+          <span>ROSTER (\${team.players.length} REGISTERED)</span>
+          <span class="roster-status">\${isComplete ? '? Full Roster' : ''}</span>
+        </div>
+        <div>
+    \`;
+
+    team.players.forEach(p => {
+      html += \`
+        <div class="player">
+          <div class="player-name">
+            \${p.name}
+            \${p.isCaptain || p.id === team.captainId ? '<span class="cap">CAP</span>' : ''}
+          </div>
+          <div class="jersey">#\${p.jerseyNumber}</div>
+        </div>
+      \`;
+    });
+
+    html += \`
+        </div>
+      </div>
+    \`;
+  });
+
+  html += \`
+        </div>
+      </body>
+    </html>
+  \`;
+  
+  printWindow.document.write(html);
+  printWindow.document.close();
+};

@@ -17,6 +17,7 @@ import {
   Edit2,
   CheckCircle2,
   Lock,
+  Printer,
 } from 'lucide-react';
 import { soundEffects } from '../../engines/audioEngine';
 import {
@@ -27,6 +28,7 @@ import {
 } from '../../domain/tournament/roster/rosterRules';
 import type { RosterStatus } from '../../types';
 import { initialTeamsData } from '../../data/initialTeams';
+import { printTeamsAndRosters } from '../../utils/printUtils';
 
 export const TeamsManagement: React.FC = () => {
   const {
@@ -392,15 +394,24 @@ export const TeamsManagement: React.FC = () => {
           </p>
         </div>
 
-        {teams.length < 16 && (
+        <div className="flex items-center gap-2.5">
           <button
-            onClick={() => setIsAddingTeam(true)}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sport-orange hover:bg-orange-600 text-white font-bold text-xs shadow-glow-orange transition cursor-pointer active:scale-95"
+            onClick={() => printTeamsAndRosters(teams)}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add New Team</span>
+            <Printer className="w-4 h-4" />
+            <span>Print Rosters</span>
           </button>
-        )}
+          {teams.length < 16 && (
+            <button
+              onClick={() => setIsAddingTeam(true)}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sport-orange hover:bg-orange-600 text-white font-bold text-xs shadow-glow-orange transition cursor-pointer active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Team</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Add Team Modal */}
