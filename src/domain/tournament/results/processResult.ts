@@ -332,9 +332,9 @@ export function propagateOutcomes(
       (m) => m.groupId === sourceMatch.groupId
     );
 
-    // Group must be completely finished (6 matches for 4-team group) before resolving qualifiers
+    // Group must be completely finished before resolving qualifiers
     const isGroupComplete =
-      groupMatches.length >= 6 &&
+      groupMatches.length > 0 &&
       groupMatches.every((m) => m.status === 'COMPLETED' || m.status === 'BYE_ADVANCEMENT' || m.status === 'WALKOVER');
 
     if (isGroupComplete) {
