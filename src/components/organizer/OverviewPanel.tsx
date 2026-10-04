@@ -20,7 +20,8 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../../firebase';
+import { storage, db } from '../../firebase';
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore';
 
 export const OverviewPanel: React.FC = () => {
   const {
@@ -77,6 +78,67 @@ export const OverviewPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <button 
+        onClick={async () => {
+          const matchesRef = collection(db, 'tournaments', activeTournament.id, 'matches');
+          const snap = await getDocs(matchesRef);
+          
+          const walkoverMatchIds = new Set<string>();
+          let count = 0;
+          
+          for (const d of snap.docs) {
+            const data = d.data();
+            if (data.status === 'WALKOVER') {
+              walkoverMatchIds.add(d.id);
+              await updateDoc(doc(db, 'tournaments', activeTournament.id, 'matches', d.id), {
+                status: 'SCHEDULED',
+                winnerId: null,
+                loserId: null,
+                scoreA: 0,
+                scoreB: 0,
+                sets: []
+              });
+              count++;
+            }
+          }
+          
+          // Revert downstream matches
+          let downstreamCount = 0;
+          for (const d of snap.docs) {
+            const data = d.data();
+            let updated = false;
+            let pA = data.participantA;
+            let pB = data.participantB;
+            
+            if (data.dependencies) {
+              for (const dep of data.dependencies) {
+                if (walkoverMatchIds.has(dep.sourceMatchId)) {
+                  if (dep.targetSlot === 'A') {
+                    pA = { type: 'TBD', label: 'TBD (Reverted)' };
+                    updated = true;
+                  } else if (dep.targetSlot === 'B') {
+                    pB = { type: 'TBD', label: 'TBD (Reverted)' };
+                    updated = true;
+                  }
+                }
+              }
+            }
+            
+            if (updated) {
+              await updateDoc(doc(db, 'tournaments', activeTournament.id, 'matches', d.id), {
+                participantA: pA,
+                participantB: pB
+              });
+              downstreamCount++;
+            }
+          }
+          
+          alert(`Fixed ${count} walkovers and reverted ${downstreamCount} downstream matches!`);
+        }}
+        className="px-4 py-2 bg-red-600 text-white font-bold rounded"
+      >
+        Fix Walkovers
+      </button>
       {/* 4 Metric Telemetry Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Teams Metric */}

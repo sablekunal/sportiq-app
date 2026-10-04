@@ -375,7 +375,7 @@ export const LiveScoringStudio: React.FC = () => {
       completeMatch(currentMatch.id, {
         scoreA: teamId === homeTeam?.id ? 2 : 0,
         scoreB: teamId === awayTeam?.id ? 2 : 0,
-        sets: currentSets,
+        sets: [], // Omit current sets so the engine defaults to direct match scores
         isWalkover: true,
         winnerId: teamId
       });
